@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "WellnessMediBot",
+    "slug": "wellness-medibot-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1e60f0"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.wellness.medibot"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1e60f0"
+      },
+      "package": "com.wellness.medibot"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}

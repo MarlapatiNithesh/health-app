@@ -1,0 +1,10 @@
+export { createPhoneRouter } from './phone-routes.js';
+export { createMemberRouter } from './member-routes.js';
+export { createHealthRouter, createPhoneHealthRouter } from './health-routes.js';
+export { createWearableRouter } from './wearable-routes.js';
+export { createWebhookRouter } from './webhook-routes.js';
+export { createChatRouter } from './chat-routes.js';
+export { createDocumentRouter } from './document-routes.js';
+export { createEncounterRouter } from './encounter-routes.js';
+export { createClinicalRouter } from './clinical-routes.js';
+export { createMedibotRouter } from './medibot-routes.js';

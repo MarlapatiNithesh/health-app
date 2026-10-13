@@ -1,0 +1,467 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\pagestyle{plain}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue,
+    citecolor=blue
+}
+
+\definecolor{codebg}{RGB}{245, 245, 245}
+\definecolor{codekw}{RGB}{0, 0, 180}
+\definecolor{codestr}{RGB}{0, 120, 0}
+
+\lstset{
+    backgroundcolor=\color{codebg},
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    frame=single,
+    rulecolor=\color{gray!40},
+    keywordstyle=\color{codekw}\bfseries,
+    stringstyle=\color{codestr},
+    showstringspaces=false,
+    tabsize=2
+}
+
+\title{\textbf{Insurer Wellness App \& MediBot API\\Technical Integration \& Database Storage Guide}}
+\author{Engineering Team}
+\date{October 2026}
+
+\begin{document}
+
+\maketitle
+
+\section{System Overview}
+
+This guide provides a straightforward explanation of everything implemented in our codebase. For every feature and API, it explains:
+\begin{itemize}
+    \item \textbf{API Endpoint}: HTTP method and route.
+    \item \textbf{What it does}: Business logic and purpose.
+    \item \textbf{Data needed}: Request payload and required parameters.
+    \item \textbf{Database tables used}: Exact table and columns where data is stored.
+    \item \textbf{Output returned}: Response structure.
+\end{itemize}
+
+The system is built as a high-performance modular API in Node.js (Express) with PostgreSQL 16+ (using \texttt{pgcrypto} for UUIDs and \texttt{pgvector} for 768-dimensional clinical embeddings).
+
+\section{Implemented Features, APIs, and Data Storage}
+
+\subsection{Member Phone Authentication (Send OTP)}
+\begin{itemize}
+    \item \textbf{API}: \texttt{POST /v1/phone/send-otp}
+    \item \textbf{What it does}: Normalizes the phone number to E.164, enforces a 60-second rate-limit cooldown, and dispatches a one-time verification code via SMS or WhatsApp using Twilio Verify (with dev test fallback \texttt{123456}).
+    \item \textbf{Data needed}:
+\begin{lstlisting}[language=json]
+{
+  "phone": "+14155552671",
+  "channel": "sms"
+}
+\end{lstlisting}
+    \item \textbf{Database table}: \texttt{phone\_verification\_sessions}
+    \begin{itemize}
+        \item Columns stored: \texttt{id} (UUID), \texttt{phone\_e164}, \texttt{channel}, \texttt{status = 'pending'}, \texttt{verify\_attempts = 0}, \texttt{expires\_at} (10 min TTL), \texttt{request\_ip}, \texttt{user\_agent}.
+    \end{itemize}
+    \item \textbf{Output returned}:
+\begin{lstlisting}[language=json]
+{
+  "status": "sent",
+  "sessionId": "a81d4f2b-9c3a-4e2b-8a71-61b582fae110",
+  "phone": "+14155552671",
+  "cooldownSeconds": 60
+}
+\end{lstlisting}
+\end{itemize}
+
+\subsection{Member Verification and Account Provisioning}
+\begin{itemize}
+    \item \textbf{API}: \texttt{POST /v1/phone/verify-otp}
+    \item \textbf{What it does}: Validates the OTP code. If correct, marks the session verified, creates/updates the member record, auto-creates a patient record, registers the member in OpenWearables, and issues a signed JWT Bearer access token.
+    \item \textbf{Data needed}:
+\begin{lstlisting}[language=json]
+{
+  "phone": "+14155552671",
+  "code": "123456",
+  "profile": {
+    "fullName": "Jane Doe",
+    "dob": "1994-06-15",
+    "gender": "female",
+    "heightCm": 168,
+    "weightKg": 62.5
+  }
+}
+\end{lstlisting}
+    \item \textbf{Database tables}:
+    \begin{itemize}
+        \item \texttt{phone\_verification\_sessions}: updates \texttt{status = 'verified'}.
+        \item \texttt{members}: inserts/updates \texttt{phone\_e164}, \texttt{phone\_verified = true}, \texttt{phone\_verified\_at = now()}, \texttt{status = 'active'}, \texttt{health\_consent\_at = now()}, \texttt{insurance\_tier = 'bronze'}.
+        \item \texttt{patients}: inserts \texttt{id = member.id}, \texttt{preferred\_language = 'en-IN'}, \texttt{units\_system = 'metric'}.
+        \item \texttt{member\_biometric\_history}: inserts initial height, weight, and trend.
+    \end{itemize}
+    \item \textbf{Output returned}:
+\begin{lstlisting}[language=json]
+{
+  "status": "verified",
+  "verified": true,
+  "memberId": "e12f49d2-31fa-408d-819a-9cb8c148bb02",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "tokenType": "Bearer",
+  "member": {
+    "fullName": "Jane Doe",
+    "status": "active",
+    "insuranceTier": "bronze",
+    "wellnessScore": 40
+  }
+}
+\end{lstlisting}
+\end{itemize}
+
+\subsection{Member Profile and Biometric Update}
+\begin{itemize}
+    \item \textbf{API}: \texttt{PATCH /v1/me/profile}
+    \item \textbf{What it does}: Updates member demographic and biometric details. If weight or height changed, it appends a record to biometric history with automatic gain/loss trend calculation.
+    \item \textbf{Data needed}:
+\begin{lstlisting}[language=json]
+{
+  "weightKg": 61.2,
+  "heightCm": 168.0,
+  "timezone": "Asia/Kolkata"
+}
+\end{lstlisting}
+    \item \textbf{Database tables}:
+    \begin{itemize}
+        \item \texttt{members}: updates \texttt{weight\_kg}, \texttt{height\_cm}, \texttt{timezone}, \texttt{updated\_at}.
+        \item \texttt{member\_biometric\_history}: inserts \texttt{member\_id}, \texttt{height\_cm}, \texttt{weight\_kg}, \texttt{weight\_trend} (e.g. \texttt{'loss'}), \texttt{changed\_fields}, \texttt{change\_source = 'profile\_update'}.
+    \end{itemize}
+    \item \textbf{Output returned}: Updated profile DTO.
+\end{itemize}
+
+\subsection{Weight Progress and History}
+\begin{itemize}
+    \item \textbf{API}: \texttt{GET /v1/me/profile/weight-progress}
+    \item \textbf{What it does}: Retrieves all historical weight entries, calculates net weight change from the initial baseline, and identifies the trend.
+    \item \textbf{Data needed}: None (reads authenticated user from JWT token).
+    \item \textbf{Database tables}: Queries \texttt{member\_biometric\_history} and \texttt{members}.
+    \item \textbf{Output returned}:
+\begin{lstlisting}[language=json]
+{
+  "currentWeightKg": 61.2,
+  "initialWeightKg": 62.5,
+  "netWeightChangeKg": -1.3,
+  "trend": "loss",
+  "totalEntries": 4,
+  "history": [ ... ]
+}
+\end{lstlisting}
+\end{itemize}
+
+\subsection{Explicit Consent Recording}
+\begin{itemize}
+    \item \textbf{API}: \texttt{POST /v1/me/consents}
+    \item \textbf{What it does}: Records user consent for wearable data synchronization, health data access, and clinical AI analysis.
+    \item \textbf{Data needed}:
+\begin{lstlisting}[language=json]
+{
+  "scope": "wearable_sync",
+  "granted": true,
+  "version": "1.0"
+}
+\end{lstlisting}
+    \item \textbf{Database tables}:
+    \begin{itemize}
+        \item \texttt{members}: updates \texttt{health\_consent\_at = now()}, \texttt{health\_consent\_version = '1.0'}.
+        \item \texttt{member\_consents}: inserts/updates \texttt{member\_id}, \texttt{scope}, \texttt{granted = true}, \texttt{granted\_at = now()}.
+    \end{itemize}
+    \item \textbf{Output returned}: \texttt{\{ "scope": "wearable\_sync", "granted": true \}}
+\end{itemize}
+
+\subsection{Account Deletion}
+\begin{itemize}
+    \item \textbf{API}: \texttt{DELETE /v1/me}
+    \item \textbf{What it does}: Requests deletion of user account on OpenWearables cloud to stop wearable telemetry streaming, and soft-deletes the member locally.
+    \item \textbf{Data needed}: None.
+    \item \textbf{Database table}: \texttt{members} $\to$ sets \texttt{status = 'deleted'}, \texttt{deletion\_at = now()}.
+    \item \textbf{Output returned}: \texttt{\{ "status": "deleted", "memberId": "..." \}}
+\end{itemize}
+
+\subsection{Wearable Device Linking (OAuth Connect Session)}
+\begin{itemize}
+    \item \textbf{API}: \texttt{POST /v1/me/wearables/connect-session}
+    \item \textbf{What it does}: Initiates connection for Garmin, Fitbit, Apple Health, Google Fit, Whoop, or Oura. Generates an OAuth authorization redirect URL and tracks connection status.
+    \item \textbf{Data needed}:
+\begin{lstlisting}[language=json]
+{
+  "brand": "garmin",
+  "redirectUrl": "https://app.wellness.com/callback"
+}
+\end{lstlisting}
+    \item \textbf{Database table}: \texttt{wearable\_links}
+    \begin{itemize}
+        \item Columns stored: \texttt{member\_id}, \texttt{provider = 'garmin'}, \texttt{connection\_type = 'oauth'}, \texttt{status = 'connecting'}.
+    \end{itemize}
+    \item \textbf{Output returned}: \texttt{\{ "deviceId": "...", "brand": "garmin", "status": "connecting", "connectUrl": "https://connect.garmin.com/..." \}}
+\end{itemize}
+
+\subsection{Wearable Telemetry Webhook Ingestion}
+\begin{itemize}
+    \item \textbf{API}: \texttt{POST /api/webhooks/open-wearables}
+    \item \textbf{What it does}: Receives real-time push events from wearable platforms. Validates Svix cryptographic signature, deduplicates with idempotency keys, stores workouts, sleep sessions, cycles, or steps, and recalculates the member's wellness score and insurance tier.
+    \item \textbf{Data needed}:
+\begin{lstlisting}[language=json]
+{
+  "type": "workout.created",
+  "data": {
+    "user_id": "ow_usr_12345",
+    "provider": "garmin",
+    "source_record_id": "act_88291039",
+    "activity_type": "running",
+    "started_at": "2026-10-05T06:00:00Z",
+    "ended_at": "2026-10-05T06:45:00Z",
+    "duration_secs": 2700,
+    "distance_m": 5200.0,
+    "energy_burned_kcal": 410.0,
+    "heart_rate_avg": 145,
+    "hr_zones": { "zone1": 180, "zone2": 720, "zone3": 1200, "zone4": 600 }
+  }
+}
+\end{lstlisting}
+    \item \textbf{Database tables}:
+    \begin{itemize}
+        \item \texttt{sync\_logs}: stores \texttt{idempotency\_key}, \texttt{records\_read}, \texttt{records\_saved}, \texttt{duration\_ms}, \texttt{status = 'success'}.
+        \item \texttt{workouts}: if workout event, stores activity type, duration, heart rate zones, calories, speed, elevation.
+        \item \texttt{sleep\_sessions}: if sleep event, stores total duration, REM, deep, light, awake minutes, stages.
+        \item \texttt{womens\_health}: if cycle event, stores cycle length, current phase, fertile window.
+        \item \texttt{timeseries}: if steps/calories/heart rate, stores metric values with auto-filled \texttt{local\_date}.
+        \item \texttt{health\_scores} and \texttt{members}: recalculates score (0--100) and updates \texttt{members.wellness\_score} and \texttt{insurance\_tier} (Bronze, Silver, Gold, Platinum).
+    \end{itemize}
+    \item \textbf{Output returned}: \texttt{\{ "statusCode": 200, "received": true, "recordsSaved": 1 \}}
+\end{itemize}
+
+\subsection{Mobile Phone Health Direct Batch Sync}
+\begin{itemize}
+    \item \textbf{API}: \texttt{POST /v1/me/phone-health/sync}
+    \item \textbf{What it does}: Allows mobile apps (Apple HealthKit / Google Health Connect) to upload batches of steps, heart rate samples, and active calories with strict idempotency and deduplication.
+    \item \textbf{Data needed}:
+\begin{lstlisting}[language=json]
+{
+  "samples": [
+    { "metric": "steps", "value": 4500, "unit": "count", "recordedAt": "2026-10-05T10:00:00Z", "externalId": "hk-001" },
+    { "metric": "heart_rate", "value": 72, "unit": "bpm", "recordedAt": "2026-10-05T10:15:00Z", "externalId": "hk-002" }
+  ]
+}
+\end{lstlisting}
+    \item \textbf{Database table}: \texttt{timeseries}
+    \begin{itemize}
+        \item Columns stored: \texttt{member\_id}, \texttt{provider = 'apple\_health'}, \texttt{metric\_type}, \texttt{value}, \texttt{unit}, \texttt{recorded\_at}, \texttt{local\_date} (auto-filled by trigger).
+    \end{itemize}
+    \item \textbf{Output returned}: \texttt{\{ "status": "success", "samplesAccepted": 2, "duplicatesIgnored": 0 \}}
+\end{itemize}
+
+\subsection{Daily Health Summary Dashboard}
+\begin{itemize}
+    \item \textbf{API}: \texttt{GET /v1/me/daily-summary}
+    \item \textbf{What it does}: Aggregates today's total steps, total sleep minutes, calories, and current wellness score.
+    \item \textbf{Data needed}: None.
+    \item \textbf{Database tables}: Queries \texttt{timeseries}, \texttt{sleep\_sessions}, and \texttt{members}.
+    \item \textbf{Output returned}: \texttt{\{ "steps": 8420, "sleepMinutes": 440, "caloriesKcal": 2150, "wellnessScore": 82, "insuranceTier": "gold" \}}
+\end{itemize}
+
+\subsection{Medical Document Upload, OCR, NER, and Auto-Commit}
+\begin{itemize}
+    \item \textbf{API}: \texttt{POST /v1/medibot/documents/upload} (multipart file upload)
+    \item \textbf{What it does}:
+    \begin{enumerate}
+        \item Computes SHA-256 and a 16-block visual hash to catch exact and near duplicates (pen-mark changes).
+        \item Uploads file to AWS S3 or encrypted local storage.
+        \item Transcribes image or PDF using Google Gemini Vision OCR (with Tesseract.js fallback).
+        \item Sends text to the Python scispaCy microservice to extract medication names, doses, frequencies, conditions, and labs.
+        \item Logs model name and confidence in \texttt{provenance}.
+        \item \textbf{Auto-Commit Rule}: If confidence $\ge 0.85$, automatically commits the entity to \texttt{clinical\_records}!
+        \item Generates 768-dim vector embeddings and stores in \texttt{clinical\_embeddings} for RAG search.
+    \end{enumerate}
+    \item \textbf{Data needed}: File upload (\texttt{file}: image or PDF prescription).
+    \item \textbf{Database tables}:
+    \begin{itemize}
+        \item \texttt{health\_documents}: \texttt{storage\_key}, \texttt{sha256}, \texttt{visual\_hash}, \texttt{extraction\_status = 'done'}, \texttt{summary}.
+        \item \texttt{provenance}: immutable record of \texttt{source\_type = 'document'}, \texttt{extraction\_model}, \texttt{confidence}.
+        \item \texttt{extracted\_fields}: individual raw and normalized entities with confidence scores.
+        \item \texttt{clinical\_records}: auto-committed active medications, conditions, and labs.
+        \item \texttt{clinical\_embeddings}: text chunks and 768-dimensional vectors.
+    \end{itemize}
+    \item \textbf{Output returned}:
+\begin{lstlisting}[language=json]
+{
+  "id": "7c8e2341-bf43-4a11-a8cf-891dc47d91e4",
+  "docType": "prescription",
+  "extractionStatus": "done",
+  "summary": "Prescription includes: Metformin 500mg, Lisinopril 10mg.",
+  "extractedFields": [
+    { "fieldName": "medication_name", "normalizedValue": "Metformin", "confidence": 0.94, "autoCommitted": true },
+    { "fieldName": "medication_name", "normalizedValue": "Lisinopril", "confidence": 0.92, "autoCommitted": true }
+  ]
+}
+\end{lstlisting}
+\end{itemize}
+
+\subsection{Patient 360 Context Retrieval}
+\begin{itemize}
+    \item \textbf{API}: \texttt{GET /v1/medibot/patients/:patientId/context}
+    \item \textbf{What it does}: Retrieves the full medical snapshot for a patient: active conditions, active prescriptions, documented allergies, and recent laboratory test results.
+    \item \textbf{Data needed}: None (patient ID in path).
+    \item \textbf{Database tables}: Queries \texttt{patients}, \texttt{members}, and \texttt{clinical\_records}.
+    \item \textbf{Output returned}:
+\begin{lstlisting}[language=json]
+{
+  "patient": { "id": "...", "preferredLanguage": "en-IN", "bloodGroup": "O+" },
+  "activeConditions": [ { "name": "Hypertension", "status": "active" } ],
+  "activeMedications": [ { "name": "Lisinopril", "dose": "10mg", "frequency": "daily" } ],
+  "allergies": [ { "name": "Penicillin", "severity": "severe" } ],
+  "recentLabs": [ { "name": "HbA1c", "valueNum": 6.1, "unit": "%" } ]
+}
+\end{lstlisting}
+\end{itemize}
+
+\subsection{Direct Clinical Record Creation}
+\begin{itemize}
+    \item \textbf{APIs}:
+    \begin{itemize}
+        \item \texttt{POST /v1/medibot/patients/:patientId/conditions}
+        \item \texttt{POST /v1/medibot/patients/:patientId/medications}
+        \item \texttt{POST /v1/medibot/patients/:patientId/allergies}
+        \item \texttt{POST /v1/medibot/patients/:patientId/labs}
+    \end{itemize}
+    \item \textbf{What it does}: Creates a verified medical entry under the patient's record tree.
+    \item \textbf{Data needed}:
+\begin{lstlisting}[language=json]
+{
+  "name": "Lisinopril",
+  "dose": "10mg",
+  "frequency": "daily",
+  "route": "oral",
+  "startAt": "2026-10-01T00:00:00Z"
+}
+\end{lstlisting}
+    \item \textbf{Database table}: \texttt{clinical\_records}
+    \begin{itemize}
+        \item Columns stored: \texttt{patient\_id}, \texttt{record\_type = 'medication'}, \texttt{name}, \texttt{status = 'active'}, \texttt{dose}, \texttt{frequency}, \texttt{route}, \texttt{start\_at}, \texttt{verification\_status = 'clinician\_verified'}.
+    \end{itemize}
+\end{itemize}
+
+\subsection{AI Clinical Triage Chat and Safety Engine}
+\begin{itemize}
+    \item \textbf{API}: \texttt{POST /v1/medibot/chat}
+    \item \textbf{What it does}:
+    \begin{enumerate}
+        \item Creates or resumes an encounter in \texttt{chat\_sessions} and stores the user message in \texttt{chat\_messages}.
+        \item \textbf{Emergency Red-Flag Screen}: Detects acute chest pain, stroke symptoms, shortness of breath, anaphylaxis, or suicidal ideation. If detected, flags session \texttt{high\_risk} and returns an immediate emergency advisory.
+        \item \textbf{Safety Engine}: Checks proposed medications against active prescriptions (e.g., NSAID + ACE inhibitor risk) and queries the OpenFDA API.
+        \item \textbf{RAG Retrieval}: Searches \texttt{clinical\_embeddings} and \texttt{guideline\_embeddings} using pgvector cosine similarity.
+        \item \textbf{LLM Generation}: Calls Google Gemini to generate medical guidance.
+        \item \textbf{Response Safety Validation}: Verifies disclaimers and checks that the AI has not issued unauthorized dosage modifications.
+        \item Logs latency and token metrics in \texttt{model\_runs}.
+    \end{enumerate}
+    \item \textbf{Data needed}:
+\begin{lstlisting}[language=json]
+{
+  "message": "Can I take ibuprofen for my headache? I take lisinopril daily."
+}
+\end{lstlisting}
+    \item \textbf{Database tables}:
+    \begin{itemize}
+        \item \texttt{chat\_sessions}: \texttt{intent}, \texttt{status}, \texttt{risk\_level}, \texttt{symptom\_state}.
+        \item \texttt{chat\_messages}: \texttt{role}, \texttt{content}, \texttt{latency\_ms}.
+        \item \texttt{model\_runs}: \texttt{model\_name}, \texttt{input\_tokens}, \texttt{output\_tokens}, \texttt{latency\_ms}.
+        \item \texttt{health\_events}: adds encounter summary to patient timeline.
+    \end{itemize}
+    \item \textbf{Output returned}:
+\begin{lstlisting}[language=json]
+{
+  "encounterId": "3b29c991-8842-4dc2-b0ef-1a42e5a7d710",
+  "riskLevel": "medium",
+  "safetyCheck": {
+    "status": "CAUTION",
+    "reasons": [
+      "INTERACTION: NSAIDs may diminish the antihypertensive effect of Lisinopril and increase renal risk. (ibuprofen + Lisinopril)"
+    ]
+  },
+  "message": {
+    "role": "assistant",
+    "content": "You should exercise caution before taking ibuprofen. Our records show you take Lisinopril for blood pressure. NSAIDs can decrease the effectiveness of Lisinopril and place additional stress on your kidneys. Acetaminophen is generally a safer alternative. Please consult your physician or pharmacist before taking new medications."
+  }
+}
+\end{lstlisting}
+\end{itemize}
+
+\subsection{Drug Safety and Interaction Validation}
+\begin{itemize}
+    \item \textbf{API}: \texttt{POST /v1/medibot/rules/validate}
+    \item \textbf{What it does}: Cross-checks a requested drug against the patient's active prescriptions and known clinical interaction rules.
+    \item \textbf{Data needed}: \texttt{\{ "drug": "ibuprofen" \}}
+    \item \textbf{Database table}: Reads active medications from \texttt{clinical\_records}.
+    \item \textbf{Output returned}: \texttt{\{ "status": "CAUTION", "reasons": ["NSAIDs may diminish antihypertensive effect of Lisinopril..."] \}}
+\end{itemize}
+
+\subsection{Adaptive Multi-Turn Symptom Assessment}
+\begin{itemize}
+    \item \textbf{API}: \texttt{PUT /v1/medibot/encounters/:id/symptom-state}
+    \item \textbf{What it does}: Tracks the progress of structured symptom inquiry across onset, duration, severity (1--10), location, and exacerbating factors.
+    \item \textbf{Data needed}:
+\begin{lstlisting}[language=json]
+{
+  "primarySymptom": "headache",
+  "onset": "2 hours ago",
+  "severity": 7,
+  "location": "frontal"
+}
+\end{lstlisting}
+    \item \textbf{Database tables}: \texttt{symptom\_assessments} and \texttt{chat\_sessions.symptom\_state}.
+    \item \textbf{Output returned}: \texttt{\{ "status": "updated", "riskLevel": "medium" \}}
+\end{itemize}
+
+\section{Master PostgreSQL Database Reference}
+
+\begin{longtable}{p{4cm} p{5.5cm} p{4.5cm}}
+\toprule
+\textbf{Database Table} & \textbf{What Data is Stored} & \textbf{Associated API / Service} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Database Table} & \textbf{What Data is Stored} & \textbf{Associated API / Service} \\
+\midrule
+\endhead
+
+\texttt{phone\_verification\_sessions} & Phone numbers, status, attempt counts, IP, and 10-minute expiry timestamp. & \texttt{POST /v1/phone/send-otp}, \texttt{POST /v1/phone/verify-otp} \\
+\texttt{members} & Unique phone E.164, status, consent timestamp, wellness score, and insurance tier. & Member registration, profile, and scoring. \\
+\texttt{patients} & Preferred language, metric/imperial units, blood group, privacy level. & Clinical Profile API. \\
+\texttt{member\_biometric\_history} & Height, weight, and automated gain/loss trend trajectory. & \texttt{PATCH /v1/me/profile}, \texttt{GET /v1/me/profile/weight-progress} \\
+\texttt{member\_consents} & Explicit user consents for data access, wearables, and AI processing. & \texttt{POST /v1/me/consents} \\
+\texttt{wearable\_links} & Connected brands (Garmin, Fitbit, Apple), connection type, and OAuth status. & \texttt{POST /v1/me/wearables/connect-session} \\
+\texttt{sync\_logs} & Webhook idempotency keys, records read, records saved, duration, and status. & \texttt{POST /api/webhooks/open-wearables} \\
+\texttt{timeseries} & Minute/interval/daily steps, heart rate, HRV, calories, with auto-filled local date. & Phone Health Sync and Webhooks. \\
+\texttt{workouts} & Running, cycling, duration, distance, calories, and heart rate zones 1--5. & Wearable Webhooks. \\
+\texttt{sleep\_sessions} & Total duration, time in bed, REM, deep, light, awake minutes, and sleep stages. & Wearable Webhooks. \\
+\texttt{womens\_health} & Menstrual cycle length, phase prediction, and fertile window dates. & Wearable Webhooks. \\
+\texttt{health\_scores} & Daily readiness, recovery, and overall wellness scores (0--100). & \texttt{WellnessService}. \\
+\texttt{health\_documents} & S3 storage key, SHA-256, visual hash, OCR status, and clinical summary. & \texttt{POST /v1/medibot/documents/upload} \\
+\texttt{provenance} & Immutable log of extraction models, document IDs, page numbers, confidence. & Document processing pipeline. \\
+\texttt{extracted\_fields} & Medication names, dosages, frequencies, and lab values before/after confirmation. & Document processing pipeline. \\
+\texttt{clinical\_records} & Active conditions, active medications, documented allergies, and lab results. & Patient 360 and auto-commit pipeline. \\
+\texttt{chat\_sessions} & Encounters, primary intent, risk level (low, medium, high), symptom state JSONB. & \texttt{POST /v1/medibot/chat} \\
+\texttt{chat\_messages} & User queries, assistant answers, system prompts, execution latency ms. & \texttt{POST /v1/medibot/chat} \\
+\texttt{model\_runs} & Model name, input/output token counts, and execution latency. & Clinical AI orchestrator. \\
+\texttt{clinical\_embeddings} & Document text chunks and 768-dimensional pgvector cosine embeddings. & Multimodal document pipeline. \\
+\texttt{guideline\_embeddings} & Clinical guideline excerpts and 768-dimensional vector embeddings. & Clinical RAG search. \\
+\texttt{symptom\_assessments} & Multi-turn symptom states (onset, severity, location, relieving factors). & Adaptive triage engine. \\
+\bottomrule
+\end{longtable}
+
+\end{document}

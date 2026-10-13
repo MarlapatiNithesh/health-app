@@ -1,0 +1,31 @@
+{
+  "name": "expo-mobile",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "@appeeky/expo-healthkit": "^0.4.1",
+    "buffer": "^6.0.3",
+    "expo": "~57.0.27",
+    "expo-battery": "~57.0.3",
+    "expo-build-properties": "~57.0.22",
+    "expo-dev-client": "~57.0.19",
+    "expo-secure-store": "~57.0.4",
+    "expo-sensors": "~57.0.3",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-ble-plx": "^3.5.1",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-webview": "13.16.1"
+  },
+  "scripts": {
+    "start": "expo start -c --dev-client",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start -c --web"
+  },
+  "private": true,
+  "devDependencies": {
+    "@expo/ngrok": "^4.1.3"
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "expo": {
+    "name": "GOQii Health",
+    "slug": "expo-mobile",
+    "scheme": "goqiihealth",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "com.goqii.healthapp",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSBluetoothAlwaysUsageDescription": "Used to find and connect to your smartwatch for live heart rate.",
+        "NSBluetoothPeripheralUsageDescription": "Used to connect to your smartwatch.",
+        "NSMotionUsageDescription": "Used to count your steps when Apple Health has no data yet.",
+        "NSHealthShareUsageDescription": "Allow GOQii Health to read your steps, sleep, heart rate, blood pressure, blood glucose, SpO2, and vitals from Apple Health.",
+        "NSHealthUpdateUsageDescription": "Allow GOQii Health to save health and fitness readings to Apple Health."
+      }
+    },
+    "android": {
+      "package": "com.goqii.healthapp",
+      "permissions": [
+        "android.permission.ACTIVITY_RECOGNITION",
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "plugins": [
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": false,
+          "modes": ["central"],
+          "bluetoothAlwaysPermission": "Used to connect to your smartwatch."
+        }
+      ],
+      [
+        "@appeeky/expo-healthkit",
+        {
+          "healthSharePermission": "Allow GOQii Health to read your steps, heart rate and sleep",
+          "healthUpdatePermission": "Allow GOQii Health to update your health data",
+          "isBackgroundDeliveryEnabled": true,
+          "healthConnectPrivacyPolicyUrl": "https://www.goqii.com/privacy-policy",
+          "healthConnectPermissions": [
+            "READ_STEPS",
+            "READ_DISTANCE",
+            "READ_HEART_RATE",
+            "READ_HEART_RATE_VARIABILITY",
+            "READ_OXYGEN_SATURATION",
+            "READ_BLOOD_GLUCOSE",
+            "READ_BLOOD_PRESSURE",
+            "READ_RESPIRATORY_RATE",
+            "READ_SLEEP",
+            "READ_ACTIVE_CALORIES_BURNED",
+            "READ_WEIGHT",
+            "READ_HEALTH_DATA_HISTORY"
+          ]
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}

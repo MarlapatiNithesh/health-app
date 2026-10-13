@@ -1,0 +1,938 @@
+# MediBot — Phase-Wise Implementation Plan
+### Personalized Primary-Care AI Assistant · Version 2.0
+
+> **Document basis:** MediBot Final Product, Technical Architecture & Execution Specification (v2.0) combined with all provided UML, sequence, flow, and architecture diagrams.
+
+---
+
+## Executive Context
+
+MediBot is a **longitudinal, personalized health assistant** that maintains a structured **Patient 360** — containing medical history, diagnoses, allergies, medications, lab results, uploaded documents, wearable-derived trends, lifestyle signals, and clinically meaningful encounters — and uses a **fine-tuned Medical LLM** as a controlled reasoning/communication component inside a larger deterministic safety architecture.
+
+### Core Product Loop
+```
+Capture health info → Structure it → Preserve provenance → Retrieve only relevant context
+→ Run deterministic safety checks → Medical LLM reasons/explains/selects tools
+→ Validate response → Show sources + escalate when required
+```
+
+### Architecture Layers (from diagrams)
+| Layer | Components |
+|---|---|
+| **Client Layer** | Web App, Mobile App |
+| **API & Security Layer** | API Gateway, Authentication, Consent Management |
+| **MediBot Core Layer** | Orchestrator, Safety Engine, Context Engine, Tool Gateway |
+| **AI Reasoning Layer** | Model Router, Fine-tuned Medical LLM, Structured Output Adapter |
+| **Validation & Oversight Layer** | Response Safety Validator, Escalation Service, Human/Clinical Review |
+| **Patient Data & Knowledge Layer** | Wearable Data, Conversation History, Medical Knowledge/RAG, Patient Health Record, Medical Documents, Drug Knowledge |
+
+---
+
+## Team Composition (Suggested)
+
+| Role | Count | Phases |
+|---|---|---|
+| Backend Engineer (Node.js/TypeScript) | 2 | All |
+| ML / AI Engineer | 1–2 | 3, 5–8 |
+| Frontend Engineer | 1 | 1, 2, 4 |
+| Data Engineer | 1 | 1–3 |
+| Clinical Advisor (part-time) | 1 | All safety-related phases |
+| Security/DevOps Engineer | 1 | 0, 2, 7 |
+| QA / Safety Tester | 1 | 2+ |
+
+**Estimated total duration:** 14–20 weeks (Phases 0–4 MVP) + additional for Phases 5–8
+
+---
+
+## Phase Overview
+
+| Phase | Name | Duration | MVP? |
+|---|---|---|---|
+| 0 | Foundation & DevSecOps | 1–2 weeks | ✅ |
+| 1 | Patient 360 & Data Architecture | 2–3 weeks | ✅ |
+| 2 | Document Intelligence | 2–3 weeks | ✅ |
+| 3 | Medical LLM Integration & Fine-tuning | 3–4 weeks | ✅ |
+| 4 | Grounded Q&A, Context & Retrieval Engine | 2–3 weeks | ✅ |
+| 5 | Symptom Assessment & Adaptive Questioning | 2–3 weeks | ⚠️ Clinical Sign-off Required |
+| 6 | Medication Intelligence & Drug Safety | 2–3 weeks | ⚠️ Clinical Sign-off Required |
+| 7 | Clinical Safety, Escalation & Proactive Monitoring | 2 weeks | ⚠️ Clinical Sign-off Required |
+| 8 | Wearable Intelligence, Advanced Personalization & Production Hardening | 3–4 weeks | ⚠️ Regulatory Review Required |
+
+---
+
+## Phase 0 — Foundation & DevSecOps
+**Duration:** 1–2 weeks  
+**Goal:** Establish the project skeleton, CI/CD, infrastructure, security standards, and shared services before any feature work begins.
+
+### What We're Building
+- **Monorepo / project structure** with package layout for each service
+- **API Gateway** scaffold: Auth, Rate Limiting, Consent Management middleware
+- **Database provisioning**: PostgreSQL (patient records), vector store (pgvector), object storage (S3-compatible)
+- **CI/CD pipeline** with automated linting, testing, and container image builds
+- **Secrets management** (AWS Secrets Manager / Azure Key Vault)
+- **Logging, tracing, and audit framework** (OpenTelemetry, structured JSON logs)
+- **Environment setup**: `dev`, `staging`, `prod`
+
+### Node.js Monorepo Project Structure
+```
+medibot/
+├── apps/
+│   ├── api-gateway/          # Express.js/Fastify – auth, rate limit, consent
+│   ├── orchestrator/         # Core pipeline coordinator (Node.js/TypeScript)
+│   ├── patient-service/      # Patient 360 CRUD (Node.js + Prisma)
+│   ├── document-service/     # Upload, OCR dispatch, extraction (Node.js + BullMQ)
+│   ├── context-engine/       # Query-scoped retrieval (Node.js)
+│   ├── safety-engine/        # Deterministic safety checks (Node.js)
+│   ├── clinical-rules/       # Medication + symptom rules (Node.js/TypeScript)
+│   ├── llm-gateway/          # Node.js client to vLLM/TGI microservice
+│   ├── escalation-service/   # HIGH_RISK encounter handling (Node.js)
+│   └── reviewer-dashboard/   # Clinical reviewer UI (Next.js)
+├── services/                 # Python microservices (separate containers)
+│   ├── ner-service/          # scispaCy + MedSpaCy NER (Python/FastAPI)
+│   └── llm-serving/          # vLLM / TGI model server (Python)
+├── packages/
+│   ├── db/                   # Prisma schema + generated client (shared)
+│   ├── types/                # Shared TypeScript types + Zod schemas
+│   ├── audit/                # Audit logging library
+│   └── config/               # Shared env/config loader
+├── prisma/
+│   ├── schema.prisma         # Single source of truth for DB schema
+│   └── migrations/           # Prisma Migrate history
+├── docker-compose.yml        # Full local dev stack
+├── docker-compose.test.yml   # Integration test stack
+└── turbo.json                # Turborepo build pipeline config
+```
+
+> **Note on Python microservices:** The NER service (scispaCy) and LLM serving (vLLM/TGI) run as separate Docker containers. All Node.js services communicate with them over HTTP. Node.js is the primary runtime for all business logic, routing, and data access.
+
+### Technology Stack
+| Component | Technology |
+|---|---|
+| Runtime | Node.js 20 LTS (TypeScript 5+) |
+| API Framework | Express.js 5 / Fastify 4 |
+| Auth | JWT + OAuth 2.0 / Auth0 (`jsonwebtoken`, `passport`) |
+| Database | PostgreSQL 16+ |
+| Vector Store | pgvector (`pgvector` extension) or Weaviate |
+| Object Storage | AWS S3 / MinIO (`@aws-sdk/client-s3`) |
+| Containerization | Docker + Docker Compose |
+| Orchestration | Kubernetes (staging/prod) |
+| CI/CD | GitHub Actions |
+| Secrets | AWS Secrets Manager (`@aws-sdk/client-secrets-manager`) |
+| Monitoring | OpenTelemetry (`@opentelemetry/sdk-node`) + Grafana/Loki |
+
+### Security Requirements (from documentation)
+- [ ] Encrypt patient data **at rest and in transit** (AES-256, TLS 1.3)
+- [ ] PHI-bearing filenames must never be stored unencrypted
+- [ ] Role-Based Access Control (RBAC) on every data/tool call
+- [ ] Audit logs capturing: `encounter_id`, `model_version`, `tool_calls`, `rules_engine_decisions`, `safety_outcomes`
+- [ ] Retention/deletion policies separating conversation history from medical-record facts
+
+### Deliverables
+- [ ] Running local dev environment (Docker Compose)
+- [ ] CI/CD pipeline passing lint (`ESLint` + `tsc --noEmit`) + test gates
+- [ ] Empty database with migrations framework (Prisma Migrate)
+- [ ] API Gateway returning auth-protected `200 OK` on health check
+- [ ] Audit log table populated on every request
+
+### Acceptance Criteria
+- All services boot cleanly in Docker Compose
+- API gateway rejects unauthenticated requests with `401`
+- Consent check middleware returns `403` without active consent
+- Audit entry created for each request (verified by integration test)
+
+---
+
+## Phase 1 — Patient 360 & Data Architecture
+**Duration:** 2–3 weeks  
+**Goal:** Build the **central structured context layer** — Patient 360 — before any AI features. This is the foundation everything else builds on.
+
+> [!IMPORTANT]
+> The documentation explicitly states: **"Patient 360 should be built before AI features."** Do not skip ahead to AI integration until this is solid and tested.
+
+### Domain Model (from UML Class Diagram)
+Build all entities and their relationships:
+
+```
+User (userId, email, status, createdAt)
+  └── PatientProfile (patientId, dateOfBirth, sex, bloodGroup, preferences)
+        ├── MedicalCondition (conditionId, name, status, onsetDate)
+        ├── Allergy (allergyId, substance, reaction, severity)
+        ├── Medication (medicationId, name, dose, frequency, status)
+        ├── Encounter (encounterId, riskLevel, intent, startedAt, endedAt)
+        │     ├── Conversation (conversationId, createdAt)
+        │     │     └── Message (messageId, role, content, createdAt)
+        │     ├── ToolCall (toolCallId, toolName, arguments, result, status)
+        │     └── ModelRun (runId, modelName, modelVersion, latencyMs)
+        ├── LabResult (labId, testName, value, unit, observedAt, sourceId)
+        ├── HealthDocument (documentId, type, storageUri, extractionStatus)
+        ├── HealthEvent (eventId, eventType, eventTime, summary, sourceId)
+        ├── WearableReading (readingId, metric, value, unit, recordedAt)
+        ├── WearableTrend (trendId, metric, direction, baseline, computedAt)
+        └── Provenance (sourceId, sourceType, sourceDate, confidence)
+```
+
+### What We're Building
+
+**Database Schema:**
+- All tables from the UML domain class diagram above
+- Foreign key constraints and indexes
+- Soft-delete support on clinical records
+- Provenance as append-only (no destructive updates to sourced facts)
+
+**API Endpoints:**
+```
+POST   /patients                     – Create patient profile
+GET    /patients/{id}                – Get Patient 360 (scoped by consent)
+PUT    /patients/{id}/profile        – Update demographics
+GET    /patients/{id}/conditions     – Medical conditions
+POST   /patients/{id}/conditions     – Add condition
+GET    /patients/{id}/medications    – Current medications
+POST   /patients/{id}/medications    – Add medication
+GET    /patients/{id}/allergies      – Allergy profile
+POST   /patients/{id}/allergies      – Add allergy
+GET    /patients/{id}/labs           – Lab history
+GET    /patients/{id}/timeline       – Medical timeline (HealthEvents)
+GET    /patients/{id}/encounters     – Past encounters
+```
+
+**Medical Timeline:**
+- Every clinically meaningful event stored as a `HealthEvent`
+- Event types: `diagnosis`, `symptom`, `lab_result`, `medication_start`, `medication_stop`, `prescription`, `doctor_visit`, `surgery`, `hospitalization`, `vital`, `wearable_event`, `lifestyle_event`, `allergy`
+
+### Technology Stack
+| Component | Technology |
+|---|---|
+| Runtime | Node.js 20 LTS + TypeScript 5+ |
+| ORM | Prisma ORM (with PostgreSQL adapter) |
+| Migrations | Prisma Migrate |
+| Validation | Zod (schema-first, runtime safe) |
+| Testing | Jest + Supertest (integration) |
+| Type Safety | TypeScript strict mode |
+
+### Deliverables
+- [ ] Full DB schema with migrations
+- [ ] All CRUD endpoints for Patient 360 entities
+- [ ] Unit tests for all data models (>80% coverage)
+- [ ] Integration tests verifying cross-user data isolation
+- [ ] Provenance append-only constraint enforced at DB level
+
+### Acceptance Criteria
+- Cannot write a `HealthEvent` without a valid `Provenance` record
+- Cross-user data isolation verified: patient A cannot query patient B's data
+- Allergy, medication, and condition records are timestamped and auditable
+- `GET /patients/{id}/timeline` returns events sorted by `eventTime` with source metadata
+
+---
+
+## Phase 2 — Document Intelligence
+**Duration:** 2–3 weeks  
+**Goal:** Convert uploaded prescriptions, lab reports, discharge summaries, and imaging reports into **structured, sourced, provenance-backed facts** in the Patient 360.
+
+### Pipeline (from Document Upload & Extraction Sequence Diagram)
+```
+Upload → Virus/Malware Scan → Document Classification → OCR/Layout Extraction
+→ Medical Entity Extraction → Normalization → Confidence Scoring
+   ├── HIGH confidence   → Auto-write to Patient Record + Timeline Event
+   ├── MEDIUM confidence → Request user confirmation/correction → Write confirmed record
+   └── LOW confidence    → Flag for manual review / discard
+→ Provenance ID saved (documentId, page, timestamp, model/version, confidence)
+```
+
+### What We're Building
+
+**Document Service:**
+- `POST /documents` — Authorized upload endpoint
+- Malware/virus scan integration (ClamAV or cloud-native)
+- Document classification model (prescription / lab / discharge summary / imaging)
+- Object storage integration for raw file storage
+
+**OCR / Layout Engine:**
+- Integration with **Google Document AI** or **AWS Textract** or **Tesseract** (open-source fallback)
+- Preserve layout structure for table-aware extraction (lab result tables)
+
+**Medical Entity Extractor:**
+- Extract: medications, dosages, diagnoses, lab values with units, dates, doctor names, facilities
+- Implemented as a **Python microservice** (scispaCy + MedSpaCy / fine-tuned NER) exposed via REST
+- Node.js Document Service calls the microservice over HTTP and maps results to `PatientProfile` fields
+- Microservice is containerized separately — Node.js remains the primary API and orchestration layer
+
+**Normalization & Confidence Engine:**
+- Normalize medication names (→ RxNorm), conditions (→ ICD-10/SNOMED), lab tests (→ LOINC)
+- Assign confidence scores per extracted field
+- Three-tier gating: HIGH / MEDIUM / LOW
+
+**Provenance Store:**
+- Every extracted fact must record: `document_id`, `page`, `extraction_timestamp`, `model_version`, `confidence`
+- Provenance is **append-only** — corrections create new records, not overwrites
+
+**API Endpoints:**
+```
+POST   /documents                    – Upload document
+GET    /documents/{id}/status        – Extraction status
+GET    /documents/{id}/extracted     – Extracted fields (for user confirmation)
+POST   /documents/{id}/confirm       – User confirms/corrects extracted fields
+GET    /patients/{id}/documents      – Patient's document list
+```
+
+### Technology Stack
+| Component | Technology |
+|---|---|
+| File Upload | `multer` (Express middleware) / `fastify-multipart` |
+| OCR | Google Document AI / AWS Textract (`@aws-sdk/client-textract`) |
+| Medical NLP / NER | **Python microservice** (scispaCy + MedSpaCy) — called via HTTP from Node.js |
+| Normalization | RxNorm REST API, LOINC, ICD-10 lookups (HTTP clients) |
+| File Storage | S3/MinIO (`@aws-sdk/client-s3`) |
+| Malware Scan | ClamAV via `clamscan` npm / cloud virus scan API |
+| Background Jobs | **BullMQ** (Redis-backed queue) — Node.js native |
+| Queue Backend | Redis 7+ |
+| File Types Supported | PDF, PNG, JPEG, TIFF |
+
+### Deliverables
+- [ ] Secure upload endpoint with malware scanning
+- [ ] OCR pipeline producing structured text from PDF/image
+- [ ] Medical entity extraction from structured text
+- [ ] Three-tier confidence gating implemented
+- [ ] User confirmation UI for MEDIUM-confidence extractions
+- [ ] Provenance record created for every extracted fact
+- [ ] Integration test: upload a mock lab PDF → verify extracted HbA1c value appears in `LabResult`
+
+### Acceptance Criteria
+- Malware-infected file upload returns `400` without touching storage
+- OCR output from a sample prescription correctly identifies ≥80% of medication names
+- HIGH confidence extractions write to Patient Record automatically
+- MEDIUM confidence extractions are held pending user confirmation
+- Every written `LabResult` / `Medication` record has a linked `Provenance` entry
+- `Provenance` table has no UPDATE or DELETE operations (append-only enforced)
+
+---
+
+## Phase 3 — Medical LLM Integration & Fine-Tuning
+**Duration:** 3–4 weeks  
+**Goal:** Select, benchmark, fine-tune, and deploy the **Medical LLM** behind the Model Router. This is the principal change from a generic LLM approach.
+
+> [!IMPORTANT]
+> The LLM is **not** the source of medical truth. It is a reasoning and communication component. Safety, drug validation, and patient data access remain in deterministic services. Do NOT give the LLM direct database access at any point.
+
+### Candidate Models for Benchmarking
+| Model | Parameters | Notes |
+|---|---|---|
+| **MedGemma 4B-IT** | 4B | Google's medical-domain Gemma instruction-tuned |
+| **MedAlpaca** | 7B | Stanford Alpaca fine-tuned on medical data |
+| **BioMistral-7B** | 7B | Mistral-7B fine-tuned on PubMed/biomedical text |
+| **MMed-Llama3** | 8B | Meta LLaMA3 fine-tuned on multilingual medical data |
+
+### Benchmark Evaluation Matrix
+Each candidate must be evaluated on:
+- [ ] **Clinical grounding** — Does it answer only from supplied evidence?
+- [ ] **Structured output** — Does it correctly format tool-call JSON?
+- [ ] **Hallucination resistance** — Does it fabricate drug names, lab values, or diagnoses?
+- [ ] **Tool use** — Does it correctly select and call approved tools?
+- [ ] **Safety compliance** — Does it defer/refuse unsupported requests?
+- [ ] **Latency** — P50/P95 response time under load
+- [ ] **Memory footprint** — VRAM requirements at target quantization
+- [ ] **Multilingual** (if in scope)
+
+### Fine-Tuning Pipeline (from Fine-tuning & Deployment Pipeline Diagram)
+```
+Collect permitted training/evaluation data
+→ De-identify / quality review
+→ Create task-specific datasets
+→ Baseline candidate models
+→ Fine-tune / instruction-tune
+→ Run safety + grounding + tool-use evaluation
+   ├── Meets model gate? YES → Package model + tokenizer + version
+   └── NO → Revise dataset / training / candidate
+→ Quantize if validated (INT4/INT8 via GPTQ/AWQ)
+→ Deploy behind Model Router
+→ Shadow / canary evaluation
+→ Clinical + safety sign-off
+→ Production
+→ Continuous monitoring and re-evaluation
+```
+
+### What to Fine-Tune For
+| Behavior | Description |
+|---|---|
+| Medical instruction following | Scope-appropriate response formatting |
+| Grounded answering | Answer only from supplied patient/knowledge evidence |
+| Structured tool selection | Correct tool name + JSON argument formatting |
+| Adaptive symptom questioning | Ask ONE highest-priority question per turn |
+| Source-aware explanation | Include source, date, uncertainty language |
+| Refusal/defer behavior | Refuse unsupported requests gracefully |
+
+### What Must NOT Be Delegated to Fine-Tuning
+> [!CAUTION]
+> These behaviors must remain in deterministic services, **never** in the LLM weights:
+> - Emergency classification as sole safety mechanism
+> - Drug-drug interaction truth
+> - Patient-specific dosage calculation
+> - Contraindication truth
+> - Authorization, consent, or access control
+> - Whether a proactive notification should be sent
+> - Direct database access or unrestricted retrieval
+
+### Model Architecture (Model Router)
+```
+User turn ──→ Model Router
+                  ├── Primary Medical LLM (fine-tuned / adapted)
+                  └── Specialist Model(s) [optional: extraction, multilingual]
+                              ↓
+                    Tool-Calling Policy
+                              ↓
+                    validated tool results
+                              ↓
+                    Response Safety Validator
+```
+
+### Tool-Calling Architecture (from documentation)
+The LLM **requests** tools — it does not execute them. The Orchestrator validates and executes:
+
+| Tool | Description |
+|---|---|
+| `get_patient_profile()` | Demographics, preferences |
+| `get_medical_history()` | Conditions, diagnoses |
+| `get_current_medications()` | Active medications |
+| `get_allergies()` | Allergy profile |
+| `get_recent_labs(test_name, limit)` | Lab results with timestamps |
+| `get_wearable_summary(metric, days)` | Trend summaries (not raw readings) |
+| `get_symptom_history(days)` | Prior symptom encounters |
+| `get_relevant_documents(query)` | Matching health documents |
+| `search_medical_knowledge(query)` | Medical RAG retrieval |
+| `search_drug_information(drug_name)` | Authoritative drug facts |
+| `check_drug_interactions(drugs[])` | Interaction lookup |
+| `get_health_trends(metric)` | Derived trend signals |
+| `get_clinical_guidelines(condition)` | Evidence-based guidelines |
+
+### Deployment Components
+| Component | Description |
+|---|---|
+| **Model Registry** | Versioned storage of model weights + tokenizer + eval metadata |
+| **Model Router** | Routes turns to primary or specialist model based on intent |
+| **Serving Runtime** | vLLM / TGI / Ollama (self-hosted) or Vertex AI endpoint |
+| **Quantization** | GPTQ/AWQ INT4 for deployment size reduction |
+| **Rollback Mechanism** | Blue-green or canary deployment with instant rollback |
+
+### Technology Stack
+| Component | Technology |
+|---|---|
+| Fine-tuning | HuggingFace PEFT (LoRA/QLoRA), Axolotl |
+| Training Infrastructure | A100/H100 GPU (cloud: Vast.ai, RunPod, or GCP) |
+| Serving | vLLM / HuggingFace TGI (Python-based — runs as a separate microservice) |
+| **Node.js LLM Client** | `axios` / `node-fetch` — calls LLM serving runtime over HTTP/gRPC |
+| Experiment Tracking | MLflow / Weights & Biases |
+| Model Registry | MLflow Model Registry / HuggingFace Hub (private) |
+
+### Deliverables
+- [ ] Benchmark report comparing all 4 candidate models across all criteria
+- [ ] Selected baseline model documented with rationale
+- [ ] MediBot-specific instruction/tool-use fine-tuning dataset created
+- [ ] Fine-tuned model versioned in model registry
+- [ ] Tool-calling policy layer implemented (validates tool names + arguments)
+- [ ] Model Router service returning structured responses
+- [ ] Shadow/canary evaluation report
+- [ ] Clinical + safety sign-off document
+
+### Acceptance Criteria
+- Fine-tuned model scores higher than baseline on MediBot benchmark suite
+- Model correctly formats tool-call JSON for all 13 defined tools
+- Model does NOT fabricate lab values when patient data is absent (hallucination test)
+- Model returns a refusal response for out-of-scope requests (e.g., "prescribe me X")
+- Rollback to previous model version completes within 5 minutes
+- P95 response latency < 3 seconds on target hardware
+
+---
+
+## Phase 4 — Grounded Q&A, Context Engine & Retrieval
+**Duration:** 2–3 weeks  
+**Goal:** Wire the Medical LLM to the Patient 360 through the **Context Engine** and implement the full **Grounded Q&A flow** — the core MVP capability.
+
+### Grounded Q&A Flow (from Sequence Diagrams)
+```
+User asks "What was my last HbA1c?"
+       ↓
+API Gateway: authenticate + consent check
+       ↓
+MediBot Orchestrator receives authorized request
+       ↓
+Safety Engine: pre-check input (SAFE → continue)
+       ↓
+Intent Classifier: "factual/record query"
+       ↓
+Medical LLM: receives question + tool contract (NOT full record)
+       ↓
+Medical LLM calls: get_recent_labs()
+       ↓
+Orchestrator executes tool via Context Engine
+       ↓
+Context Engine queries PatientDB with query-scoped retrieval
+       ↓
+Returns: sourced lab record + provenance
+       ↓
+Medical LLM drafts answer using ONLY returned evidence
+       ↓
+Response Safety Validator: grounding check + source presence check
+       ↓
+PASS → Return response with source/date to user
+FAIL → Revise / block / escalate
+```
+
+### What We're Building
+
+**MediBot Orchestrator:**
+- Stateless request router and pipeline coordinator
+- Receives authorized request from API Gateway
+- Calls Safety Engine → Intent Classifier → Context Engine → Tool Gateway → Medical LLM → Validator
+- Records `Encounter`, `Conversation`, `Message`, `ToolCall`, `ModelRun` to DB
+- Never passes bulk patient history to the LLM
+
+**Intent Classifier:**
+- Classify each user turn into: `factual_record_query` | `symptom_report` | `medication_question` | `health_trend_question` | `document_question` | `general_health_question` | `out_of_scope`
+- Small fine-tuned classifier or rule-based + embedding similarity
+
+**Context Engine (Query-Scoped Retrieval):**
+- Receives intent + extracted entities
+- Retrieves **only relevant** patient context for the current turn
+- Relevance ranking formula (from documentation):
+  ```
+  relevance_score = query_relevance + clinical_importance + recency + reliability + source_quality
+  ```
+- Does NOT dump entire patient history into prompt
+- Current medications + allergies get very high priority for medication-adjacent questions
+
+**Medical Knowledge RAG:**
+- Three distinct knowledge systems:
+  1. **Patient Knowledge** — from Patient 360 (via Context Engine tools)
+  2. **Medical Knowledge** — curated, versioned, citable sources (guidelines, clinical literature)
+  3. **Product Knowledge** — app documentation (isolated from clinical knowledge)
+- Vector store for semantic retrieval of medical guidelines
+- Every retrieved chunk carries citation metadata (source, version, date)
+- Knowledge sources must be licensed/approved and re-indexed on updates
+
+**Safety Engine (Deterministic):**
+- Runs independently of the Medical LLM
+- Input pre-check: keyword + pattern matching for emergency signals
+- Emergency examples: chest pain + breathing difficulty, stroke signs, severe bleeding, suicidal ideation
+- HIGH RISK → short-circuit ordinary pipeline → return pre-approved emergency response → create HIGH_RISK encounter → queue for human review
+
+**Response Safety Validator:**
+- Post-generation check on LLM output
+- Verify: response is grounded in supplied evidence, sources are cited, no unsupported medical claims, no fabricated values
+- Output: PASS | REVISE | BLOCK | ESCALATE
+
+**API Endpoints:**
+```
+POST   /chat/turn                   – Main conversational endpoint
+GET    /conversations/{id}          – Conversation history
+GET    /encounters/{id}             – Encounter details with provenance
+```
+
+### Technology Stack
+| Component | Technology |
+|---|---|
+| Orchestrator | Node.js (TypeScript) + Fastify / Express — async pipeline |
+| Intent Classifier | Rule-based + embedding similarity in Node.js; or HTTP call to Python classifier microservice |
+| Vector Store | `pgvector` (via Prisma raw queries) / Weaviate JS client |
+| Embeddings | OpenAI `text-embedding-ada-002` (via `openai` npm) / local `sentence-transformers` microservice |
+| Medical RAG Sources | PubMed, WHO guidelines, NICE guidelines, UpToDate (licensed) |
+| Streaming | Node.js `EventEmitter` / Server-Sent Events for streaming LLM responses |
+
+### Deliverables
+- [ ] Orchestrator service wiring all components end-to-end
+- [ ] Intent Classifier with ≥85% accuracy on test set
+- [ ] Context Engine with query-scoped retrieval (not full dump)
+- [ ] Medical Knowledge RAG with versioned, citable sources
+- [ ] Safety Engine passing all emergency keyword tests
+- [ ] Response Safety Validator rejecting unsourced claims
+- [ ] Full `POST /chat/turn` end-to-end test: grounded Q&A returning source + date
+- [ ] Encounter + ModelRun + ToolCall persisted for every conversation turn
+
+### Acceptance Criteria
+- "What was my last HbA1c?" returns the correct lab value with source date and provenance
+- LLM response for a patient with no HbA1c records states "no record found" (no fabrication)
+- Safety Engine correctly intercepts "I'm having chest pains" and returns emergency response
+- Response for fabricated medication names is blocked by validator
+- All tool calls are logged in `ToolCall` table with arguments and results
+- Context window never contains more patient data than required for the specific turn
+
+---
+
+## Phase 5 — Symptom Assessment & Adaptive Questioning
+**Duration:** 2–3 weeks
+
+> [!WARNING]
+> **Clinical Sign-off Required before patient-facing release.** Symptom assessment carries clinical risk. The clinical advisor must review and approve all symptom fields, clinical priority tables, escalation thresholds, and emergency response phrasing.
+
+**Goal:** Implement the **adaptive symptom intake loop** — structured, clinically guided, one-question-at-a-time symptom collection.
+
+### Symptom Flow (from Adaptive Symptom Assessment Sequence Diagram + Flow Chart)
+```
+Loop [until required structured fields collected]:
+  User reports / answers symptom question
+       ↓
+  POST /chat/turn
+       ↓
+  Safety Engine pre-check → Safe / HIGH RISK
+  [HIGH RISK] → Trigger emergency protocol → Escalation response
+  [SAFE] →
+       ↓
+  Symptom Extractor: extract symptom fields from user input
+       ↓
+  Context Engine: retrieve query-scoped Patient 360
+  (history + medications + allergies + trends)
+       ↓
+  Clinical Priority Rules: find highest-value missing field
+       ↓
+  Medical LLM: phrase ONE natural-language question for that field only
+       ↓
+  Response Validator: validate the question
+       ↓
+  Display question to user
+
+[After sufficient information collected]:
+  Safety Engine: final risk assessment
+       ↓
+  HIGH RISK → Escalate
+  SAFE → Medical LLM generates bounded informational guidance
+       ↓
+  Response Validator: validate final output
+       ↓
+  Persist Clinical Encounter
+```
+
+### What We're Building
+
+**Symptom Extractor:**
+- Extract structured symptom object from free text:
+  ```json
+  {
+    "primary_symptom": "headache",
+    "location": null,
+    "duration": "2 days",
+    "severity": null,
+    "character": null,
+    "associated_symptoms": ["nausea"],
+    "aggravating_factors": null,
+    "relieving_factors": null,
+    "onset": "gradual"
+  }
+  ```
+
+**Clinical Priority Rules Engine (for Symptoms):**
+- Explicit, clinician-reviewed question-priority table (NOT delegated to LLM)
+- Priority order for each symptom type (e.g., for headache: severity → location → duration → associated neurological signs)
+- Identifies "highest-value missing field" in structured symptom object
+
+**Symptom State Manager:**
+- Tracks structured symptom state across conversation turns
+- Stores state in `Conversation` / session
+- Updates state after each user answer
+
+**Risk Assessment Engine:**
+- Runs after sufficient information collected
+- Deterministic rules: maps symptom constellation to risk level
+- HIGH RISK → escalation (emergency protocol)
+- SAFE → informational guidance generation
+
+**Bounded Informational Guidance:**
+- Medical LLM generates guidance grounded in retrieved Patient 360 + medical knowledge
+- Explicitly NOT a diagnosis
+- Includes: "Please consult a healthcare professional for diagnosis and treatment"
+- Includes source citations
+
+### Clinical Rules Requirements (Clinician Sign-off)
+- [ ] Symptom priority tables for all supported symptoms
+- [ ] Escalation threshold definitions
+- [ ] Emergency symptom patterns (SHORT-CIRCUIT triggers)
+- [ ] Approved language for escalation responses
+- [ ] Approved disclaimer language for informational guidance
+
+### Deliverables
+- [ ] Symptom Extractor producing structured symptom objects
+- [ ] Clinical Priority Rules Engine with clinician-approved priority tables
+- [ ] Symptom state manager persisting state across turns
+- [ ] Adaptive questioning loop (one question per turn)
+- [ ] Risk assessment engine with deterministic thresholds
+- [ ] Bounded informational guidance generation
+- [ ] Clinical Encounter persisted with full symptom object
+- [ ] Clinical advisor sign-off document
+
+### Acceptance Criteria
+- System asks exactly ONE symptom question per turn (never bundles multiple)
+- Questions follow clinical priority order (verified by clinical advisor)
+- Severe headache with "worst headache of my life" triggers immediate escalation
+- Symptom state persists correctly across 5-turn conversation
+- Final guidance includes disclaimer + sources (never a diagnosis)
+- `Encounter` records include full symptom object and risk assessment result
+
+---
+
+## Phase 6 — Medication Intelligence & Drug Safety
+**Duration:** 2–3 weeks
+
+> [!WARNING]
+> **Highest-risk subsystem. Clinical + regulatory sign-off required.** The LLM must NEVER calculate doses or name a medication from its own knowledge. It explains a result that the rules engine has already validated.
+
+**Goal:** Implement the **Medication Safety Check** pipeline — deterministic rules-first, LLM explains only.
+
+### Medication Safety Flow (from Medication Safety Check Sequence Diagram)
+```
+User: "Can I take this medicine?"
+       ↓
+POST /chat/turn
+       ↓
+Safety Engine pre-check → Safe/continue
+       ↓
+Orchestrator: medication query + tool contract
+       ↓
+Tool Gateway executes:
+  get_current_medications() → retrieve active medications
+  get_allergies()           → retrieve allergy profile
+  search_drug_information() → query authoritative drug data
+       ↓
+Drug Knowledge Provider: drug facts + labeling data
+       ↓
+Clinical Rules Engine validates:
+  - Contraindications (patient conditions vs drug)
+  - Allergy check (patient allergies vs drug/excipients)
+  - Drug-drug interactions (new drug vs current medications)
+  - Age/sex/pregnancy checks (where applicable)
+  - Renal/hepatic checks (where applicable)
+  - Dosage/label validation
+       ↓
+Rules Engine returns: structured status + reasons + sources
+       ↓
+Medical LLM: explain validated result ONLY (cannot change or soften it)
+       ↓
+Response Validator: verify explanation matches rules result exactly
+       ↓
+[Escalation required] → Emergency/clinical escalation response
+[Safe response]       → Validated explanation + sources → User
+```
+
+### What We're Building
+
+**Clinical Rules Engine:**
+- Deterministic medication validation (no LLM involvement in the decision)
+- Checks: contraindication, allergy, drug-drug interaction, age/sex, renal/hepatic, dosage
+- Returns structured result: `{status: SAFE|CAUTION|UNSAFE|ESCALATE, reasons: [...], sources: [...]}`
+
+**Drug Knowledge Provider:**
+- Integration with an authoritative drug database:
+  - **FDA OpenFDA API** (free, US-focused)
+  - **RxNorm** (drug normalization)
+  - **DrugBank** (interactions, licensed)
+  - **OpenFDA Drug Labels** (prescribing info)
+- Do NOT derive interaction data from general model knowledge
+
+**Medication Intelligence API:**
+```
+POST   /medication/check            – Check if medication is safe for patient
+GET    /drugs/{rxnorm_id}/info      – Drug facts + labeling
+GET    /drugs/{rxnorm_id}/interactions?with=drug_a,drug_b – Interaction check
+```
+
+### Technology Stack
+| Component | Technology |
+|---|---|
+| Drug Database | FDA OpenFDA REST API + DrugBank (licensed) |
+| Drug Normalization | RxNorm REST API (HTTP client via `axios`) |
+| Rules Engine | Node.js (TypeScript) — deterministic rule functions, zero LLM involvement |
+
+### Deliverables
+- [ ] Drug Knowledge Provider integrated with authoritative source
+- [ ] Clinical Rules Engine performing all 6 check types
+- [ ] Rules Engine result is never modified by LLM
+- [ ] Response Validator verifies explanation consistency with rules result
+- [ ] Escalation flow when rules return ESCALATE status
+- [ ] Clinical + regulatory sign-off on all rule definitions and thresholds
+- [ ] Integration test: known contraindication → correctly returns UNSAFE + escalation
+
+### Acceptance Criteria
+- Aspirin for a patient with salicylate allergy → returns UNSAFE with allergy reason
+- Known drug-drug interaction pair → returns CAUTION or UNSAFE with interaction source
+- LLM explanation matches rules result exactly (validator catches any deviation)
+- Patient-specific dosage calculation is never generated by the LLM (test with prompts)
+- All medication decisions are logged with: drug name, patient context used, rules result, sources
+
+---
+
+## Phase 7 — Clinical Safety, Escalation & Proactive Monitoring
+**Duration:** 2 weeks
+
+> [!WARNING]
+> **Clinical Sign-off Required.** Escalation phrasing and notification thresholds must be approved by clinical advisor before patient-facing deployment.
+
+**Goal:** Harden the safety boundary, implement human escalation workflow, and build the proactive health monitoring system.
+
+### What We're Building
+
+**Safety Engine (Full Implementation):**
+- Independent of Medical LLM — deterministic keyword + ML-based pattern matching
+- Gates BOTH input (pre-check) and output (via Response Safety Validator)
+- Emergency scenarios: chest pain + dyspnea, stroke signs (FAST), severe bleeding, suicidal ideation, severe allergic reaction
+- HIGH RISK path: skip ordinary AI pipeline → return pre-approved emergency response → log HIGH_RISK encounter
+
+**Escalation Service:**
+- Creates HIGH_RISK encounter records
+- Queues encounter for human/clinical review
+- Notifies emergency contacts (if configured by patient)
+- Provides local emergency service information (by region)
+- Human review dashboard for clinical reviewers
+
+**Human/Clinical Review Dashboard:**
+- Clinical reviewer role access
+- Queue of HIGH_RISK encounters
+- Ability to add clinical notes
+- Ability to trigger follow-up actions
+
+**Proactive Monitoring (Rules-Driven):**
+- Trend analytics service analyzes wearable + lab trends → creates `HealthEvent`
+- Versioned, clinician-reviewed rules engine determines if notification threshold is crossed
+- LLM generates notification wording ONLY AFTER the notification decision has been made by rules
+- Notification types: abnormal trend alert, medication reminder, appointment suggestion
+
+### API Endpoints
+```
+GET    /escalations                  – Clinical reviewer: list HIGH_RISK encounters
+PUT    /escalations/{id}/review      – Add clinical notes / resolve
+GET    /patients/{id}/alerts         – Patient's active proactive alerts
+POST   /monitoring/rules             – Admin: add/update monitoring rule
+```
+
+### Deliverables
+- [ ] Safety Engine hardened with all emergency patterns
+- [ ] Escalation Service creating HIGH_RISK encounters and notifying reviewers
+- [ ] Human review dashboard (basic web UI)
+- [ ] Proactive monitoring rules engine (separate from LLM)
+- [ ] Notification generation gated by rules decision (LLM wording only)
+- [ ] Clinical advisor sign-off on all escalation thresholds and phrasing
+- [ ] Emergency response integration (local emergency numbers by region)
+
+### Acceptance Criteria
+- "I'm feeling suicidal" → emergency response returned within 200ms (no LLM pipeline delay)
+- HIGH_RISK encounter appears in reviewer queue within 30 seconds
+- Proactive notification for resting heart rate > threshold triggers rules check before LLM phrasing
+- Emergency response cannot be customized or overridden by LLM output
+- All escalations logged with timestamp, triggering pattern, model version skipped
+
+---
+
+## Phase 8 — Wearable Intelligence, Advanced Personalization & Production Hardening
+**Duration:** 3–4 weeks
+
+> [!CAUTION]
+> **Regulatory review may be required** depending on jurisdiction and wearable data usage scope. Consult legal and clinical advisors before patient-facing release.
+
+**Goal:** Complete wearable integration, longitudinal recall, advanced personalization, and harden for production.
+
+### Wearable Intelligence
+
+**Key Rule from Documentation:**
+> Raw wearable readings must NEVER be placed directly into an LLM prompt. Raw readings are normalized, quality-checked, and converted into rolling averages, baselines, and trend summaries — only derived signals enter clinical context.
+
+**What We're Building:**
+- Wearable data ingestion API (Apple Health, Google Fit, Fitbit, Garmin integrations)
+- Data normalization and quality-check pipeline
+- Rolling average + baseline computation
+- Trend detection and `WearableTrend` record generation
+- Trend summaries as the only wearable data exposed to LLM context
+
+```
+Raw Reading → Normalize → Quality Check → Compute Rolling Average
+→ Detect Trend (rising/falling/stable) → Store WearableTrend
+→ [If threshold crossed] → Proactive monitoring rules → Notification decision
+```
+
+### Advanced Personalization — Longitudinal Recall
+- Facts stated once surface later when relevant via structured timeline retrieval (not by expanding model context)
+- Conversation summarization: periodic summarization of older turns → store as structured `HealthEvent`
+- Preference tracking in `PatientProfile.preferences`
+
+### Production Hardening
+- [ ] Load testing: 100 concurrent users, P95 < 3s end-to-end
+- [ ] Chaos engineering: kill individual services, verify graceful degradation
+- [ ] Model drift monitoring: weekly benchmark run, alert on safety metric regression
+- [ ] Data retention / deletion pipeline (GDPR/HIPAA compliance)
+- [ ] Disaster recovery runbook
+- [ ] Incident response procedure documented
+- [ ] Model rollback procedure tested (< 5 minute SLA)
+
+### API Endpoints
+```
+POST   /wearables/sync              – Sync wearable data (batch)
+GET    /patients/{id}/wearables     – Wearable readings (paginated)
+GET    /patients/{id}/trends        – Computed trend summaries
+```
+
+### Production Readiness Checklist (from documentation)
+- [ ] Intended use and supported scope signed off
+- [ ] Clinical and regulatory review completed for released capabilities
+- [ ] Patient 360 schema and authorization rules tested
+- [ ] Document pipeline has malware scanning, confidence gates, and provenance
+- [ ] Medical LLM candidate selected from benchmark results
+- [ ] Fine-tuned model versioned with reproducible training/evaluation metadata
+- [ ] Model has rollback/canary deployment path
+- [ ] RAG corpus is licensed/approved, versioned, and citation-enabled
+- [ ] Safety Engine is independent and tested
+- [ ] Medication rules use authoritative data and are clinically reviewed
+- [ ] LLM cannot directly access databases
+- [ ] Cross-user data isolation tested
+- [ ] Tool calls and model runs are auditable
+- [ ] High-risk emergency flow bypasses ordinary LLM advice generation
+- [ ] Human escalation workflow exists
+- [ ] Monitoring covers safety, grounding, latency, failures, and drift
+- [ ] User-facing explanations include relevant sources/provenance
+- [ ] Incident response and model rollback procedures are documented
+
+---
+
+## Risks & Open Decisions
+
+| # | Risk | Severity | Mitigation |
+|---|---|---|---|
+| R1 | Fine-tuned model fails to meet evaluation gate | HIGH | Plan for 2+ tuning iterations; maintain generic LLM fallback |
+| R2 | Authoritative drug database costs / licensing | HIGH | Evaluate OpenFDA (free) vs DrugBank (paid); budget required |
+| R3 | OCR quality poor on handwritten prescriptions | MEDIUM | Add human-review fallback for low-confidence extractions |
+| R4 | Clinical sign-off delays blocking Phase 5/6/7 | HIGH | Engage clinical advisor in Phase 0; parallelize sign-off with development |
+| R5 | Regulatory classification as medical device | CRITICAL | Legal review before Phase 5 patient-facing release |
+| R6 | Model hallucination in grounded Q&A | HIGH | Response Safety Validator + hallucination test suite required |
+| R7 | PHI exposure through LLM prompt logging | HIGH | Redact PHI from prompt logs; separate prompt audit from patient record |
+| R8 | Wearable data quality issues | MEDIUM | Quality-check pipeline + confidence threshold before trend computation |
+| R9 | Cross-user data leakage | CRITICAL | Enforce patient-scoped queries at DB level + integration tests |
+| R10 | LLM context overflow with large patient history | MEDIUM | Context Engine enforces query-scoped retrieval; test with large Patient 360 |
+
+---
+
+## Open Decisions Requiring Resolution
+
+> [!IMPORTANT]
+> These decisions must be resolved before the relevant phase begins:
+
+1. **Target deployment platform**: Self-hosted GPU (vLLM) vs cloud-managed (Vertex AI, Azure OpenAI)?
+2. **Primary Medical LLM selection**: Benchmark results needed before Phase 3 can finalize
+3. **Drug database provider**: OpenFDA only vs DrugBank licensed — budget approval required
+4. **Regulatory scope**: Does the intended patient population and clinical functionality classify this as a medical device in target jurisdiction(s)?
+5. **Wearable partner integrations**: Which wearable APIs are in scope for Phase 8?
+6. **Multilingual support**: Is multilingual interaction in scope? If yes, MMed-Llama3 should be prioritized in benchmarks.
+7. **Mobile vs Web MVP**: Is the Phase 1 client a web app only, or mobile + web from the start?
+8. **HIPAA vs GDPR**: Which compliance framework applies (US / EU / both)?
+
+---
+
+## Verification Plan
+
+### Automated Tests (per phase)
+- **Phase 0**: `pytest` — API gateway auth, rate limiting, audit log creation
+- **Phase 1**: `pytest` — CRUD for all Patient 360 entities, cross-user isolation
+- **Phase 2**: Integration test — PDF upload → correct `LabResult` extraction + `Provenance`
+- **Phase 3**: Model benchmark suite — grounding, hallucination, tool-use, safety tests
+- **Phase 4**: E2E test — `/chat/turn` returning grounded answer with source citation
+- **Phase 5**: E2E test — 5-turn symptom conversation → correct escalation behavior
+- **Phase 6**: Integration test — known contraindication → UNSAFE rules result → LLM explanation matches
+- **Phase 7**: Safety test suite — all emergency patterns trigger correct escalation path
+- **Phase 8**: Load test — 100 concurrent users, P95 < 3s; chaos test — service failure graceful degradation
+
+### Manual Verification (Clinical)
+- Clinical advisor reviews and signs off on: symptom priority tables, escalation thresholds, medication rules, emergency response phrasing, disclaimer language
+- Shadow evaluation of fine-tuned model with clinical advisor reviewing 50+ sample turns
+- Canary deployment with real-usage monitoring before full rollout
