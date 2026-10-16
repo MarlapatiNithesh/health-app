@@ -319,14 +319,14 @@ export function AuthScreen() {
             </button>
 
             {/* Quick Demo Pre-fill */}
-            <div className="pt-2 text-center space-y-1">
+            <div className="pt-2 text-center space-y-2">
               <button
                 type="button"
                 onClick={() => {
                   setCountryCode('+1');
                   setPhoneNumber('4155552671');
                 }}
-                className="text-[11px] font-bold text-orange-600 hover:underline block mx-auto"
+                className="text-[11px] font-bold text-orange-600 hover:underline block mx-auto cursor-pointer"
               >
                 ⚡ Use Demo Tester Number (+1 415 555 2671)
               </button>

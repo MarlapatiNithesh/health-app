@@ -163,10 +163,15 @@ export class TimeseriesRepository {
           }
 
           // Cumulative daily metrics (steps, calories, distance, active energy burned):
-          // Choose the most accurate/highest valid total among all connected devices (e.g. 1900 over 1500, never summed).
-          // NEVER downgrade a higher valid reading from a smartwatch with a lower phone count.
+          // If the incoming sample is from the SAME provider or matches source_record_id,
+          // it is an authoritative refresh of today's total from that device/provider.
+          // ALWAYS update the existing record with the fresh reading.
+          // Only skip if a DIFFERENT provider attempts to overwrite a higher reading.
           const isCumulative = row.aggregation === 'daily_total' || ['steps', 'calories', 'distance', 'active_energy_burned'].includes(row.metricType);
-          if (isCumulative && Number(row.value) <= Number(matchedExisting.value)) {
+          const isSameProvider = matchedExisting.provider === row.provider;
+          const isSameSourceRecord = Boolean(row.sourceRecordId && matchedExisting.source_record_id === row.sourceRecordId);
+          const isCrossProviderDowngrade = !isSameProvider && !isSameSourceRecord && (Number(row.value) <= Number(matchedExisting.value));
+          if (isCumulative && isCrossProviderDowngrade) {
             skippedDuplicates++;
             continue;
           }
@@ -216,14 +221,16 @@ export class TimeseriesRepository {
         } catch {}
 
         try {
+          const rowLocalDate = row.localDate || row.sourceRecordId?.match(/\d{4}-\d{2}-\d{2}/)?.[0] || null;
           const res = await client.query(
             `INSERT INTO timeseries
                (member_id, provider, device_key, source_record_id, metric_type,
-                aggregation, recorded_at, ended_at, value, unit, quality_flag, metadata)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                aggregation, recorded_at, ended_at, local_date, value, unit, quality_flag, metadata)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
              ON CONFLICT (member_id, provider, device_key, metric_type, aggregation, recorded_at)
              DO UPDATE SET
                ended_at     = EXCLUDED.ended_at,
+               local_date   = COALESCE(EXCLUDED.local_date, timeseries.local_date),
                value        = CASE
                                 WHEN timeseries.aggregation = 'daily_total' AND timeseries.metric_type IN ('steps', 'calories', 'distance', 'active_energy_burned')
                                   THEN GREATEST(timeseries.value, EXCLUDED.value)
@@ -244,6 +251,7 @@ export class TimeseriesRepository {
               row.aggregation,
               row.recordedAt,
               row.endedAt,
+              rowLocalDate,
               row.value,
               row.unit,
               row.qualityFlag || 'good',

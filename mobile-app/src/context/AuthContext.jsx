@@ -340,7 +340,10 @@ export function AuthProvider({ children }) {
   const logWater = async (delta = 1) => {
     const next = Math.max(0, Math.min(10, hydrationGlasses + delta));
     setHydrationGlasses(next);
-    if (delta > 0 && token) {
+    try {
+      localStorage.setItem('wellness_hydration', String(next));
+    } catch {}
+    if (token) {
       try {
         await api.logManualHealthSamples([
           {
@@ -352,9 +355,15 @@ export function AuthProvider({ children }) {
             recordedAt: new Date().toISOString(),
           }
         ]);
-        setLivaPoints(p => p + 10);
+        if (delta > 0) {
+          setLivaPoints(p => {
+            const nextPts = p + 10;
+            try { localStorage.setItem('wellness_points', String(nextPts)); } catch {}
+            return nextPts;
+          });
+        }
       } catch (err) {
-        console.warn('Hydration DB sync error:', err.message);
+        console.warn('Hydration sync warning:', err?.message || err);
       }
     }
   };
@@ -380,6 +389,7 @@ export function AuthProvider({ children }) {
         challenges,
         joinChallenge,
         hydrationGlasses,
+        setHydrationGlasses,
         logWater,
         nativeTelemetry,
         requestHealthPermissions,

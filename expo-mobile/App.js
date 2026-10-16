@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   AppState,
@@ -31,20 +31,30 @@ import * as ble from './health/bleService';
 // ─── Config ──────────────────────────────────────────────────────────────────
 // Resolve the Metro development host IP dynamically so physical devices and emulators
 // connect directly to the dev server without falling back or throwing ERR_CONNECTION_REFUSED.
+const CURRENT_LAN_IP = '192.168.1.36';
+
+const sanitizeDevUrl = (url) => {
+  if (!url) return null;
+  return url
+    .replace('10.234.64.242', CURRENT_LAN_IP)
+    .replace('10.234.64.112', CURRENT_LAN_IP)
+    .replace('192.168.1.41', CURRENT_LAN_IP)
+    .replace('192.168.1.38', CURRENT_LAN_IP);
+};
+
 const getDevServerHost = () => {
   try {
     const scriptURL = NativeModules?.SourceCode?.scriptURL;
     if (!scriptURL) return null;
     const match = scriptURL.match(/^https?:\/\/([^:/]+)/);
-    return match ? match[1] : null;
+    const host = match ? match[1] : null;
+    return host && host !== 'localhost' && host !== '127.0.0.1' ? host : null;
   } catch {
     return null;
   }
 };
 
-const devHost = getDevServerHost();
 const isAndroid = Platform.OS === 'android';
-const validDevHost = devHost && devHost !== 'localhost' && devHost !== '127.0.0.1';
 
 const ALL_HEALTH_METRICS = [
   'steps',
@@ -62,27 +72,27 @@ const ALL_HEALTH_METRICS = [
 ];
 
 const buildCandidates = () => {
-  const envWebUrl = process.env.EXPO_PUBLIC_WEB_URL;
-  const envApiUrl = process.env.EXPO_PUBLIC_API_URL;
+  const devHost = getDevServerHost();
+  const envWebUrl = sanitizeDevUrl(process.env.EXPO_PUBLIC_WEB_URL);
+  const envApiUrl = sanitizeDevUrl(process.env.EXPO_PUBLIC_API_URL);
   const envApiWebUrl = envApiUrl ? `${envApiUrl.replace(/\/+$/, '')}/app/` : null;
 
   const list = [
+    // 1. Dynamic Metro dev host if detected from scriptURL
+    devHost ? `http://${devHost}:4000/app/` : null,
+    // 2. USB cable with adb reverse tcp:4000 tcp:4000
+    isAndroid ? 'http://127.0.0.1:4000/app/' : null,
+    // 3. Active Wi-Fi LAN IP
+    `http://${CURRENT_LAN_IP}:4000/app/`,
+    // 4. Environment URLs (sanitized)
     envWebUrl,
     envApiWebUrl,
-    // Loopback with adb reverse tcp:4000 tcp:4000 (instant connection over USB)
-    isAndroid ? 'http://127.0.0.1:4000/app/' : null,
-    // Dynamically detected Metro bundler host (works automatically across Wi-Fi networks)
-    validDevHost ? `http://${devHost}:4000/app/` : null,
-    // Current local network Wi-Fi IP
-    'http://192.168.1.41:4000/app/',
   ];
 
   if (isAndroid) {
-    // Android emulator alias for host PC
     list.push('http://10.0.2.2:4000/app/');
     list.push('http://localhost:4000/app/');
   } else {
-    // iOS simulator & desktop loopbacks
     list.push('http://127.0.0.1:4000/app/', 'http://localhost:4000/app/');
   }
 
@@ -91,12 +101,12 @@ const buildCandidates = () => {
 
 const URL_CANDIDATES = buildCandidates();
 const WEB_URL = URL_CANDIDATES[0];
-const DEFAULT_API_HOST = validDevHost
-  ? `http://${devHost}:4000`
-  : isAndroid
-  ? 'http://192.168.1.41:4000'
-  : 'http://127.0.0.1:4000';
-const API_URL = process.env.EXPO_PUBLIC_API_URL || DEFAULT_API_HOST;
+const initialDevHost = getDevServerHost();
+const rawApiUrl = sanitizeDevUrl(process.env.EXPO_PUBLIC_API_URL);
+const DEFAULT_API_HOST = initialDevHost
+  ? `http://${initialDevHost}:4000`
+  : `http://${CURRENT_LAN_IP}:4000`;
+const API_URL = rawApiUrl || DEFAULT_API_HOST;
 const SYNC_EVERY_MS = 5 * 60 * 1000; // foreground refresh; native OS SDK schedules background work
 const memberStorageKey = (name, memberId) => {
   const safeName = String(name).replace(/[^A-Za-z0-9._-]/g, '_');
@@ -139,19 +149,20 @@ function Shell() {
   const [failed, setFailed] = useState(false);
   const [webKey, setWebKey] = useState(0); // Increment to force WebView reload
   const [urlIndex, setUrlIndex] = useState(0);
-  const activeWebUrl = URL_CANDIDATES[urlIndex % URL_CANDIDATES.length];
+  const activeCandidates = useMemo(() => buildCandidates(), [webKey]);
+  const activeWebUrl = activeCandidates[urlIndex % activeCandidates.length];
 
   const handleUrlFailure = useCallback(() => {
     if (webReady.current) return;
-    if (urlIndex < URL_CANDIDATES.length - 1) {
-      console.log(`[WebView] Trying candidate ${urlIndex + 1}: ${URL_CANDIDATES[urlIndex + 1]}`);
+    if (urlIndex < activeCandidates.length - 1) {
+      console.log(`[WebView] Trying candidate ${urlIndex + 2}: ${activeCandidates[urlIndex + 1]}`);
       setUrlIndex((idx) => idx + 1);
     } else {
-      console.warn('[WebView] All web candidates failed:', URL_CANDIDATES);
+      console.warn('[WebView] All web candidates failed:', activeCandidates);
       setFailed(true);
       setLoading(false);
     }
-  }, [urlIndex]);
+  }, [urlIndex, activeCandidates]);
 
   // Avoid leaving the user on an indefinite splash screen when the local Vite server is unavailable.
   useEffect(() => {
@@ -160,7 +171,7 @@ function Shell() {
       if (!webReady.current) {
         handleUrlFailure();
       }
-    }, 15000);
+    }, 5000);
     return () => clearTimeout(timer);
   }, [loading, failed, urlIndex, handleUrlFailure]);
 
@@ -195,7 +206,7 @@ function Shell() {
 
   // ── Master sync: permission → read → push → upload ────────────────────────
   const sync = useCallback(
-    async ({ prompt = false, force = false, permissions = null } = {}) => {
+    async ({ prompt = false, force = false, permissions = null, isInitialLogin = false } = {}) => {
       if (busy.current) return;
       busy.current = true;
       try {
@@ -244,14 +255,20 @@ function Shell() {
         }
         selected = Array.isArray(selectedHealthPermissions.current) ? selectedHealthPermissions.current : selected;
         const wantsSteps = selected.includes('steps');
-        const startPedometer = async () => {
+        const startPedometer = async (initialStoreSteps = 0) => {
           if (!wantsSteps || !pedometerGranted.current || live.current.sub) return;
           const sensorKey = memberStorageKey(
             'phone_pedometer_steps',
             `${activeMemberId.current || 'unknown-member'}:${localDayKey()}`,
           );
+          const storeNum = Number(initialStoreSteps) || 0;
           const storedSteps = Number(await SecureStore.getItemAsync(sensorKey).catch(() => '0')) || 0;
-          live.current.sensorSteps = Math.max(live.current.sensorSteps || 0, storedSteps);
+          // When Health Connect / HealthKit reports a reading, that is the authoritative baseline
+          const baseline = storeNum > 0 ? storeNum : Math.max(live.current.sensorSteps || 0, storedSteps);
+          live.current.sensorSteps = baseline;
+          if (storeNum > 0 && activeMemberId.current) {
+            SecureStore.setItemAsync(sensorKey, String(storeNum)).catch(() => {});
+          }
           const subscription = await startLiveSteps((count) => {
             const previous = live.current.sensorSteps || 0;
             const next = Math.max(previous, Number(count) || 0);
@@ -262,21 +279,36 @@ function Shell() {
             const current = last.current;
             if (current) {
               const storeSteps = Number(current.today?.steps) || 0;
-              const useSensor = storeSteps <= 0 || current.stepSource === 'phone_pedometer';
-              const visibleSteps = useSensor ? next : storeSteps;
+              const visibleSteps = Math.max(storeSteps, next);
+              const calculatedBurn = Math.round(visibleSteps * 0.045);
+              const visibleCalories = Math.max(Number(current.today?.activeCalories) || 0, calculatedBurn);
+              const calculatedDistance = Math.round(visibleSteps * 0.75);
+              const visibleDistance = Math.max(Number(current.today?.distanceM) || 0, calculatedDistance);
+              const useSensor = next > storeSteps;
+
               push({
                 ...current,
                 status: visibleSteps > 0 ? 'ok' : current.status,
-                stepSource: useSensor ? 'phone_pedometer' : SOURCE,
-                today: { ...(current.today || {}), steps: visibleSteps },
+                stepSource: useSensor ? 'phone_pedometer' : (current.stepSource || SOURCE),
+                today: {
+                  ...(current.today || {}),
+                  steps: visibleSteps,
+                  activeCalories: visibleCalories,
+                  distanceM: visibleDistance,
+                },
                 liveSteps: visibleSteps,
-                health: { ...(current.health || {}), steps: { today: visibleSteps, unit: 'count' } },
+                health: {
+                  ...(current.health || {}),
+                  steps: { today: visibleSteps, unit: 'count' },
+                  calories: { activeToday: visibleCalories, unit: 'kcal' },
+                  distance: { todayMeters: visibleDistance, unit: 'm' },
+                },
               });
             }
 
             if (sensorSyncTimer.current) clearTimeout(sensorSyncTimer.current);
             sensorSyncTimer.current = setTimeout(() => syncRef.current?.(), 15_000);
-          }, live.current.sensorSteps);
+          }, baseline);
           live.current.sub = subscription;
         };
 
@@ -284,18 +316,27 @@ function Shell() {
         if (!state.ok) {
           await startPedometer();
           const sensorSteps = live.current.sensorSteps || 0;
+          const sensorCalories = Math.round(sensorSteps * 0.04);
+          const sensorDistance = Math.round(sensorSteps * 0.75);
           const payload = {
             ...base,
             status: sensorSteps > 0 ? 'sensor_only' : 'unavailable',
             reason: state.reason,
             source: sensorSteps > 0 ? 'phone_pedometer' : 'none',
             stepSource: 'phone_pedometer',
-            today: { steps: sensorSteps, sleepMinutes: live.current.sleepMinutes || 0 },
+            today: {
+              steps: sensorSteps,
+              activeCalories: sensorCalories,
+              distanceM: sensorDistance,
+              sleepMinutes: live.current.sleepMinutes || 0,
+            },
             history: [],
             liveSteps: sensorSteps,
             batteryLevel: battery,
             health: {
               steps: { today: sensorSteps, unit: 'count' },
+              calories: { activeToday: sensorCalories, unit: 'kcal' },
+              distance: { todayMeters: sensorDistance, unit: 'm' },
               sleep: { durationMinutes: live.current.sleepMinutes || 0, unit: 'minutes' },
               source: 'PHONE_PEDOMETER',
             },
@@ -306,11 +347,11 @@ function Shell() {
           if (token.current && sensorSteps > 0) {
             try {
               const samples = buildSamples(
-                { steps: sensorSteps },
+                { steps: sensorSteps, activeCalories: sensorCalories, distanceM: sensorDistance },
                 [],
                 { stepProvider: 'phone_pedometer', stepDeviceId: 'phone-motion-sensor' },
               );
-              const upload = await uploadHealth({ apiBase: API_URL, token: token.current, samples, permissions: ['steps'] });
+              const upload = await uploadHealth({ apiBase: API_URL, token: token.current, samples, permissions: ['steps', 'calories', 'distance'] });
               push({ ...payload, databaseSync: { status: 'saved', accepted: upload.accepted, uploaded: upload.uploaded } });
             } catch (sensorErr) {
               console.log('[Health] sensor upload error:', sensorErr?.message);
@@ -338,21 +379,51 @@ function Shell() {
           };
           history = [];
         } else {
-          // A null grant state means the native key has not been restored yet (for
-          // example after an app update). Query the OS store and let it enforce the
-          // actual permission instead of converting an unknown state into fake zeros.
-          [today, history] = await Promise.all([
+          // A null grant state means the native key has not been restored yet.
+          // Incremental Sync vs Initial 30-Day Sync:
+          // When a user logs in for the first time, fetch the previous 30 days.
+          // On later syncs (foreground, 5-min intervals, end-of-day background sync),
+          // check what was the user's lastSync from SecureStore and fetch from that day up to today.
+          // Always fetch full 30-day history on every sync (auto or manual) so that
+          // no past days show 0 steps and the complete 30-day timeline is persisted to the database.
+          const daysToFetch = 30;
+
+          let freshHistory = [];
+          [today, freshHistory] = await Promise.all([
             readToday(selected),
-            readStepHistory(30, selected),
+            readStepHistory(daysToFetch, selected),
           ]);
+
+          // Merge fresh incremental history into cached in-memory history
+          const mergedMap = new Map();
+          if (Array.isArray(last.current?.history)) {
+            for (const h of last.current.history) {
+              if (h?.date) mergedMap.set(h.date, h);
+            }
+          }
+          for (const h of freshHistory) {
+            if (h?.date) mergedMap.set(h.date, h);
+          }
+          history = Array.from(mergedMap.values()).sort((a, b) => b.date.localeCompare(a.date));
         }
 
         let stepProvider = SOURCE;
-        if (wantsSteps && today.steps <= 0 && pedometerGranted.current) {
-          await startPedometer();
-          if (live.current.sensorSteps > 0) {
-            today = { ...today, steps: live.current.sensorSteps };
-            stepProvider = 'phone_pedometer';
+        if (wantsSteps && pedometerGranted.current) {
+          const storeSteps = today.steps || 0;
+          await startPedometer(storeSteps);
+          const sensorSteps = live.current.sensorSteps || 0;
+          // When a user connects with a wearable (Fitbit, Whoop, Google Fit, Samsung Health, etc.),
+          // default phone and wearable steps are NEVER added together; we choose the best reading:
+          const maxSteps = Math.max(storeSteps, sensorSteps);
+          today.steps = maxSteps;
+          stepProvider = sensorSteps > storeSteps ? 'phone_pedometer' : SOURCE;
+          if (today.steps > 0) {
+            const minBurn = Math.round(today.steps * 0.045);
+            const maxBurn = Math.round(today.steps * 0.09);
+            const curBurn = Number(today.activeCalories) || 0;
+            today.activeCalories = (curBurn > 0 && curBurn <= maxBurn) ? curBurn : minBurn;
+            const curDist = Number(today.distanceM) || 0;
+            today.distanceM = curDist > 0 ? curDist : Math.round(today.steps * 0.75);
           }
         }
 
@@ -399,7 +470,7 @@ function Shell() {
               ? { latest: today.heartRate.latest, average: today.heartRate.avg, unit: 'bpm' }
               : null,
             hrv: today.hrvMs ? { latest: today.hrvMs, unit: 'ms' } : null,
-            spo2: today.spo2 != null ? { latest: today.spo2 * 100, unit: '%' } : null,
+            spo2: today.spo2 != null ? { latest: Math.round(today.spo2 <= 1 ? today.spo2 * 100 : (today.spo2 > 100 ? today.spo2 / 100 : today.spo2)), unit: '%' } : null,
             bloodGlucose: today.bloodGlucose ? { latestMgDl: today.bloodGlucose, unit: 'mg/dL' } : null,
             bloodPressure: today.bloodPressureSystolic && today.bloodPressureDiastolic
               ? { systolic: today.bloodPressureSystolic, diastolic: today.bloodPressureDiastolic, unit: 'mmHg' }
@@ -427,6 +498,11 @@ function Shell() {
               samples,
               permissions: selectedHealthPermissions.current,
             });
+            const memberScope = activeMemberId.current || 'unknown-member';
+            await SecureStore.setItemAsync(
+              memberStorageKey('last_health_sync_time', memberScope),
+              new Date().toISOString()
+            ).catch(() => {});
             push({ ...payload, databaseSync: { status: 'saved', accepted: upload.accepted, uploaded: upload.uploaded } });
           } catch (e) {
             console.log('[Health] upload failed:', e?.message);
@@ -535,7 +611,7 @@ function Shell() {
           live.current.sensorSteps = Number(await SecureStore.getItemAsync(sensorKey).catch(() => '0')) || 0;
         }
         // Trigger native health permission request & master 30-day sync immediately upon login
-        await sync({ prompt: true, force: true, permissions: ALL_HEALTH_METRICS });
+        await sync({ prompt: true, force: true, permissions: ALL_HEALTH_METRICS, isInitialLogin: true });
         break;
 
       case 'LOGOUT':

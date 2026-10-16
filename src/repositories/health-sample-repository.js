@@ -22,7 +22,7 @@ export class HealthSampleRepository {
          metric_type      AS metric,
          recorded_at      AS "recordedAt",
          ended_at         AS "endedAt",
-         local_date       AS "localDate",
+         local_date::text AS "localDate",
          value,
          unit,
          provider,

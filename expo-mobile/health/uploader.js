@@ -21,11 +21,13 @@ async function call(apiBase, token, method, path, body, extraHeaders = {}) {
   const devHost = getDevServerHost();
   const validDevHost = devHost && devHost !== 'localhost' && devHost !== '127.0.0.1';
 
+  const CURRENT_LAN_IP = '192.168.1.36';
   const candidates = Array.from(new Set([
-    'http://127.0.0.1:4000',
-    'http://localhost:4000',
     validDevHost ? `http://${devHost}:4000` : null,
-    apiBase,
+    'http://127.0.0.1:4000',
+    `http://${CURRENT_LAN_IP}:4000`,
+    apiBase ? apiBase.replace('10.234.64.242', CURRENT_LAN_IP).replace('10.234.64.112', CURRENT_LAN_IP).replace('192.168.1.41', CURRENT_LAN_IP).replace('192.168.1.38', CURRENT_LAN_IP) : null,
+    'http://localhost:4000',
     isAndroid ? 'http://10.0.2.2:4000' : null,
   ].filter(Boolean)));
 

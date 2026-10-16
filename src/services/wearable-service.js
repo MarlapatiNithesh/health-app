@@ -359,22 +359,32 @@ export class WearableService {
 
     if (this.openWearables && typeof this.openWearables.isConfigured === 'function' && this.openWearables.isConfigured()) {
       try {
-        const owUserId = await this.getOrCreateOwUserId(memberId);
-        if (owUserId) {
-          const authData = await this.openWearables.getProviderAuthorizationUrl(owUserId, brand, validRedirect);
-          connectUrl = authData?.authorization_url || null;
+        let owUserId = null;
+        try {
+          owUserId = await this.getOrCreateOwUserId(memberId);
+        } catch (owErr) {
+          logger.warn(`Could not lookup/create OW user for ${memberId}, using memberId fallback: ${owErr.message}`);
         }
+        if (!owUserId) {
+          owUserId = memberId;
+        }
+
+        let authData = await this.openWearables.getProviderAuthorizationUrl(owUserId, brand, validRedirect).catch(() => null);
+        if (!authData?.authorization_url && (brand === 'google_health' || brand === 'google')) {
+          authData = await this.openWearables.getProviderAuthorizationUrl(owUserId, 'google', validRedirect).catch(() => null);
+        }
+        connectUrl = authData?.authorization_url || null;
       } catch (err) {
         logger.warn(`OpenWearables authorization URL error for ${brand}: ${err.message}`, { memberId });
       }
     }
 
     if (!connectUrl) {
-      if (brand === 'google_health') {
-        connectUrl = 'https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=706163042257-2622tnk0ndldvi4ccu5051ssujikfki3.apps.googleusercontent.com&redirect_uri=https%3A%2F%2Fapi.openwearables.io%2Fapi%2Fv1%2Foauth%2Fgoogle%2Fcallback&scope=openid+email+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgooglehealth.activity_and_fitness.readonly+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgooglehealth.health_metrics_and_measurements.readonly+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgooglehealth.nutrition.readonly+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgooglehealth.sleep.readonly+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgooglehealth.settings.readonly&access_type=offline&prompt=consent';
-      } else {
-        connectUrl = `${validRedirect}?provider=${encodeURIComponent(brand)}&status=authorized`;
-      }
+      throw new ApplicationError(
+        `Provider '${brand}' OAuth is not yet configured or reachable in OpenWearables. Please check OpenWearables service credentials.`,
+        422,
+        'oauth_unconfigured'
+      );
     }
 
     const existing = (await this.wearableRepo.listWearableDevices(memberId)).find((d) => d.brand === brand);
@@ -416,9 +426,10 @@ export class WearableService {
       'sleep',
     ];
 
+    const isHealthConnect = options.mode === 'health_connect' || brand === 'health_connect';
     const link = await this.wearableRepo.upsertWearableLink(memberId, {
       provider: brand,
-      connectionType: config.type || 'oauth',
+      connectionType: isHealthConnect ? 'phone_sdk' : (config.type || 'oauth'),
       status: 'connected',
       metricsProvided: defaultMetrics,
       metadata: {
@@ -457,8 +468,17 @@ export class WearableService {
 
     try {
       let providerSync;
-      if (provider.toLowerCase() === 'garmin' && options?.firstConnect) {
-        providerSync = await this.openWearables.syncHistoricalData(owUserId, 'garmin');
+      // Garmin is webhook-only: it has no REST polling path.
+      // Only trigger a historical backfill (e.g. on first connect).
+      // For subsequent syncs, data arrives automatically via webhook push.
+      const isGarmin = provider.toLowerCase() === 'garmin';
+      if (isGarmin) {
+        if (options?.firstConnect || options?.historical) {
+          providerSync = await this.openWearables.syncHistoricalData(owUserId, 'garmin');
+        } else {
+          // Garmin data arrives via webhook — skip the REST trigger.
+          providerSync = { status: 'skipped', message: 'Garmin syncs via webhook push; use historical=true to request a backfill.' };
+        }
       } else {
         providerSync = await this.openWearables.syncUserData(owUserId, provider, options);
       }
@@ -533,9 +553,18 @@ export class WearableService {
     if (this.wearableRepo?.listWearableLinks) {
       const links = await this.wearableRepo.listWearableLinks(memberId);
       if (!reconciliation.reconciled) {
-        return links.map((link) => link.connectionType === 'oauth' && link.status === 'connected'
-          ? { ...link, status: 'unverified' }
-          : link);
+        return links.map((link) => {
+          const isLocalOrSdk = link.connectionType === 'phone_sdk' ||
+                               link.connectionType === 'phone' ||
+                               link.metadata?.connectedVia === 'health_connect' ||
+                               link.metadata?.connectedVia === 'direct_connect' ||
+                               link.provider === 'health_connect' ||
+                               link.provider === 'google_health';
+          if (isLocalOrSdk) return link;
+          return link.connectionType === 'oauth' && link.status === 'connected'
+            ? { ...link, status: 'unverified' }
+            : link;
+        });
       }
       return links;
     }
@@ -756,7 +785,8 @@ export class WearableService {
       }
     }
 
-    const connList = responseItems(connections, 'connections');
+    // `connections` is already the flat array extracted by responseItems above.
+    const connList = connections;
     const connectedProviders = [];
 
     for (const conn of connList) {
@@ -824,7 +854,9 @@ export class WearableService {
     if (earliestLastSync) {
       startDate = new Date(earliestLastSync - 3 * 86400000).toISOString().split('T')[0];
     } else {
-      startDate = '2024-01-01';
+      // Default to 30 days ago (not a hard-coded year) so first-time syncs
+      // get a reasonable rolling window instead of all data since 2024.
+      startDate = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
     }
     const endDate = new Date(Date.now() + 86400000).toISOString().split('T')[0];
 
@@ -1042,23 +1074,28 @@ export class WearableService {
 
     if (typeof this.openWearables.getTimeseries === 'function') {
       try {
-        const tsData = await this.openWearables.getTimeseries(
-          owUserId,
-          `${startDate}T00:00:00Z`,
-          `${endDate}T23:59:59Z`,
-          { types: [
-            'heart_rate', 'resting_heart_rate', 'steps',
-            'heart_rate_variability_sdnn', 'heart_rate_variability_rmssd',
-            'oxygen_saturation', 'blood_glucose', 'blood_pressure_systolic',
-            'blood_pressure_diastolic', 'respiratory_rate', 'active_energy',
-            'distance_walking_running', 'weight',
-          ] }
+        // Timeseries uses cursor pagination — we must page through all results.
+        const allTsItems = await fetchAllPages(({ cursor }) =>
+          this.openWearables.getTimeseries(
+            owUserId,
+            `${startDate}T00:00:00Z`,
+            `${endDate}T23:59:59Z`,
+            {
+              cursor,
+              types: [
+                'heart_rate', 'resting_heart_rate', 'steps',
+                'heart_rate_variability_sdnn', 'heart_rate_variability_rmssd',
+                'oxygen_saturation', 'blood_glucose', 'blood_pressure_systolic',
+                'blood_pressure_diastolic', 'respiratory_rate', 'active_energy',
+                'distance_walking_running', 'weight',
+              ],
+            },
+          )
         );
-        const items = (tsData?.data || tsData?.items || (Array.isArray(tsData) ? tsData : []))
-          .map((row) => ({
-            ...row,
-            provider: normalizeOpenWearablesProvider(row.provider || row.source?.provider || fallbackDataProvider),
-          }));
+        const items = allTsItems.map((row) => ({
+          ...row,
+          provider: normalizeOpenWearablesProvider(row.provider || row.source?.provider || fallbackDataProvider),
+        }));
         if (items.length && this.openWearablesRepo?.insertTimeseriesBatch) {
           const count = await this.openWearablesRepo.insertTimeseriesBatch(memberId, 'wearable', items);
           timeseriesSaved += count;
@@ -1376,6 +1413,109 @@ export class WearableService {
   async getSyncLogs(memberId, query = {}) {
     await this.requireMember(memberId);
     return this.openWearablesRepo.getRecentSyncLogs(memberId, query);
+  }
+
+  async importAppleXml(memberId, fileBuffer, filename = 'export.xml') {
+    await this.requireMember(memberId);
+    if (!this.openWearables || !this.openWearables.isConfigured()) {
+      throw new ApplicationError('OpenWearables is not configured.', 503, 'open_wearables_unconfigured');
+    }
+    const owUserId = await this.getOrCreateOwUserId(memberId);
+    if (!owUserId) {
+      throw new ApplicationError('Could not resolve OpenWearables user.', 502, 'open_wearables_user_missing');
+    }
+
+    const fileSize = Buffer.byteLength(fileBuffer);
+    const MIN_MULTIPART = 5 * 1024 * 1024; // 5 MiB
+
+    if (fileSize < MIN_MULTIPART) {
+      // Small file (< 5 MiB): use direct upload endpoint
+      try {
+        const directResult = await this.openWearables.uploadAppleXmlDirect(owUserId, fileBuffer, filename);
+        return {
+          status: directResult?.status || 'processing',
+          taskId: directResult?.task_id || directResult?.id || null,
+          method: 'direct',
+          owUserId,
+        };
+      } catch (directErr) {
+        logger.warn(`Apple XML direct upload failed: ${directErr.message}`, { memberId });
+        throw new ApplicationError(
+          `Apple XML direct upload failed: ${directErr.message}`,
+          directErr.status || 502,
+          'apple_xml_upload_failed',
+        );
+      }
+    }
+
+    // Large file: use multipart upload
+    const PART_SIZE = 100 * 1024 * 1024; // 100 MiB default
+    const created = await this.openWearables.createAppleXmlMultipart(owUserId, {
+      filename,
+      contentType: 'application/xml',
+      fileSize,
+    });
+
+    const partSize = created.part_size || PART_SIZE;
+    const partCount = Math.ceil(fileSize / partSize);
+    const partNumbers = Array.from({ length: partCount }, (_, i) => i + 1);
+
+    let completionSubmitted = false;
+    try {
+      const signed = await this.openWearables.signAppleXmlMultipart(owUserId, {
+        key: created.key,
+        uploadId: created.upload_id,
+        partNumbers,
+      });
+
+      const urlMap = new Map(
+        (signed.urls || []).map((u) => [u.part_number, u.url]),
+      );
+
+      const completedParts = [];
+      for (let i = 0; i < partCount; i++) {
+        const start = i * partSize;
+        const chunk = fileBuffer.slice(start, start + partSize);
+        const partUrl = urlMap.get(i + 1);
+        if (!partUrl) throw new Error(`No presigned URL for part ${i + 1}`);
+
+        const res = await this.openWearables.fetchFn(partUrl, {
+          method: 'PUT',
+          body: chunk,
+          headers: { 'Content-Type': 'application/octet-stream' },
+        });
+        if (!res.ok) throw new Error(`Part ${i + 1} upload failed: ${res.status}`);
+        const etag = res.headers.get('etag') || res.headers.get('ETag');
+        if (!etag) throw new Error(`Missing ETag for part ${i + 1} — ensure CORS exposes the ETag header.`);
+        completedParts.push({ part_number: i + 1, etag: etag.replace(/"/g, '') });
+        logger.info(`Apple XML multipart: uploaded part ${i + 1}/${partCount}`, { memberId });
+      }
+
+      completionSubmitted = true;
+      const result = await this.openWearables.completeAppleXmlMultipart(owUserId, {
+        key: created.key,
+        uploadId: created.upload_id,
+        parts: completedParts,
+      });
+
+      return { status: result.status || 'processing', taskId: result.task_id || null, key: result.key, owUserId };
+    } catch (err) {
+      if (!completionSubmitted) {
+        try {
+          await this.openWearables.abortAppleXmlMultipart(owUserId, {
+            key: created.key,
+            uploadId: created.upload_id,
+          });
+        } catch (abortErr) {
+          logger.warn('Failed to abort Apple XML multipart upload', { err: abortErr.message });
+        }
+      }
+      throw new ApplicationError(
+        `Apple XML import failed: ${err.message}`,
+        err.status >= 400 && err.status < 500 ? err.status : 502,
+        'apple_xml_import_failed',
+      );
+    }
   }
 
   async requireMember(memberId) {

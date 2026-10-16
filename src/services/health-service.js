@@ -12,6 +12,7 @@ export class HealthService {
     this.memberRepo = repos.memberRepo ?? repos;
     this.wearableRepo = repos.wearableRepo ?? repos;
     this.openWearablesRepo = repos.openWearablesRepo ?? repos.owRepo;
+    this.openWearablesClient = repos.openWearablesClient ?? repos.owClient ?? null;
     this.batchLimit = batchLimit;
   }
 
@@ -237,6 +238,9 @@ export class HealthService {
 
     await this.triggerDebouncedWellness(memberId);
 
+    // Phone sync data is stored with history in our wellness_db database only.
+    // OpenWearables is reserved strictly for external cloud wearable providers (Whoop, Garmin, Fitbit, Google OAuth, etc.).
+
     return HealthSampleMapper.toSyncResponseDto(response);
   }
 
@@ -419,6 +423,124 @@ export class HealthService {
     }
   }
 
+  async relayToOpenWearables(memberId, samples) {
+    if (!this.openWearablesClient || typeof this.openWearablesClient.isConfigured !== 'function' || !this.openWearablesClient.isConfigured()) {
+      return;
+    }
+    if (!Array.isArray(samples) || samples.length === 0) {
+      return;
+    }
+
+    let owUserId = null;
+    const member = await this.memberRepo.findMemberById(memberId).catch(() => null);
+    if (!member) return;
+
+    if (member.ow_user_id || member.owUserId) {
+      owUserId = member.ow_user_id || member.owUserId;
+    } else if (this.openWearablesClient.findOrCreateUser) {
+      const owUser = await this.openWearablesClient.findOrCreateUser({
+        email: member.email || `${member.id}@phone.health`,
+        externalUserId: member.id,
+        firstName: member.firstName || 'Member',
+        lastName: member.lastName || '',
+      }).catch((e) => {
+        logger.warn('Failed to findOrCreateUser in OpenWearables during relay:', e.message);
+        return null;
+      });
+      if (owUser?.id) {
+        owUserId = owUser.id;
+        if (this.memberRepo.setOwUserId) {
+          await this.memberRepo.setOwUserId(memberId, owUserId).catch(() => {});
+        }
+      }
+    }
+
+    if (!owUserId) return;
+
+    const metricMapping = {
+      steps: { type: 'STEP_COUNT', unit: 'count' },
+      heart_rate: { type: 'HEART_RATE', unit: 'bpm' },
+      resting_heart_rate: { type: 'RESTING_HEART_RATE', unit: 'bpm' },
+      spo2: { type: 'OXYGEN_SATURATION', unit: '%' },
+      blood_glucose: { type: 'BLOOD_GLUCOSE', unit: 'mg/dL' },
+      blood_pressure_systolic: { type: 'BLOOD_PRESSURE_SYSTOLIC', unit: 'mmHg' },
+      blood_pressure_diastolic: { type: 'BLOOD_PRESSURE_DIASTOLIC', unit: 'mmHg' },
+      calories: { type: 'ACTIVE_CALORIES_BURNED', unit: 'kcal' },
+      active_energy_burned: { type: 'ACTIVE_CALORIES_BURNED', unit: 'kcal' },
+      distance: { type: 'DISTANCE', unit: 'm' },
+      hydration: { type: 'HYDRATION', unit: 'ml' },
+      respiratory_rate: { type: 'RESPIRATORY_RATE', unit: 'countPerMinute' },
+    };
+
+    const records = [];
+    const sleep = [];
+
+    for (const sample of samples) {
+      const m = (sample.metric || sample.metricType || '').toLowerCase();
+      const val = Number(sample.value);
+      if (!Number.isFinite(val) || val <= 0) continue;
+
+      const recTime = sample.recordedAt || sample.recorded_at || new Date().toISOString();
+      const sampleDate = recTime.split('T')[0];
+      const isDailyCumulative = sample.aggregation === 'daily_total' ||
+        ['steps', 'calories', 'active_energy_burned', 'distance', 'hydration'].includes(m);
+
+      // For daily cumulative totals, anchor the recorded timestamp to midnight UTC (YYYY-MM-DDT00:00:00.000Z)
+      // so OpenWearables ON CONFLICT updates the single row for that date instead of duplicating and summing.
+      const startTime = isDailyCumulative
+        ? `${sampleDate}T00:00:00.000Z`
+        : (sample.endedAt || sample.ended_at ? recTime : new Date(new Date(recTime).getTime() - 60000).toISOString());
+      const endTime = sample.endedAt || sample.ended_at || recTime;
+
+      if (m === 'sleep') {
+        const sleepMins = Math.round(val);
+        const sleepEnd = sample.endedAt || sample.ended_at || recTime;
+        const sleepStart = sample.startedAt || sample.started_at ||
+          new Date(new Date(sleepEnd).getTime() - (sleepMins * 60000)).toISOString();
+        sleep.push({
+          id: sample.externalId || `sleep-${sampleDate}-${memberId}`,
+          stage: 'asleep',
+          startDate: sleepStart,
+          endDate: sleepEnd,
+        });
+      } else if (metricMapping[m]) {
+        const { type, unit } = metricMapping[m];
+        records.push({
+          id: sample.externalId || `${m}-${sampleDate}-${memberId}`,
+          type,
+          value: Math.round(val * 100) / 100,
+          unit: sample.unit || unit,
+          startDate: startTime,
+          endDate: endTime,
+        });
+      }
+    }
+
+    if (records.length === 0 && sleep.length === 0) return;
+
+    const sampleProvider = (samples[0]?.provider || 'health_connect').toLowerCase();
+    const provider = (sampleProvider === 'apple_health' || sampleProvider === 'apple')
+      ? 'apple'
+      : 'health_connect';
+
+    const payload = {
+      provider,
+      sdkVersion: '0.1.0',
+      syncTimestamp: new Date().toISOString(),
+      data: {
+        records,
+        sleep,
+        workouts: [],
+      },
+    };
+
+    try {
+      await this.openWearablesClient.syncSdkData(owUserId, payload);
+    } catch (err) {
+      logger.warn('Failed to relay SDK data to OpenWearables:', { err: err.message, owUserId });
+    }
+  }
+
   async ingestWebhookData(memberId, provider, rawSamples, idempotencyHeader) {
     await this.requireMember(memberId);
 
@@ -593,22 +715,117 @@ export class HealthService {
       return recDate === utcTodayKey || recDate === localTodayKey;
     });
 
-    const reconciledToday = reconcileDailyMetrics(todaySamples.length > 0 ? todaySamples : samples);
+    // Reconcile ONLY today's samples for today's summary. NEVER pass 30-day historical samples.
+    const reconciledToday = reconcileDailyMetrics(todaySamples);
 
-    // Build daily step history grouped by date
+    // Build daily history grouped by date (steps, calories, distance, heartRate, sleep)
     const historyMap = new Map();
     for (const sample of samples) {
-      if ((sample.metric === 'steps' || sample.metricType === 'steps') && Number(sample.value) > 0) {
-        const rawDate = sample.recordedAt || sample.recorded_at;
-        const dateKey = rawDate ? new Date(rawDate).toISOString().split('T')[0] : null;
-        if (dateKey) {
-          const existing = historyMap.get(dateKey) || 0;
-          historyMap.set(dateKey, Math.max(existing, Number(sample.value)));
+      const metric = sample.metric || sample.metricType;
+      const rawDate = sample.localDate || sample.sourceRecordId?.match(/\d{4}-\d{2}-\d{2}/)?.[0] || sample.recordedAt || sample.recorded_at;
+      let dateKey = null;
+      if (typeof rawDate === 'string') {
+        dateKey = rawDate.match(/\d{4}-\d{2}-\d{2}/)?.[0] || rawDate.split('T')[0];
+      } else if (rawDate instanceof Date) {
+        const idMatch = sample.sourceRecordId?.match(/\d{4}-\d{2}-\d{2}/)?.[0];
+        dateKey = idMatch || rawDate.toLocaleDateString('en-CA') || rawDate.toISOString().split('T')[0];
+      }
+      if (!dateKey) continue;
+
+      const current = historyMap.get(dateKey) || {
+        date: dateKey,
+        steps: 0,
+        calories: 0,
+        distance: 0,
+        heartRate: null,
+        sleep: 0,
+      };
+
+      const val = Number(sample.value);
+      if (Number.isFinite(val) && val > 0) {
+        if (metric === 'steps') {
+          current.steps = Math.max(current.steps, Math.round(val));
+        } else if (metric === 'calories') {
+          current.calories = Math.max(current.calories, Math.round(val));
+        } else if (metric === 'distance') {
+          current.distance = Math.max(current.distance, Math.round(val));
+        } else if (metric === 'sleep') {
+          current.sleep = Math.max(current.sleep, Math.round(val));
+        } else if (metric === 'heart_rate') {
+          current.heartRate = current.heartRate ? Math.round((current.heartRate + val) / 2) : Math.round(val);
         }
+      }
+      historyMap.set(dateKey, current);
+    }
+
+    const history = Array.from(historyMap.values())
+      .sort((a, b) => b.date.localeCompare(a.date));
+
+    // ── Accurate Step Streak & Weekly Progress Computation ──
+    const dailyStepTarget = 10000;
+    const todayStepsVal = Number(reconciledToday.steps?.value) || historyMap.get(localTodayKey)?.steps || historyMap.get(utcTodayKey)?.steps || 0;
+    const todayCompleted = todayStepsVal >= dailyStepTarget;
+
+    let streakDays = 0;
+    if (todayCompleted) {
+      streakDays = 1;
+    }
+
+    // Check backwards from yesterday to count consecutive days meeting target
+    let dayOffset = 1;
+    let streakBroken = false;
+    while (dayOffset <= 30 && !streakBroken) {
+      const pastD = new Date(nowD.getTime() - dayOffset * 24 * 60 * 60 * 1000);
+      const pastKey = `${pastD.getFullYear()}-${padN(pastD.getMonth() + 1)}-${padN(pastD.getDate())}`;
+      const pastUtcKey = pastD.toISOString().split('T')[0];
+      const pastSteps = Math.max(historyMap.get(pastKey)?.steps || 0, historyMap.get(pastUtcKey)?.steps || 0);
+
+      if (pastSteps >= dailyStepTarget) {
+        streakDays++;
+        dayOffset++;
+      } else {
+        streakBroken = true;
       }
     }
 
-    const history = Array.from(historyMap.entries()).map(([date, steps]) => ({ date, steps }));
+    // Weekly progress (Monday to Sunday)
+    const dayOfWeek = nowD.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+    const distToMonday = (dayOfWeek + 6) % 7;
+    const monday = new Date(nowD);
+    monday.setDate(nowD.getDate() - distToMonday);
+    monday.setHours(0, 0, 0, 0);
+
+    const weekDayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    const weekProgress = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday.getTime() + i * 24 * 60 * 60 * 1000);
+      const dKey = `${d.getFullYear()}-${padN(d.getMonth() + 1)}-${padN(d.getDate())}`;
+      const isToday = d.getFullYear() === nowD.getFullYear() &&
+                      d.getMonth() === nowD.getMonth() &&
+                      d.getDate() === nowD.getDate();
+      const isPast = !isToday && dKey < localTodayKey;
+      const isFuture = !isToday && dKey > localTodayKey;
+      const dayMetrics = historyMap.get(dKey) || { steps: 0, calories: 0, distance: 0, heartRate: null, sleep: 0 };
+      const daySteps = isToday
+        ? Math.max(todayStepsVal, dayMetrics.steps)
+        : dayMetrics.steps;
+      const completed = daySteps >= dailyStepTarget;
+
+      weekProgress.push({
+        label: weekDayLabels[i],
+        date: dKey,
+        steps: daySteps,
+        calories: dayMetrics.calories || (daySteps > 0 ? Math.round(daySteps * 0.045) : 0),
+        distance: dayMetrics.distance || (daySteps > 0 ? Math.round(daySteps * 0.75) : 0),
+        heartRate: isToday ? (Number(reconciledToday.heart_rate?.value) || dayMetrics.heartRate) : dayMetrics.heartRate,
+        sleep: isToday ? (Number(reconciledToday.sleep?.value) || dayMetrics.sleep) : dayMetrics.sleep,
+        completed,
+        isToday,
+        isPast,
+        isFuture,
+        status: completed ? 'completed' : isToday ? 'in_progress' : isPast ? 'missed' : 'upcoming',
+      });
+    }
 
     let healthScore = null;
     const pool = this.memberRepo?.pool || this.healthSampleRepo?.pool;
@@ -643,9 +860,38 @@ export class HealthService {
       }
     }
 
+    const intraday = {
+      heart_rate: [],
+      spo2: [],
+      blood_pressure_systolic: [],
+      blood_pressure_diastolic: [],
+      blood_glucose: [],
+      steps: [],
+    };
+    for (const s of todaySamples) {
+      const m = s.metric || s.metric_type;
+      if (!intraday[m]) intraday[m] = [];
+      intraday[m].push({
+        value: Number(s.value),
+        unit: s.unit,
+        recordedAt: s.recordedAt || s.recorded_at,
+        provider: s.provider,
+        externalId: s.externalId || s.source_record_id,
+      });
+    }
+    for (const k of Object.keys(intraday)) {
+      intraday[k].sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime());
+    }
+
     return {
       ...HealthSampleMapper.toDailySummaryDto(reconciledToday),
+      intraday,
       history,
+      streakDays,
+      streakActive: streakDays > 0,
+      dailyStepTarget,
+      todayCompleted,
+      weekProgress,
       healthScore: healthScore?.score ?? 30,
       wellnessScore: healthScore?.score ?? 30,
       healthScoreDetail: healthScore,
@@ -679,7 +925,7 @@ async function seedBaselineSamples(memberId, healthSampleRepo) {
   // Seed 30 days of longitudinal history for ALL metrics:
   for (let i = 29; i >= 0; i--) {
     const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-    const dateStr = d.toISOString().split('T')[0];
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const isToday = i === 0;
 
     // 1. Steps (daily_total)

@@ -42,16 +42,22 @@ export const PROVIDER_CAPABILITIES = {
   ultrahuman: { name: 'Ultrahuman', type: 'oauth', connectionType: 'oauth', tier: 1 },
   fitbit: { name: 'Fitbit', type: 'oauth', connectionType: 'oauth', tier: 2 },
 
-  // Universal Nearby Bluetooth BLE Method (for any nearby physical smartwatch: boAt, Fire-Boltt, Noise, Fitpass, etc.)
-  bluetooth_ble: {
-    name: 'Bluetooth Smartwatch',
+  apple: {
+    name: 'Apple Health',
     type: 'phone_sdk',
-    connectionType: 'ble_direct',
-    via: 'bluetooth_ble',
+    connectionType: 'phone_sdk',
+    via: 'apple_health',
     tier: 1,
-    instructions: 'Direct Bluetooth Low Energy pairing for GATT-compatible smartwatches and fitness trackers.',
+    instructions: 'Connect via Apple Health on your iOS device.',
   },
-
+  samsung: {
+    name: 'Samsung Health',
+    type: 'phone_sdk',
+    connectionType: 'phone_sdk',
+    via: 'samsung_health',
+    tier: 1,
+    instructions: 'Connect via Samsung Health Cloud or Health Connect.',
+  },
   manual: {
     name: 'Manual Entry',
     type: 'manual',
@@ -64,6 +70,8 @@ export const PROVIDER_CAPABILITIES = {
 export function getProviderConfig(provider) {
   if (!provider) return null;
   const key = String(provider).toLowerCase();
+  if (key === 'samsung' || key === 'samsung_health') return PROVIDER_CAPABILITIES.samsung || PROVIDER_CAPABILITIES.samsung_health;
+  if (key === 'apple' || key === 'apple_health') return PROVIDER_CAPABILITIES.apple || PROVIDER_CAPABILITIES.apple_health;
   return PROVIDER_CAPABILITIES[key] || null;
 }
 

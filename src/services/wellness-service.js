@@ -34,11 +34,11 @@ export class WellnessService {
     }
 
     const todayRes = await client.query(
-      `SELECT local_date, metric_type, aggregation, SUM(value) AS total_val, MAX(value) AS max_val
+      `SELECT local_date, metric_type, provider, aggregation, MAX(value) AS max_val, SUM(value) AS total_val
        FROM timeseries
        WHERE member_id = $1
          AND local_date >= (CURRENT_DATE - INTERVAL '1 day')
-       GROUP BY local_date, metric_type, aggregation
+       GROUP BY local_date, metric_type, provider, aggregation
        ORDER BY local_date DESC`,
       [memberId],
     );
@@ -48,14 +48,11 @@ export class WellnessService {
 
     for (const r of todayRes.rows) {
       if (r.metric_type === 'steps' || r.metric_type === 'step_count') {
-        if (r.aggregation === 'daily_total') {
-          steps = Math.max(steps, Number(r.max_val));
-        } else {
-          steps = Math.max(steps, Number(r.total_val));
-        }
+        const val = Number(r.max_val || r.total_val || 0);
+        steps = Math.max(steps, val);
       }
       if (r.metric_type === 'sleep' && sleepMinutes === 0) {
-        sleepMinutes = Math.max(sleepMinutes, Number(r.total_val));
+        sleepMinutes = Math.max(sleepMinutes, Number(r.max_val || r.total_val || 0));
       }
       if (r.metric_type === 'hrv' || r.metric_type === 'heart_rate_variability') {
         hrv = Math.max(hrv, Number(r.max_val));

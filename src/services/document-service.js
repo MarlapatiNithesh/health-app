@@ -837,8 +837,9 @@ ${text}`
     if (!this.clinicalRepo?.createClinicalRecord) return;
 
     if (field.fieldName === 'medication_name') {
-      const doseField = allFields.find((f) => f.fieldName === 'dose');
-      const freqField = allFields.find((f) => f.fieldName === 'frequency');
+      const idx = allFields.indexOf(field);
+      const doseField = allFields.find((f, i) => f.fieldName === 'dose' && (idx === -1 || (i >= idx && i <= idx + 4)));
+      const freqField = allFields.find((f, i) => f.fieldName === 'frequency' && (idx === -1 || (i >= idx && i <= idx + 4)));
       await this.clinicalRepo.createClinicalRecord(patientId, {
         recordType: 'medication',
         name: field.normalizedValue || field.rawValue,

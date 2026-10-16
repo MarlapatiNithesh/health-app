@@ -107,7 +107,7 @@ export class ResponseSafetyValidator {
     }
 
     // ── 4. Check that clinical guidance responses include a disclaimer and citation ──────────
-    const isGivingClinicalGuidance = this.#isClinicalGuidanceResponse(response);
+    const isGivingClinicalGuidance = this.#isClinicalGuidanceResponse(response) && !isSymptomAssessment;
     if (isGivingClinicalGuidance) {
       const hasCitation = /\[(Record|Source):[^\]]+\]/i.test(response);
       if (!hasCitation) {

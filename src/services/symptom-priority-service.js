@@ -198,10 +198,191 @@ export const FIELD_QUESTION_TEMPLATES = {
   associatedSymptoms: 'Are you experiencing any other symptoms alongside this — such as nausea, fever, dizziness, or shortness of breath?',
 };
 
+// Interactive quick response options for mobile UI chips
+export const FIELD_QUICK_OPTIONS = {
+  primarySymptom: [
+    'Headache / Migraine',
+    'Chest Pain or Pressure',
+    'Stomach / Abdominal Pain',
+    'Fever & Body Chills',
+    'Cough & Cold',
+    'Shortness of Breath',
+    'Dizziness & Lightheadedness',
+  ],
+  severity: [
+    'Mild (1 - 3 out of 10)',
+    'Moderate (4 - 6 out of 10)',
+    'Severe (7 - 9 out of 10)',
+    'Critical (10 / 10)',
+  ],
+  duration: [
+    'Just started today (few hours)',
+    '1 to 2 days',
+    'About a week',
+    'More than 2 weeks',
+  ],
+  onset: [
+    'Came on suddenly / abruptly',
+    'Developed gradually over time',
+  ],
+  character: [
+    'Throbbing or pounding',
+    'Dull ache or continuous pressure',
+    'Sharp or stabbing',
+    'Burning or stinging',
+    'Cramping or squeezing tightness',
+  ],
+  location: [
+    'Specific point on one side',
+    'All over / generalized',
+    'Front / Forehead',
+    'Back / Lower region',
+  ],
+  radiation: [
+    'No, stays in one place',
+    'Spreads to the arm or shoulder',
+    'Spreads to the neck or jaw',
+    'Radiates down the leg or back',
+  ],
+  aggravatingFactors: [
+    'Worse with movement or exertion',
+    'Worse after eating or drinking',
+    'Worse with bright light or noise',
+    'No specific trigger identified',
+  ],
+  relievingFactors: [
+    'Improves with rest or lying down',
+    'Improves with pain relief medication',
+    'Improves with cold or warm pack',
+    'Nothing seems to relieve it',
+  ],
+  associatedSymptoms: [
+    'Nausea or vomiting',
+    'Fever or chills',
+    'Dizziness or fatigue',
+    'No other symptoms',
+  ],
+};
+
 // Minimum fields required for completeness gate
 const REQUIRED_FIELDS = new Set(['severity', 'duration', 'onset', 'character']);
 
 export class SymptomPriorityService {
+  /**
+   * Intelligently extract symptom fields from user response text.
+   * Works across user typing, interactive chip clicks, and LLM failure states.
+   */
+  extractSymptomFromText(text = '', pendingField = null, existingState = {}) {
+    if (!text || typeof text !== 'string') return {};
+    const lower = text.toLowerCase().trim();
+    const extracted = {};
+
+    // 1. Primary symptom extraction
+    if (!existingState.primarySymptom || pendingField === 'primarySymptom') {
+      for (const { key, patterns } of SYMPTOM_KEYWORD_MAP) {
+        if (patterns.some((p) => lower.includes(p))) {
+          extracted.primarySymptom = key.replace(/_/g, ' ');
+          break;
+        }
+      }
+    }
+
+    // 2. Severity extraction
+    const numMatch = lower.match(/\b([0-9]|10)\s*(?:\/10|out of 10)?\b/);
+    if (lower.includes('mild') || lower.includes('1 - 3') || lower.includes('1-3')) {
+      extracted.severity = 2;
+    } else if (lower.includes('moderate') || lower.includes('4 - 6') || lower.includes('4-6')) {
+      extracted.severity = 5;
+    } else if (lower.includes('severe') || lower.includes('7 - 9') || lower.includes('7-9')) {
+      extracted.severity = 8;
+    } else if (lower.includes('critical') || lower.includes('worst') || lower.includes('10/10') || lower.includes('10 / 10')) {
+      extracted.severity = 10;
+    } else if (pendingField === 'severity' && numMatch) {
+      extracted.severity = parseInt(numMatch[1], 10);
+    } else if (numMatch && (lower.includes('severity') || lower.includes('/10') || lower.includes('scale'))) {
+      extracted.severity = parseInt(numMatch[1], 10);
+    }
+
+    // 3. Duration extraction
+    const durMatch = lower.match(/\b(\d+)\s*(days?|weeks?|months?|hours?|minutes?|years?)\b/);
+    if (durMatch) {
+      extracted.duration = `${durMatch[1]} ${durMatch[2]}`;
+    } else if (lower.includes('today') || lower.includes('few hours') || lower.includes('just started')) {
+      extracted.duration = 'few hours';
+    } else if (lower.includes('yesterday')) {
+      extracted.duration = '1 day';
+    } else if (lower.includes('1 to 2 days') || lower.includes('1-2 days') || lower.includes('couple of days') || lower.includes('few days')) {
+      extracted.duration = '2 days';
+    } else if (lower.includes('week') || lower.includes('about a week')) {
+      extracted.duration = '1 week';
+    } else if (lower.includes('month')) {
+      extracted.duration = '1 month';
+    } else if (pendingField === 'duration' && text.length > 1 && text.length < 80) {
+      extracted.duration = text.trim();
+    }
+
+    // 4. Onset extraction
+    if (lower.includes('sudden') || lower.includes('abrupt') || lower.includes('all of a sudden') || lower.includes('fast')) {
+      extracted.onset = 'sudden';
+    } else if (lower.includes('gradual') || lower.includes('slowly') || lower.includes('over time')) {
+      extracted.onset = 'gradual';
+    } else if (pendingField === 'onset' && text.length > 1 && text.length < 80) {
+      extracted.onset = text.trim();
+    }
+
+    // 5. Character extraction
+    if (lower.includes('throb') || lower.includes('pound')) {
+      extracted.character = 'throbbing';
+    } else if (lower.includes('sharp') || lower.includes('stab')) {
+      extracted.character = 'sharp';
+    } else if (lower.includes('dull') || lower.includes('ache') || lower.includes('pressure')) {
+      extracted.character = 'dull ache';
+    } else if (lower.includes('burn') || lower.includes('sting')) {
+      extracted.character = 'burning';
+    } else if (lower.includes('cramp') || lower.includes('squeeze') || lower.includes('tight')) {
+      extracted.character = 'cramping / tightness';
+    } else if (pendingField === 'character' && text.length > 1 && text.length < 80) {
+      extracted.character = text.trim();
+    }
+
+    // 6. Location extraction
+    if (pendingField === 'location' && text.length > 1 && text.length < 80) {
+      extracted.location = text.trim();
+    } else {
+      const locationKeywords = ['left', 'right', 'temple', 'forehead', 'back of head', 'chest', 'stomach', 'belly', 'abdomen', 'lower back', 'shoulder', 'knee', 'neck', 'behind eyes'];
+      for (const loc of locationKeywords) {
+        if (lower.includes(loc)) {
+          extracted.location = loc;
+          break;
+        }
+      }
+    }
+
+    // 7. Radiation extraction
+    if (lower.includes('nowhere') || lower.includes('stays') || lower.includes('no radiation') || lower === 'no' || lower.startsWith('no,')) {
+      extracted.radiation = 'none';
+    } else if (lower.includes('arm') || lower.includes('jaw') || lower.includes('neck') || lower.includes('back') || lower.includes('leg') || lower.includes('shoulder')) {
+      const match = lower.match(/(?:radiat\w+|spread\w+|to\s+the|down\s+the)\s+([a-z\s]+)/) || [null, lower];
+      extracted.radiation = match[1]?.trim() || 'radiating';
+    } else if (pendingField === 'radiation' && text.length > 1 && text.length < 80) {
+      extracted.radiation = text.trim();
+    }
+
+    // 8. Aggravating & Relieving factors
+    if (pendingField === 'aggravatingFactors' && text.length > 1 && text.length < 100) {
+      extracted.aggravatingFactors = text.trim();
+    }
+    if (pendingField === 'relievingFactors' && text.length > 1 && text.length < 100) {
+      extracted.relievingFactors = text.trim();
+    }
+
+    // 9. If pendingField is set and no specific field was extracted yet, map direct answer if reasonable length
+    if (pendingField && Object.keys(extracted).length === 0 && text.length > 1 && text.length < 90) {
+      extracted[pendingField] = text.trim();
+    }
+
+    return extracted;
+  }
   /**
    * Normalise the reported symptom name to a priority table key.
    */
@@ -286,6 +467,7 @@ export class SymptomPriorityService {
 
     if (nextField) {
       const template = FIELD_QUESTION_TEMPLATES[nextField] || `Please ask about: ${nextField}`;
+      const quickOpts = FIELD_QUICK_OPTIONS[nextField] || [];
       lines.push(
         '',
         `NEXT REQUIRED FIELD: "${nextField}"`,
@@ -299,6 +481,14 @@ export class SymptomPriorityService {
         'Do NOT bundle multiple questions into one response.',
         'Phrase the question warmly and naturally, like a caring doctor.',
         'You may briefly acknowledge what the patient just told you before asking.',
+        '',
+        'REQUIRED STRUCTURE FOR THIS TURN:',
+        `🎯 **Primary Focus:** Assessing ${symptomState.primarySymptom || 'Reported Symptom'} (${FIELD_LABELS[nextField] || nextField})`,
+        '',
+        `[Your warm acknowledgment and single question based on: "${template}"]`,
+        '',
+        '💡 **Follow-up & Feedback Questions:**',
+        ...quickOpts.map((opt, i) => `${i + 1}. ${opt}`),
       );
     } else {
       lines.push(

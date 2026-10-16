@@ -77,6 +77,7 @@ export class WearableRepository {
          updated_at       AS "updatedAt"
        FROM wearable_links
        WHERE member_id = $1
+         AND provider NOT IN ('apple_health','health_connect','phone_pedometer','phone')
        ORDER BY created_at DESC`,
       [memberId],
     );
@@ -504,6 +505,7 @@ export class WearableRepository {
          updated_at       AS "updatedAt"
        FROM wearable_links
        WHERE member_id = $1
+         AND provider NOT IN ('apple_health','health_connect','phone_pedometer','phone')
        ORDER BY created_at`,
       [memberId],
     );
@@ -932,7 +934,7 @@ export class WearableRepository {
     const result = await client.query(
       `SELECT
          metric_type AS "metricType", recorded_at AS "recordedAt",
-         ended_at AS "endedAt", local_date AS "localDate",
+         ended_at AS "endedAt", local_date::text AS "localDate",
          value, unit, provider, device_key AS "deviceKey",
          aggregation, source_record_id AS "sourceRecordId",
          quality_flag AS "qualityFlag", metadata

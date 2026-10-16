@@ -90,8 +90,11 @@ export class GeminiClient {
       parts: [
         { inline_data: { mime_type: mimeType, data: b64 } },
         {
-          text: 'Transcribe all visible text in this document accurately, '
-              + 'preserving clinical sections, findings, medications, and diagnoses.',
+          text: 'You are an expert clinical pharmacist and medical OCR specialist. '
+              + 'Carefully transcribe ALL text in this medical document, especially doctor handwriting, cursive prescription notes, clinic headers, and lab reports. '
+              + 'Decipher doctors\' cursive handwriting and standard medical abbreviations (e.g., Rx, Tab, Cap, Syr, Inj, OD, BD, TDS, QID, HS, SOS, stat, AC, PC, mg, mcg, ml, x days). '
+              + 'Identify and clearly transcribe every medicine name, its strength/dose, frequency/dosage schedule, and duration. '
+              + 'Preserve all clinical sections, patient vitals, diagnosis, doctor name, clinic/hospital details, and dates accurately.',
         },
       ],
     }];

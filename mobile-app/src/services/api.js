@@ -120,17 +120,19 @@ export const api = {
 
   getPhoneHealthConnection: () => request('/v1/me/phone-health/connection'),
 
-  updatePhoneHealthConnection: (data = {}) =>
-    request('/v1/me/phone-health/connection', {
+  updatePhoneHealthConnection: (data = {}) => {
+    const isIOS = typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent || '');
+    return request('/v1/me/phone-health/connection', {
       method: 'PUT',
       body: JSON.stringify({
-        provider: 'apple_health',
-        platform: 'ios',
+        provider: isIOS ? 'apple_health' : 'health_connect',
+        platform: isIOS ? 'ios' : 'android',
         permissions: ['steps', 'heart_rate', 'sleep', 'hydration', 'blood_glucose', 'blood_pressure_systolic', 'spo2', 'temperature', 'weight'],
         status: 'connected',
         ...data,
       }),
-    }),
+    });
+  },
 
   syncPhoneHealth: (samples) =>
     request('/v1/me/phone-health/sync', {
@@ -172,6 +174,76 @@ export const api = {
       method: 'DELETE',
     }),
   getWearableDevices: () => request('/v1/wearables/devices'),
+  createWearableSdkSession: () => request('/v1/wearables/sdk-session', { method: 'POST' }),
+  syncWearableSdkData: () => request('/v1/wearables/sdk-sync', { method: 'POST' }),
+  disconnectWearableSdkProvider: (provider) =>
+    request(`/v1/wearables/sdk-connection/${encodeURIComponent(provider)}`, { method: 'DELETE' }),
+  getWearableSyncRuns: () => request('/v1/wearables/sync/runs'),
+  getWearableSyncRecent: (limit = 50) => request(`/v1/wearables/sync/recent?limit=${limit}`),
+  getWearableTimeseries: (params = {}) => request(`/v1/wearables/timeseries?${new URLSearchParams(params).toString()}`),
+  getWearableWorkouts: (params = {}) => request(`/v1/wearables/workouts?${new URLSearchParams(params).toString()}`),
+  getWearableSleep: (params = {}) => request(`/v1/wearables/sleep?${new URLSearchParams(params).toString()}`),
+  getWearableHealthScores: (params = {}) => request(`/v1/wearables/health-scores?${new URLSearchParams(params).toString()}`),
+  getWearableWomensHealth: (params = {}) => request(`/v1/wearables/womens-health?${new URLSearchParams(params).toString()}`),
+  importAppleXml: async (file, onProgress) => {
+    const token = getAuthToken();
+    const filename = file?.name || 'export.xml';
+    const headers = {
+      'Content-Type': 'application/octet-stream',
+      'X-Filename': filename,
+    };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    if (typeof XMLHttpRequest !== 'undefined' && typeof onProgress === 'function') {
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `${BASE_URL}/v1/wearables/import/apple/xml?filename=${encodeURIComponent(filename)}`);
+        Object.entries(headers).forEach(([k, v]) => xhr.setRequestHeader(k, v));
+
+        xhr.upload.onprogress = (evt) => {
+          if (evt.lengthComputable) {
+            const percent = Math.round((evt.loaded / evt.total) * 100);
+            onProgress(percent, evt.loaded, evt.total);
+          }
+        };
+
+        xhr.onload = () => {
+          try {
+            const json = JSON.parse(xhr.responseText);
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve(json);
+            } else {
+              reject(new Error(json?.error?.message || json?.message || `Upload failed with status ${xhr.status}`));
+            }
+          } catch {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve({ status: 'completed' });
+            } else {
+              reject(new Error(`Upload failed with status ${xhr.status}`));
+            }
+          }
+        };
+
+        xhr.onerror = () => reject(new Error('Network error during Apple Health XML upload'));
+        xhr.send(file);
+      });
+    }
+
+    const response = await fetch(`${BASE_URL}/v1/wearables/import/apple/xml?filename=${encodeURIComponent(filename)}`, {
+      method: 'POST',
+      headers,
+      body: file,
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      let errJson;
+      try { errJson = JSON.parse(errText); } catch { errJson = { message: errText }; }
+      throw new Error(errJson?.error?.message || errJson?.message || `HTTP error ${response.status}`);
+    }
+
+    return response.json();
+  },
 
   // ── 3. Clinical Consents ──
   setGlobalConsent: (scope = 'global', granted = true, version = '1.0') =>
@@ -475,3 +547,6 @@ export const api = {
   // Phone health sample sync
   getSystemHealth: () => request('/health'),
 };
+
+export { wearableApi, getSteps, getSleepAndWorkouts, connectOAuthProvider } from './wearableApi.js';
+

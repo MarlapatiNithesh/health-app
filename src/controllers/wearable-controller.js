@@ -143,4 +143,28 @@ export class WearableController {
     const data = await this.service.getSyncLogs(request.memberId, request.query);
     response.json({ data });
   }
+
+  async importAppleXml(request, response) {
+    const filename = request.query.filename || request.headers['x-filename'] || 'export.xml';
+    let rawBody = request.rawBody;
+    if (!rawBody && Buffer.isBuffer(request.body)) {
+      rawBody = request.body;
+    } else if (!rawBody && typeof request.body === 'string') {
+      rawBody = Buffer.from(request.body);
+    } else if (!rawBody && request.body && typeof request.body === 'object' && Object.keys(request.body).length > 0) {
+      rawBody = Buffer.from(JSON.stringify(request.body));
+    }
+
+    if (!rawBody || rawBody.length === 0) {
+      return response.status(400).json({
+        error: {
+          code: 'empty_file',
+          message: 'No file body provided for Apple Health XML import. Upload your export.xml or export.zip as the raw request body.',
+        },
+      });
+    }
+
+    const result = await this.service.importAppleXml(request.memberId, rawBody, filename);
+    response.status(202).json(result);
+  }
 }

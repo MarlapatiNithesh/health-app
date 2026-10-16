@@ -48,6 +48,9 @@ import { Patient360Screen } from './Patient360Screen';
 // Normalizes any raw model string to user-friendly clinical model attribution
 export function formatModelDisplayName(modelName, fallbackSelected = 'gemini') {
   const str = String(modelName || fallbackSelected || '').toLowerCase();
+  if (str.includes('rule') || str.includes('engine') || str.includes('fallback')) {
+    return { name: 'Clinical Rule Engine', icon: '⚙️', badgeBg: 'bg-amber-50 text-amber-900 border-amber-300' };
+  }
   if (str.includes('medg') || str === 'medgamma' || str === 'medgemma') {
     return { name: 'MedGemma 2B', icon: '🩺', badgeBg: 'bg-emerald-50 text-emerald-900 border-emerald-300' };
   }
@@ -73,7 +76,7 @@ function BotStructuredMessage({ content, onSelectQuestion }) {
 
   // Extract Follow-up & Feedback Questions
   const followUpQuestions = [];
-  const qSectionRegex = /(?:💡\s*)?\*{0,2}(?:Follow-up\s*(?:&|and)?\s*Feedback\s*Questions|Follow-up\s*Questions|Clarifying\s*Questions|Feedback\s*Questions):\*{0,2}([\s\S]*)$/i;
+  const qSectionRegex = /(?:💡\s*)?\*{0,2}(?:Follow-up\s*(?:&|and)?\s*Feedback\s*Questions|Follow-up\s*Questions|Clarifying\s*Questions|Feedback\s*Questions|Quick\s*Response\s*Options):\*{0,2}([\s\S]*)$/i;
   const qSectionMatch = text.match(qSectionRegex);
   if (qSectionMatch) {
     const qRaw = qSectionMatch[1];
@@ -215,6 +218,7 @@ export function MediBotScreen({ onClose }) {
   const [medicationInput, setMedicationInput] = useState('Amoxicillin 500mg');
   const [allergiesInput, setAllergiesInput] = useState('Penicillin');
   const [conditionsInput, setConditionsInput] = useState('Asthma');
+  const [safetyLoading, setSafetyLoading] = useState(false);
   // Active tab: 'chat' | 'records'
   const [activeTab, setActiveTab] = useState('chat');
 

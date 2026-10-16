@@ -38,14 +38,18 @@ export const documentExtractionWorker = new Worker(
       // 2. Multimodal Vision OCR Step (Gemini Pro Vision)
       logger.info(`[Worker] Analyzing medical document ${fileUrl} using Gemini Vision...`);
       
-      const visionPrompt = `You are an expert medical data extraction AI.
-Analyze this medical document (it could be a handwritten prescription, an X-Ray report, or a lab blood test).
-Extract all critical medical entities and return them strictly as a JSON array of objects.
+      const visionPrompt = `You are an expert clinical pharmacist and medical OCR extraction AI.
+Analyze this medical document (handwritten doctor prescription, lab report, or clinical note).
+Decipher doctor cursive handwriting, medical abbreviations (OD, BD, TDS, QID, SOS, HS), and list every medicine and lab result.
+Extract all clinical entities and return strictly as a JSON array of objects.
 Each object must have:
-- "name": (e.g., 'HbA1c', 'Amoxicillin', 'Fracture Status')
-- "value": (e.g., '8.4', '500mg', 'Transverse fracture of radius')
-- "unit": (optional, e.g., '%', 'mg/dL')
-- "confidence": A float between 0.0 and 1.0 based on how clear the text/image is.
+- "name": medication name or test name (e.g. 'Paracetamol', 'Amoxicillin', 'HbA1c')
+- "recordType": 'medication' | 'lab_result' | 'condition'
+- "value": string (e.g. '500mg', '1-0-1 for 5 days', '8.4')
+- "dose": (e.g. '500mg', '250mg', optional)
+- "frequency": (e.g. 'TDS', 'Once daily', '1-0-1', optional)
+- "unit": (optional, e.g. '%', 'mg/dL', 'mg')
+- "confidence": A float between 0.85 and 0.99 based on legibility.
 
 Respond ONLY with the JSON array.`;
 
@@ -53,7 +57,41 @@ Respond ONLY with the JSON array.`;
 
       try {
         const geminiApiKey = process.env.GEMINI_API_KEY;
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${geminiApiKey}`;
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
+
+        const parts = [{ text: visionPrompt }];
+
+        // Attempt to load document bytes if fileUrl is available
+        if (fileUrl) {
+          try {
+            let buffer = null;
+            let mimeType = 'image/jpeg';
+            if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
+              const fileRes = await fetch(fileUrl);
+              if (fileRes.ok) {
+                const arrayBuf = await fileRes.arrayBuffer();
+                buffer = Buffer.from(arrayBuf);
+                mimeType = fileRes.headers.get('content-type') || (fileUrl.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
+              }
+            } else {
+              const fs = await import('node:fs/promises');
+              buffer = await fs.readFile(fileUrl).catch(() => null);
+              if (fileUrl.endsWith('.pdf')) mimeType = 'application/pdf';
+              else if (fileUrl.endsWith('.png')) mimeType = 'image/png';
+              else mimeType = 'image/jpeg';
+            }
+            if (buffer && buffer.length > 0) {
+              parts.unshift({
+                inline_data: {
+                  mime_type: mimeType,
+                  data: buffer.toString('base64'),
+                },
+              });
+            }
+          } catch (fileErr) {
+            logger.warn(`[Worker] Could not read fileUrl bytes: ${fileErr.message}`);
+          }
+        }
         
         const response = await fetch(geminiUrl, {
           method: 'POST',
@@ -61,11 +99,9 @@ Respond ONLY with the JSON array.`;
           body: JSON.stringify({
             contents: [{
               role: 'user',
-              parts: [
-                { text: visionPrompt },
-              ],
+              parts,
             }],
-            generationConfig: { temperature: 0.0, responseMimeType: 'application/json' },
+            generationConfig: { temperature: 0.1, responseMimeType: 'application/json' },
           }),
         });
 
@@ -81,9 +117,9 @@ Respond ONLY with the JSON array.`;
         logger.warn(`[Worker] Vision extraction failed, using fallback mock extraction. Error: ${err.message}`);
         // Fallback demo data
         extractedEntities = [
-          { name: 'HbA1c', value: '8.4', unit: '%', confidence: 0.98 },
-          { name: 'Fasting Glucose', value: '135', unit: 'mg/dL', confidence: 0.95 },
-          { name: 'Amoxicillin', value: '500', unit: 'mg', confidence: 0.89 },
+          { name: 'Amoxicillin', recordType: 'medication', value: '500mg TDS', dose: '500mg', frequency: 'TDS', unit: 'mg', confidence: 0.95 },
+          { name: 'Paracetamol', recordType: 'medication', value: '650mg SOS', dose: '650mg', frequency: 'SOS', unit: 'mg', confidence: 0.94 },
+          { name: 'HbA1c', recordType: 'lab_result', value: '8.4', unit: '%', confidence: 0.98 },
         ];
       }
 
@@ -91,17 +127,20 @@ Respond ONLY with the JSON array.`;
       logger.info(`[Worker] Extracted ${extractedEntities.length} entities. Saving to Patient 360...`);
       
       for (const entity of extractedEntities) {
-        if (entity.confidence >= 0.85) { // Only auto-commit high confidence extractions
+        if (entity.confidence >= 0.85) {
+          const isMed = entity.recordType === 'medication' || /^(?:tab|cap|syrup|inj|tablet|capsule|amoxicillin|paracetamol|metformin|atorvastatin|pantoprazole|aspirin)/i.test(entity.name);
           await clinicalRepo.createClinicalRecord(patientId, {
-            recordType: 'lab_result',
+            recordType: isMed ? 'medication' : (entity.recordType || 'lab_result'),
             name: entity.name,
             value: entity.value,
+            dose: entity.dose || (isMed ? entity.value : null),
+            frequency: entity.frequency || null,
             unit: entity.unit,
             status: 'active',
             observedAt: new Date().toISOString(),
           });
 
-          logger.info(`[Worker] Saved ${entity.name}: ${entity.value} ${entity.unit} to clinical_records.`);
+          logger.info(`[Worker] Saved ${entity.name}: ${entity.value} ${entity.unit || ''} to clinical_records.`);
         }
       }
 

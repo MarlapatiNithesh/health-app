@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { logger } from '../logger.js';
+import { FIELD_QUESTION_TEMPLATES, FIELD_QUICK_OPTIONS, FIELD_LABELS } from './symptom-priority-service.js';
 
 export const CLINICAL_TOOL_DEFINITIONS = [
   {
@@ -176,7 +177,15 @@ export class LLMService {
 
   // ── Tool Calling Loop ──────────────────────────────────────────────
 
-  async generateWithToolCalling({ messages, systemPrompt = '', toolHandlers, requestedModel = 'gemini' }) {
+  async generateWithToolCalling({
+    messages,
+    systemPrompt = '',
+    toolHandlers,
+    requestedModel = 'gemini',
+    symptomState = null,
+    nextField = null,
+    assessmentComplete = false,
+  }) {
     let currentMessages = [...messages];
     const startTime = Date.now();
     const promptString = JSON.stringify({ systemPrompt, messages });
@@ -189,13 +198,13 @@ export class LLMService {
       if (hfResponse) {
         return {
           content: hfResponse,
-          modelName: 'medgemma-2b (hf)',
+          modelName: 'MedGemma 2B',
           modelVersion: '1.0',
           promptHash,
           latencyMs: Date.now() - startTime,
         };
       }
-      logger.warn('MedGemma HF call failed, falling back to Gemini.');
+      logger.warn('MedGemma HF call skipped or failed, falling back to Gemini / rule engine.');
     }
 
     // ── GPT-4o (OpenAI) Routing ──────────────────────────────────────────
@@ -204,64 +213,95 @@ export class LLMService {
       if (gptResponse) {
         return {
           content: gptResponse,
-          modelName: 'gpt-4o (openai)',
+          modelName: 'GPT-4o Clinical',
           modelVersion: '2024-08-06',
           promptHash,
           latencyMs: Date.now() - startTime,
         };
       }
-      logger.warn('GPT-4o OpenAI call skipped or failed, falling back to Gemini.');
+      logger.warn('GPT-4o OpenAI call skipped or failed, falling back to Gemini / rule engine.');
     }
 
     // ── Gemini Routing (Default) ─────────────────────────────────────────
-    while (true) {
-      const contents = this.#buildContents(currentMessages);
-      const requestBody = {
-        contents,
-        tools: [{ functionDeclarations: CLINICAL_TOOL_DEFINITIONS }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 1536 },
-      };
+    if (this.geminiApiKey) {
+      let loopCount = 0;
+      const MAX_TOOL_LOOPS = 5;
 
-      if (systemPrompt) {
-        requestBody.system_instruction = { parts: [{ text: systemPrompt }] };
+      while (loopCount++ < MAX_TOOL_LOOPS) {
+        const contents = this.#buildContents(currentMessages);
+        const requestBody = {
+          contents,
+          tools: [{ functionDeclarations: CLINICAL_TOOL_DEFINITIONS }],
+          generationConfig: { temperature: 0.3, maxOutputTokens: 1536 },
+        };
+
+        if (systemPrompt) {
+          requestBody.system_instruction = { parts: [{ text: systemPrompt }] };
+        }
+
+        const response = await this.#callGemini(this.endpointUrl, requestBody);
+        if (!response.ok) {
+          logger.warn('Gemini endpoint returned error status during tool calling', { status: response.status });
+          break; // break to deterministic fallback
+        }
+
+        const data = await response.json();
+        const candidate = data.candidates?.[0];
+        const parts = candidate?.content?.parts || [];
+        const functionCalls = parts.filter((p) => p.functionCall).map((p) => p.functionCall);
+
+        if (functionCalls.length > 0 && toolHandlers) {
+          const toolPromises = functionCalls.map(async ({ name, args }) => {
+            logger.info(`LLM invoked tool: ${name}`, { args });
+            const toolResult = await toolHandlers[name]?.(args) ?? { error: 'Unknown tool' };
+            return { name, args, toolResult };
+          });
+
+          const results = await Promise.all(toolPromises);
+
+          results.forEach(({ name, args, toolResult }) => {
+            currentMessages.push({ role: 'model', content: { functionCall: { name, args } } });
+            currentMessages.push({
+              role: 'tool',
+              content: {
+                functionResponse: {
+                  name,
+                  response: typeof toolResult === 'object' && toolResult !== null ? toolResult : { output: toolResult },
+                },
+              },
+            });
+          });
+
+          continue; // Loop: LLM sees all results and responds or calls more tools
+        }
+
+        const textParts = parts.filter((p) => typeof p.text === 'string').map((p) => p.text);
+        const text = textParts.join('\n').trim();
+        if (text) {
+          return {
+            content: text,
+            modelName: 'Gemini 2.5 Flash',
+            modelVersion: 'v1beta',
+            promptHash,
+            tokens: {
+              input: data.usageMetadata?.promptTokenCount ?? Math.round(promptString.length / 4),
+              output: data.usageMetadata?.candidatesTokenCount ?? Math.round(text.length / 4),
+            },
+            latencyMs: Date.now() - startTime,
+          };
+        }
       }
-
-      const response = await this.#callGemini(this.endpointUrl, requestBody);
-      if (!response.ok) {
-        logger.warn('Gemini endpoint returned error status during tool calling', { status: response.status });
-        return this.#deterministicFallback(currentMessages, promptHash, Date.now() - startTime);
-      }
-
-      const data = await response.json();
-      const candidate = data.candidates?.[0];
-      const functionCalls = candidate?.content?.parts?.filter(p => p.functionCall).map(p => p.functionCall) || [];
-
-      if (functionCalls.length > 0) {
-        const toolPromises = functionCalls.map(async ({ name, args }) => {
-          logger.info(`LLM invoked tool: ${name}`, { args });
-          const toolResult = await toolHandlers[name]?.(args) ?? { error: 'Unknown tool' };
-          return { name, args, toolResult };
-        });
-
-        const results = await Promise.all(toolPromises);
-        
-        results.forEach(({ name, args, toolResult }) => {
-          currentMessages.push({ role: 'model', content: { functionCall: { name, args } } });
-          currentMessages.push({ role: 'tool', content: { functionResponse: { name, response: toolResult } } });
-        });
-        
-        continue; // Loop: LLM sees all results and responds or calls more tools
-      }
-
-      const text = candidate?.content?.parts?.[0]?.text || '';
-      return {
-        content: text,
-        modelName: this.defaultModel,
-        modelVersion: 'v1beta',
-        promptHash,
-        latencyMs: Date.now() - startTime,
-      };
     }
+
+    // ── Resilient Rule-Based Fallback (drives symptom questionnaire loop) ──
+    return this.#deterministicFallback(
+      currentMessages,
+      promptHash,
+      Date.now() - startTime,
+      symptomState,
+      nextField,
+      assessmentComplete
+    );
   }
 
   // ── JSON extraction call (for structured symptom extraction) ────────────────
@@ -495,8 +535,12 @@ Respond in valid JSON only.`;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
 
+    const targetUrl = this.geminiApiKey && !url.includes('key=')
+      ? (url.includes('?') ? `${url}&key=${this.geminiApiKey}` : `${url}?key=${this.geminiApiKey}`)
+      : url;
+
     try {
-      let response = await fetch(url, {
+      let response = await fetch(targetUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -509,8 +553,8 @@ Respond in valid JSON only.`;
       // Auto-fallback on rate limit or overload
       if (!response.ok && (response.status === 503 || response.status === 429)) {
         logger.warn('Gemini primary endpoint busy, attempting fallback model', { status: response.status });
-        const fallbackModel = 'gemini-2.0-flash-lite';
-        const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/${fallbackModel}:generateContent`;
+        const fallbackModel = 'gemini-2.0-flash';
+        const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/${fallbackModel}:generateContent?key=${this.geminiApiKey}`;
         try {
           response = await fetch(fallbackUrl, {
             method: 'POST',
@@ -656,13 +700,20 @@ Respond in valid JSON only.`;
     return new Float32Array(384).fill(0.01);
   }
 
-  #deterministicFallback(messages, promptHash, latencyMs) {
+  #deterministicFallback(
+    messages,
+    promptHash,
+    latencyMs,
+    symptomState = null,
+    nextField = null,
+    assessmentComplete = false
+  ) {
     const lastUserMessage = [...(messages || [])].reverse().find((m) => m.role === 'user')?.content || '';
-    const content = this.#generateDeterministicResponse(lastUserMessage);
+    const content = this.#generateDeterministicResponse(lastUserMessage, symptomState, nextField, assessmentComplete);
     return {
       content,
       toolCalls: [],
-      modelName: 'medibot-rule-engine',
+      modelName: 'MediBot Clinical Rule Engine',
       modelVersion: '1.0.0',
       promptHash,
       tokens: { input: 50, output: 50 },
@@ -670,17 +721,98 @@ Respond in valid JSON only.`;
     };
   }
 
-  #generateDeterministicResponse(userQuery) {
+  #generateDeterministicResponse(userQuery, symptomState = null, nextField = null, assessmentComplete = false) {
+    // 1. If currently in active symptom questionnaire loop
+    if (symptomState?.primarySymptom && nextField) {
+      const symptomName = symptomState.primarySymptom;
+      const fieldLabel = FIELD_LABELS[nextField] || nextField;
+      const template = FIELD_QUESTION_TEMPLATES[nextField] || `Could you clarify your ${fieldLabel}?`;
+      const quickOptions = FIELD_QUICK_OPTIONS[nextField] || [];
+
+      return [
+        `🎯 **Primary Focus:** Assessing ${symptomName} (${fieldLabel})`,
+        '',
+        `Thank you for that update. To ensure an accurate clinical triage, I need to check your **${fieldLabel}**:`,
+        '',
+        template,
+        '',
+        '💡 **Follow-up & Feedback Questions:**',
+        ...quickOptions.map((opt, i) => `${i + 1}. ${opt}`),
+      ].join('\n');
+    }
+
+    // 2. If symptom assessment just completed
+    if (assessmentComplete && symptomState?.primarySymptom) {
+      const s = symptomState;
+      const lines = [
+        `🎯 **Primary Focus:** Completed Clinical Assessment for ${s.primarySymptom}`,
+        '',
+        '📋 **Key Observations (Clinical Synthesis):**',
+        `- **Primary Symptom**: ${s.primarySymptom}`,
+        s.severity ? `- **Reported Severity**: ${s.severity} / 10` : null,
+        s.character ? `- **Character**: ${s.character}` : null,
+        s.onset ? `- **Onset**: ${s.onset}` : null,
+        s.duration ? `- **Duration**: ${s.duration}` : null,
+        s.location ? `- **Location**: ${s.location}` : null,
+        s.radiation ? `- **Radiation**: ${s.radiation}` : null,
+        '',
+        '🩺 **Clinical Guidance & Triage Summary:**',
+        'Your reported symptoms have been structured and saved to your health chart. Because clinical symptoms can evolve rapidly, monitor closely for any worsening pain, sudden breathlessness, or unusual weakness.',
+        '',
+        '*Please review these findings with your attending physician or healthcare provider for definitive diagnosis and medical care.*',
+        '',
+        '💡 **Follow-up & Feedback Questions:**',
+        '1. Would you like to review related medication records?',
+        '2. Would you like to check guidelines on when to seek immediate emergency care?',
+        '3. Would you like to download your verified Health Summary PDF for your doctor?',
+      ].filter(Boolean);
+
+      return lines.join('\n');
+    }
+
+    // 3. General health query handling
     const lower = userQuery.toLowerCase();
     if (lower.includes('chest pain') || lower.includes('shortness of breath') || lower.includes('heart attack')) {
       return '🚨 **EMERGENCY WARNING**: Chest pain and severe shortness of breath can indicate a critical medical emergency. Please call emergency services (e.g. 911 or 112) or go to the nearest emergency room immediately.';
     }
     if (lower.includes('medication') || lower.includes('dose') || lower.includes('prescription')) {
-      return 'I have checked your records. Always verify any changes to dosage or frequency with your prescribing physician. What specific medication would you like to review?';
+      return [
+        '🎯 **Primary Focus:** Prescription & Medication Review',
+        '',
+        '📋 **Key Observations:** I have reviewed your active medication records.',
+        '🩺 **Clinical Guidance:** Always verify any changes to dosage, timing, or frequency with your prescribing physician.',
+        '',
+        '💡 **Follow-up & Feedback Questions:**',
+        '1. Which specific medication would you like to review?',
+        '2. Have you experienced any unusual side effects?',
+      ].join('\n');
     }
-    if (lower.includes('headache') || lower.includes('fever') || lower.includes('pain')) {
-      return 'I understand you are experiencing discomfort. To better understand your symptoms, how long have you had this, and on a scale from 1 to 10, how severe is the pain?';
+    if (lower.includes('headache') || lower.includes('fever') || lower.includes('pain') || lower.includes('cough') || lower.includes('dizzy')) {
+      const detectedSymptom = lower.includes('headache') ? 'Headache' : lower.includes('fever') ? 'Fever' : lower.includes('cough') ? 'Cough' : 'discomfort';
+      return [
+        `🎯 **Primary Focus:** Initial Evaluation of ${detectedSymptom}`,
+        '',
+        `I understand you are experiencing ${detectedSymptom.toLowerCase()}. I will walk through a clinical evaluation with you.`,
+        '',
+        `On a scale from 0 to 10, where 0 is no pain and 10 is the worst imaginable, how severe is it right now?`,
+        '',
+        '💡 **Follow-up & Feedback Questions:**',
+        '1. Mild (1 - 3 out of 10)',
+        '2. Moderate (4 - 6 out of 10)',
+        '3. Severe (7 - 9 out of 10)',
+        '4. Critical (10 / 10)',
+      ].join('\n');
     }
-    return 'Hello, I am MediBot, your clinical health assistant. I can help review your medical records, check your health trends, and provide guidance on symptoms. How can I help you today?';
+
+    return [
+      '🎯 **Primary Focus:** MediBot Health Consultation',
+      '',
+      'Hello, I am MediBot, your clinical health assistant. I can help evaluate symptoms, review your medical records, check your health trends, and provide guidance.',
+      '',
+      '💡 **Follow-up & Feedback Questions:**',
+      '1. I want to report a symptom (headache, fever, stomach pain)',
+      '2. Can you review my active medications?',
+      '3. How do my latest health trends look?',
+    ].join('\n');
   }
 }

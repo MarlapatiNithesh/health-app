@@ -153,15 +153,22 @@ export class ChatService {
     // ── Step 5: Structured symptom extraction ──────────────────────────────────
     onProgress?.('Running clinical triage and symptom classification...');
     const currentSymptomState = refreshedEncounter?.symptomState || {};
-    const isSymptomIntent = this.#classifyIntent(message) === 'symptom_report' ||
-      this.symptomPriorityService.isSymptomReport(message) ||
-      !!currentSymptomState?.primarySymptom;
+    const lastAssistantMsg = (refreshedEncounter?.messages || [])
+      .slice().reverse().find((m) => m.role === 'assistant');
+    const pendingNextField = lastAssistantMsg?.meta?.nextField || currentSymptomState?.pendingNextField || null;
+
+    const detectedIntent = intent || this.#classifyIntent(message);
+    const isNonSymptomQuery = ['medication_question', 'factual_record_query', 'health_trend_question', 'document_question', 'general_health_question'].includes(detectedIntent);
+    const isExplicitSymptomReport = detectedIntent === 'symptom_report' || this.symptomPriorityService.isSymptomReport(message);
+
+    // Only stay in symptom triage loop if it's an explicit symptom report or directly answering a pending question WITHOUT switching topics
+    const isSymptomIntent = isExplicitSymptomReport || (!isNonSymptomQuery && !!pendingNextField);
 
     let updatedSymptomState = currentSymptomState;
 
     if (isSymptomIntent) {
       updatedSymptomState = await this.#extractAndMergeSymptoms(
-        encounterId, patientId, message, currentSymptomState
+        encounterId, patientId, message, currentSymptomState, pendingNextField
       );
     }
 
@@ -289,6 +296,9 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
         systemPrompt: modelSystemPrompt,
         toolHandlers,
         requestedModel: model,
+        symptomState: updatedSymptomState,
+        nextField,
+        assessmentComplete,
       });
     } else {
       llmResult = await this.llmService.generateCompletion({
@@ -333,11 +343,13 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
       finalContent = 'I\'m sorry, I wasn\'t able to generate an appropriate response for that. Please consult your healthcare provider for specific medical guidance.';
     }
 
-    const resolvedModelName = (model === 'medgamma' || model === 'medgemma')
-      ? 'MedGemma 2B'
-      : (model === 'gpt-4o' || model === 'openai')
-      ? 'GPT-4o Clinical'
-      : 'Gemini 2.5 Flash';
+    const resolvedModelName = llmResult.modelName || (
+      (model === 'medgamma' || model === 'medgemma')
+        ? 'MedGemma 2B'
+        : (model === 'gpt-4o' || model === 'openai')
+        ? 'GPT-4o Clinical'
+        : 'Gemini 2.5 Flash'
+    );
 
     // ── Step 13: Persist assistant message + model run ─────────────────────────
     const [, assistantMsg] = await Promise.all([
@@ -458,43 +470,46 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
 
   // ── Private: structured symptom extraction ──────────────────────────────────
 
-  async #extractAndMergeSymptoms(encounterId, patientId, text, existingState) {
+  async #extractAndMergeSymptoms(encounterId, patientId, text, existingState, pendingNextField = null) {
     try {
-      // Use LLM JSON extraction if API key available, else fall back to regex
-      let extracted = {};
+      // 1. Rule-based & pattern extraction (handles user typing and interactive options chips)
+      const ruleExtracted = this.symptomPriorityService?.extractSymptomFromText
+        ? this.symptomPriorityService.extractSymptomFromText(text, pendingNextField, existingState)
+        : {};
 
+      // 2. LLM JSON extraction if available
+      let llmExtracted = {};
       if (this.llmService?.generateJsonExtraction) {
-        extracted = await this.llmService.generateJsonExtraction(text, existingState);
+        try {
+          llmExtracted = await this.llmService.generateJsonExtraction(text, existingState);
+        } catch {
+          llmExtracted = {};
+        }
       }
 
-      // Regex fallback for severity and duration (always run as safety net)
-      const SEVERITY_REGEX = /\b([0-9]|10)\s*(?:\/10|out of 10)\b|\bseverity (?:is )?([0-9]|10)\b/i;
-      const DURATION_REGEX = /\b(\d+)\s*(days?|weeks?|months?|hours?|minutes?)\b/i;
+      // Combine extractions (LLM extractions take precedence, supplemented by rule extractions)
+      const combined = { ...ruleExtracted, ...llmExtracted };
 
-      if (!extracted.severity) {
-        const sevMatch = SEVERITY_REGEX.exec(text);
-        if (sevMatch) extracted.severity = parseInt(sevMatch[1] || sevMatch[2], 10);
-      }
-      if (!extracted.duration) {
-        const durMatch = DURATION_REGEX.exec(text);
-        if (durMatch) extracted.duration = `${durMatch[1]} ${durMatch[2]}`;
+      // 3. Fallback: if pendingNextField was actively asked and not captured yet, map direct answer
+      if (pendingNextField && !combined[pendingNextField] && text.length > 1 && text.length < 90) {
+        combined[pendingNextField] = text.trim();
       }
 
-      // Merge new extraction over existing state
-      const merged = {};
-      // Start with existing
-      Object.assign(merged, existingState);
-      // Apply new extractions (only non-empty values)
-      for (const [key, val] of Object.entries(extracted)) {
+      // Merge new extractions over existing state
+      const merged = { ...existingState };
+      for (const [key, val] of Object.entries(combined)) {
         if (val !== null && val !== undefined && val !== '') {
           merged[key] = val;
         }
       }
 
-      if (Object.keys(extracted).length > 0) {
+      if (Object.keys(combined).length > 0) {
         await this.encounterRepo.upsertSymptomState(encounterId, patientId, merged)
           .catch((err) => logger.debug('ChatService: symptom state upsert failed', { error: err.message }));
-        logger.debug('ChatService: symptom state updated', { extracted: Object.keys(extracted), merged: Object.keys(merged) });
+        logger.debug('ChatService: symptom state updated', {
+          extracted: Object.keys(combined),
+          merged: Object.keys(merged),
+        });
       }
 
       return merged;
@@ -748,7 +763,14 @@ ${symptomBlock ? '\n' + symptomBlock : ''}
 CORE BEHAVIOURAL & FORMATTING RULES (follow always):
 
 0. FORMATTING & READABILITY (CRITICAL):
-   - Keep answers CONCISE, scannable, and cleanly structured (under 180 words). Avoid dense, lengthy walls of text.
+${isSymptomIntent && !assessmentComplete
+  ? `   - ACTIVE ASSESSMENT TURN: You are currently inquiring about: "${nextField}".
+   - Keep answers CONCISE (under 120 words). Do NOT jump ahead or provide premature clinical diagnoses yet.
+   - Always start with: 🎯 **Primary Focus:** Assessing ${symptomState?.primarySymptom || 'Reported Symptom'} (${nextField})
+   - Acknowledge what the patient just reported warmly and ask the SINGLE next clarifying question.
+   - Conclude with the suggested quick response options under:
+     💡 **Follow-up & Feedback Questions:**`
+  : `   - Keep answers CONCISE, scannable, and cleanly structured (under 180 words). Avoid dense, lengthy walls of text.
    - Always start your response with a clear highlight line:
      🎯 **Primary Focus:** [Key health topic, observation, or vital relation]
    - Use clear markdown sections with bullet points:
@@ -757,7 +779,7 @@ CORE BEHAVIOURAL & FORMATTING RULES (follow always):
    - Conclude with a dedicated follow-up section:
      💡 **Follow-up & Feedback Questions:**
      1. [First clarifying or feedback question]
-     2. [Second clarifying or feedback question]
+     2. [Second clarifying or feedback question]`}
 
 1. HEALTH DATA: Use connected health readings only when present above. State their source and date when discussing them. They may be incomplete or delayed; do not describe them as continuous monitoring or use them alone to diagnose.
 

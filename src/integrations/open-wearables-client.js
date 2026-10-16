@@ -184,11 +184,17 @@ export class OpenWearablesClient {
     );
   }
 
-  async getTimeseries(userId, startTime, endTime, { types = ['heart_rate', 'steps', 'hrv'], resolution = 'raw' } = {}) {
-    const params = new URLSearchParams({ start_time: startTime, end_time: endTime, resolution });
-    for (const t of types) params.append('types', t);
-    return this.request(`/api/v1/users/${encodeURIComponent(userId)}/timeseries?${params}`);
+  async syncSdkData(userId, payload) {
+    return this.request(
+      `/api/v1/sdk/users/${encodeURIComponent(userId)}/sync`,
+      {
+        method: 'POST',
+        body: payload,
+      },
+    );
   }
+
+  // getTimeseries is defined below with full options support
 
   async getWorkouts(userId, startDate, endDate, options = {}) {
     const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
@@ -371,11 +377,35 @@ export class OpenWearablesClient {
   }
 
   async getSyncRecent(userId, limit = 50) {
-    return this.request(`/api/v1/users/${encodeURIComponent(userId)}/sync/recent?limit=${encodeURIComponent(limit)}`);
+    const safeLimit = Math.max(1, Math.min(200, Number(limit) || 50));
+    return this.request(`/api/v1/users/${encodeURIComponent(userId)}/sync/recent?limit=${safeLimit}`);
   }
 
   async getSyncRuns(userId, limit = 20) {
-    return this.request(`/api/v1/users/${encodeURIComponent(userId)}/sync/runs?limit=${encodeURIComponent(limit)}`);
+    const safeLimit = Math.max(1, Math.min(50, Number(limit) || 20));
+    return this.request(`/api/v1/users/${encodeURIComponent(userId)}/sync/runs?limit=${safeLimit}`);
+  }
+
+  /**
+   * Fetch health/readiness scores (Whoop recovery, Oura readiness, etc.)
+   * Uses the /summaries/health-scores endpoint if available.
+   */
+  async getHealthScores(userId, startDate, endDate, options = {}) {
+    const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
+    if (options.limit) params.set('limit', String(options.limit));
+    if (options.cursor) params.set('cursor', options.cursor);
+    if (options.provider) params.set('provider', options.provider);
+    return this.request(`/api/v1/users/${encodeURIComponent(userId)}/summaries/health-scores?${params}`);
+  }
+
+  /**
+   * Fetch generic activity sessions (not workouts).
+   */
+  async getActivities(userId, startDate, endDate, options = {}) {
+    const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
+    if (options.limit) params.set('limit', String(options.limit));
+    if (options.cursor) params.set('cursor', options.cursor);
+    return this.request(`/api/v1/users/${encodeURIComponent(userId)}/events/activities?${params}`);
   }
 
   async requestAppleXmlS3Presigned(userId, { filename = 'export.xml', expirationSeconds = 300, maxFileSize = 52428800 } = {}) {
@@ -422,6 +452,29 @@ export class OpenWearablesClient {
     });
   }
 
+  async uploadAppleXmlDirect(userId, fileBuffer, filename = 'export.xml') {
+    if (typeof FormData !== 'undefined') {
+      const formData = new FormData();
+      const payload = typeof Blob !== 'undefined'
+        ? new Blob([fileBuffer], { type: 'application/xml' })
+        : fileBuffer;
+      formData.append('file', payload, filename);
+      return this.request(`/api/v1/users/${encodeURIComponent(userId)}/import/apple/xml/direct`, {
+        method: 'POST',
+        body: formData,
+      });
+    }
+
+    return this.request(`/api/v1/users/${encodeURIComponent(userId)}/import/apple/xml/direct`, {
+      method: 'POST',
+      body: fileBuffer,
+      headers: {
+        'Content-Type': 'application/xml',
+        'X-Filename': filename,
+      },
+    });
+  }
+
   async abortAppleXmlMultipart(userId, { key, uploadId }) {
     return this.request(`/api/v1/users/${encodeURIComponent(userId)}/import/apple/xml/s3/multipart/abort`, {
       method: 'POST',
@@ -430,6 +483,18 @@ export class OpenWearablesClient {
         upload_id: uploadId,
       },
     });
+  }
+
+  async getSyncHistory(userId, options = {}) {
+    const params = new URLSearchParams();
+    if (options.limit) params.set('limit', String(options.limit));
+    if (options.cursor) params.set('cursor', options.cursor);
+    const query = params.toString() ? `?${params}` : '';
+    return this.request(`/api/v1/users/${encodeURIComponent(userId)}/sync/history${query}`);
+  }
+
+  async getSyncRunByKey(runKey) {
+    return this.request(`/api/v1/sync/history/${encodeURIComponent(runKey)}`);
   }
 
   async request(path, { method = 'GET', body = null, headers = {} } = {}) {
@@ -456,10 +521,35 @@ export class OpenWearablesClient {
     }
 
     const url = `${this.baseUrl}${path}`;
-    const reqHeaders = {
-      'Content-Type': 'application/json',
-      ...headers,
-    };
+    const reqHeaders = { ...headers };
+    let reqBody = null;
+
+    if (body != null) {
+      const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+      const isBinary = (typeof Buffer !== 'undefined' && Buffer.isBuffer(body)) ||
+        (typeof Uint8Array !== 'undefined' && body instanceof Uint8Array) ||
+        (typeof Blob !== 'undefined' && body instanceof Blob);
+
+      if (isFormData) {
+        delete reqHeaders['Content-Type'];
+        reqBody = body;
+      } else if (isBinary) {
+        if (!reqHeaders['Content-Type']) {
+          reqHeaders['Content-Type'] = 'application/octet-stream';
+        }
+        reqBody = body;
+      } else if (typeof body === 'string') {
+        if (!reqHeaders['Content-Type']) {
+          reqHeaders['Content-Type'] = 'application/json';
+        }
+        reqBody = body;
+      } else {
+        if (!reqHeaders['Content-Type']) {
+          reqHeaders['Content-Type'] = 'application/json';
+        }
+        reqBody = JSON.stringify(body);
+      }
+    }
 
     if (this.apiKey) {
       reqHeaders['X-Open-Wearables-API-Key'] = this.apiKey;
@@ -477,7 +567,7 @@ export class OpenWearablesClient {
         const response = await this.fetchFn(url, {
           method,
           headers: reqHeaders,
-          body: body ? JSON.stringify(body) : null,
+          body: reqBody,
           signal,
         });
 

@@ -109,7 +109,14 @@ export function createAppContainer(config = {}) {
   else container.registerClass('clinicalRulesService', ClinicalRulesService, ['clinicalRepo']);
 
   if (config.llmService) container.registerInstance('llmService', config.llmService);
-  else container.register('llmService', () => new LLMService({ geminiApiKey: config.geminiApiKey || process.env.GEMINI_API_KEY || '' }));
+  else container.register('llmService', () => new LLMService({
+    geminiApiKey: config.geminiApiKey || process.env.GEMINI_API_KEY || '',
+    openaiApiKey: config.openaiApiKey || process.env.OPENAI_API_KEY || '',
+    huggingFaceApiKey: config.huggingFaceApiKey || process.env.HUGGINGFACE_API_KEY || '',
+    defaultModel: config.geminiModel || process.env.GEMINI_MODEL || 'gemini-2.0-flash',
+    endpointUrl: config.geminiEndpointUrl || process.env.GEMINI_ENDPOINT_URL || '',
+    timeoutMs: config.geminiTimeoutMs ? parseInt(config.geminiTimeoutMs, 10) : undefined,
+  }));
 
   if (config.proactiveMonitoringService) container.registerInstance('proactiveMonitoringService', config.proactiveMonitoringService);
   else {

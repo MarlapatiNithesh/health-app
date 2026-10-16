@@ -79,7 +79,7 @@ export function createApp(config = loadConfig()) {
   });
 
   const healthService = new HealthService(
-    { phoneHealthRepo, healthSampleRepo, memberRepo, wearableRepo, openWearablesRepo },
+    { phoneHealthRepo, healthSampleRepo, memberRepo, wearableRepo, openWearablesRepo, openWearablesClient },
     { batchLimit: config.healthBatchLimit },
   );
   const memberService = new MemberService(memberRepo, config.jwtSecret, openWearablesClient);
@@ -154,6 +154,7 @@ export function createApp(config = loadConfig()) {
   app.use('/v1/me/wearables', wearableRouter);
   app.use('/v1/wearables', wearableRouter);
   app.use('/wearables', wearableRouter);
+  app.use('/api/wearables', wearableRouter);
 
   if (phoneController) {
     const authLimiter = config.authLimiter ?? createPhoneAuthLimiter();

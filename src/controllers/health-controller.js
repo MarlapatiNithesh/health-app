@@ -56,7 +56,8 @@ export class HealthController {
 
   async getDailySummary(request, response) {
     const { from, to } = request.query;
-    const summary = await this.service.getDailySummary(request.memberId, from, to);
+    const memberId = request.memberId || request.query.memberId;
+    const summary = await this.service.getDailySummary(memberId, from, to);
     response.json({ data: summary });
   }
 

@@ -8,6 +8,9 @@
     "dev": "node --env-file=.env --watch-path=src src/server.js",
     "dev:nodemon": "nodemon --env-file=.env src/server.js",
     "expo": "npm --prefix expo-mobile start",
+    "expo:android": "npm --prefix expo-mobile run android",
+    "expo:ios": "npm --prefix expo-mobile run ios",
+    "expo:web": "npm --prefix expo-mobile run web",
     "mobile": "npm --prefix mobile-app dev",
     "db:migrate": "node --env-file=.env src/database/migrations/run-wellness-migrations.js",
     "api:client": "node --env-file=.env scripts/api-client.js"

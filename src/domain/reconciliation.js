@@ -21,13 +21,14 @@ export const DEVICE_TIERS = {
   ble_direct: 1,
 
   phone: 3,
+  phone_pedometer: 3,
 };
 
 const DEFAULT_PRIORITY = {
   steps: [
     'garmin', 'whoop', 'oura', 'bluetooth_ble', 'ble_direct',
     'samsung_health', 'fitbit', 'google_health', 'polar', 'suunto', 'strava',
-    'apple_health', 'health_connect', 'phone',
+    'apple_health', 'health_connect', 'phone', 'phone_pedometer',
   ],
   sleep: [
     'whoop', 'oura', 'garmin', 'withings', 'ultrahuman', 'bluetooth_ble', 'ble_direct',
@@ -179,9 +180,16 @@ function aggregateProviderSamples(metric, provider, samples) {
   let value;
 
   if (CUMULATIVE_METRICS.has(metric) || metric === 'steps' || metric === 'calories' || metric === 'distance' || metric === 'active_energy_burned') {
-    // For cumulative metrics (steps, calories, distance), samples are daily totals/progress snapshots.
-    // ALWAYS choose the best/highest authentic reading (never sum them).
-    value = Math.max(...samples.map((s) => Number(s.value) || 0));
+    // For cumulative metrics, the most recent daily_total sample represents the provider's current state.
+    // If daily_total samples exist, pick the latest one; otherwise use the latest recorded sample.
+    const sortedDaily = dailyTotals.sort((a, b) => Date.parse(b.recordedAt) - Date.parse(a.recordedAt));
+    if (sortedDaily.length > 0) {
+      value = Number(sortedDaily[0].value) || 0;
+    } else if (latest) {
+      value = Number(latest.value) || 0;
+    } else {
+      value = 0;
+    }
   } else if (AVERAGE_METRICS.has(metric)) {
     const validSamples = samples.filter((s) => Number(s.value) > 0);
     const sortedValid = [...validSamples].sort((a, b) => Date.parse(b.recordedAt) - Date.parse(a.recordedAt));
@@ -201,24 +209,22 @@ function choosePrimary(metric, aggregates, priority) {
   const candidatePool = nonZero.length > 0 ? nonZero : aggregates;
 
   return [...candidatePool].sort((a, b) => {
-    // 1. For cumulative metrics (steps, calories, distance, active minutes):
-    // The most accurate reading is the best/highest valid total (e.g., if phone has 1500 and watch has 1900,
-    // choose 1900 without double-counting or summing them together).
-    if (CUMULATIVE_METRICS.has(metric)) {
+    // For steps & cumulative activity metrics: ALWAYS select whichever device recorded MORE steps/activity!
+    if (metric === 'steps' || metric === 'step_count' || metric === 'distance' || metric === 'calories' || metric === 'active_energy_burned') {
       const valDiff = (Number(b.value) || 0) - (Number(a.value) || 0);
       if (valDiff !== 0) return valDiff;
     }
 
-    // 2. Strictly respect the provider priority ranking (wearables take precedence over phone)
+    // 1. Strictly respect provider priority ranking (wearables take precedence over phone sensors)
     const rankDiff = providerRank(metric, a.provider, priority)
                    - providerRank(metric, b.provider, priority);
     if (rankDiff !== 0) return rankDiff;
 
-    // 3. If both providers share the same priority rank, select the higher value (avoiding undercounting)
+    // 2. If both providers share the same priority rank, select the higher valid value
     const valDiff = (Number(b.value) || 0) - (Number(a.value) || 0);
     if (valDiff !== 0) return valDiff;
 
-    // 4. Finally, pick the most recent data
+    // 3. Finally, pick the most recent data
     const timeDiff = (Date.parse(b.latestAt) || 0) - (Date.parse(a.latestAt) || 0);
     return timeDiff;
   })[0];
