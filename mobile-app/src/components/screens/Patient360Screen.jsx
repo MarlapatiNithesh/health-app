@@ -394,16 +394,16 @@ export function Patient360Screen({ onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-2 sm:p-4 animate-fade-in">
-      <div className="bg-white w-full max-w-lg h-[94vh] max-h-[850px] rounded-[32px] shadow-2xl flex flex-col overflow-hidden border border-slate-200">
+      <div className="glass-card bg-slate-950/95 text-slate-100 w-full max-w-lg h-[94vh] max-h-[850px] rounded-[32px] shadow-2xl flex flex-col overflow-hidden border border-white/[0.12] border-t-white/[0.25]">
         
         {/* Header */}
-        <div className="bg-gradient-to-r from-slate-900 via-emerald-950 to-slate-900 p-4 text-white flex items-center justify-between border-b border-emerald-900/40">
+        <div className="glass-subcard bg-slate-900/90 p-4 text-white flex items-center justify-between border-b border-white/10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300">
               <FileHeart size={22} />
             </div>
             <div>
-              <h3 className="text-base font-extrabold tracking-tight">Patient 360 Medical Chart</h3>
+              <h3 className="text-base font-extrabold tracking-tight">Fitsure Patient 360 Chart</h3>
               <p className="text-[11px] text-slate-400 font-medium">Verified Records • Labs • Rx • Lifestyle & Goals</p>
             </div>
           </div>
@@ -472,7 +472,7 @@ export function Patient360Screen({ onClose }) {
         )}
 
         {/* Tab Strip */}
-        <div className="bg-slate-50 border-b border-slate-200 px-3 py-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar text-xs font-bold">
+        <div className="glass-subcard bg-slate-900/80 border-b border-white/10 px-3 py-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar text-xs font-bold">
           {[
             { id: 'timeline', label: 'Timeline', icon: Clock, count: timeline.length },
             { id: 'lifestyle', label: 'Lifestyle & Goals', icon: Target, count: goals.length },
@@ -487,8 +487,8 @@ export function Patient360Screen({ onClose }) {
               onClick={() => setActiveTab(t.id)}
               className={`px-3 py-1.5 rounded-xl transition flex items-center gap-1.5 shrink-0 ${
                 activeTab === t.id 
-                  ? 'bg-emerald-600 text-white shadow-sm' 
-                  : 'text-slate-600 hover:bg-slate-200/60'
+                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 shadow-sm' 
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               <t.icon size={13} />
@@ -655,8 +655,8 @@ export function Patient360Screen({ onClose }) {
               </div>
 
               {/* Lifestyle Habits Card */}
-              <div className="bg-slate-50 p-4 rounded-3xl border border-slate-200 space-y-3.5">
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-900 border-b border-slate-200/80 pb-2">
+              <div className="bg-slate-900/60 p-4 rounded-3xl border border-slate-200 space-y-3.5">
+                <div className="flex items-center gap-2 text-xs font-bold text-white border-b border-slate-200/80 pb-2">
                   <Apple size={15} className="text-emerald-600" />
                   <span>Daily Lifestyle & Dietary Habits</span>
                 </div>
@@ -840,7 +840,7 @@ export function Patient360Screen({ onClose }) {
               </div>
 
               {filteredTimeline.length === 0 ? (
-                <div className="bg-slate-50 p-6 rounded-3xl text-center space-y-2 border border-slate-200">
+                <div className="bg-slate-900/60 p-6 rounded-3xl text-center space-y-2 border border-slate-200">
                   <Clock size={28} className="text-slate-400 mx-auto" />
                   <p className="text-xs font-bold text-slate-700">No medical events found for this filter.</p>
                   <p className="text-[11px] text-slate-400">Upload a prescription or lab report to populate your chronological medical chart.</p>
@@ -967,10 +967,10 @@ export function Patient360Screen({ onClose }) {
                             </div>
                           </div>
 
-                          <h5 className="font-bold text-slate-900 text-xs leading-snug">{rawSummary}</h5>
+                          <h5 className="font-bold text-white text-xs leading-snug">{rawSummary}</h5>
 
                           {detailLine && (
-                            <p className="text-[11px] text-slate-600 font-medium bg-slate-50 p-2 rounded-xl border border-slate-100/80 leading-relaxed">
+                            <p className="text-[11px] text-slate-600 font-medium bg-slate-900/60 p-2 rounded-xl border border-slate-100/80 leading-relaxed">
                               {detailLine}
                             </p>
                           )}
@@ -1005,7 +1005,7 @@ export function Patient360Screen({ onClose }) {
               </div>
 
               {conditions.length === 0 ? (
-                <div className="bg-slate-50 p-6 rounded-3xl text-center space-y-1 border border-slate-200">
+                <div className="bg-slate-900/60 p-6 rounded-3xl text-center space-y-1 border border-slate-200">
                   <Activity size={24} className="text-slate-400 mx-auto mb-1" />
                   <p className="text-xs font-bold text-slate-700">No medical conditions recorded.</p>
                   <p className="text-[11px] text-slate-400">Diagnoses from uploaded prescriptions will appear here automatically.</p>
@@ -1018,7 +1018,7 @@ export function Patient360Screen({ onClose }) {
                         <div className="w-6 h-6 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
                           <Heart size={13} />
                         </div>
-                        <h5 className="text-xs font-bold text-slate-900">{c.name || 'Clinical Diagnosis'}</h5>
+                        <h5 className="text-xs font-bold text-white">{c.name || 'Clinical Diagnosis'}</h5>
                       </div>
                       <div className="flex items-center gap-1.5 pl-8">
                         {c.code && (
@@ -1065,7 +1065,7 @@ export function Patient360Screen({ onClose }) {
               </div>
 
               {medications.length === 0 ? (
-                <div className="bg-slate-50 p-6 rounded-3xl text-center space-y-1 border border-slate-200">
+                <div className="bg-slate-900/60 p-6 rounded-3xl text-center space-y-1 border border-slate-200">
                   <Pill size={24} className="text-slate-400 mx-auto mb-1" />
                   <p className="text-xs font-bold text-slate-700">No active medications documented.</p>
                   <p className="text-[11px] text-slate-400">Upload a doctor prescription to add prescribed drugs automatically.</p>
@@ -1078,7 +1078,7 @@ export function Patient360Screen({ onClose }) {
                         <Pill size={16} />
                       </div>
                       <div>
-                        <h5 className="text-xs font-bold text-slate-900">{m.name || 'Medication'}</h5>
+                        <h5 className="text-xs font-bold text-white">{m.name || 'Medication'}</h5>
                         <p className="text-[11px] text-slate-500 font-medium">
                           {[m.dose, m.frequency, m.route ? `(${m.route})` : null].filter(Boolean).join(' • ') || 'Oral dosage prescribed'}
                         </p>
@@ -1118,7 +1118,7 @@ export function Patient360Screen({ onClose }) {
               </div>
 
               {allergies.length === 0 ? (
-                <div className="bg-slate-50 p-6 rounded-3xl text-center space-y-1 border border-slate-200">
+                <div className="bg-slate-900/60 p-6 rounded-3xl text-center space-y-1 border border-slate-200">
                   <ShieldAlert size={24} className="text-slate-400 mx-auto mb-1" />
                   <p className="text-xs font-bold text-slate-700">No drug allergies documented.</p>
                   <p className="text-[11px] text-slate-400">Record allergies to ensure safe prescribing.</p>
@@ -1169,7 +1169,7 @@ export function Patient360Screen({ onClose }) {
               </div>
 
               {labs.length === 0 ? (
-                <div className="bg-slate-50 p-6 rounded-3xl text-center space-y-1 border border-slate-200">
+                <div className="bg-slate-900/60 p-6 rounded-3xl text-center space-y-1 border border-slate-200">
                   <FlaskConical size={24} className="text-slate-400 mx-auto mb-1" />
                   <p className="text-xs font-bold text-slate-700">No laboratory observations recorded.</p>
                   <p className="text-[11px] text-slate-400">Upload a blood report to automatically extract tests, values, and reference ranges.</p>
@@ -1190,7 +1190,7 @@ export function Patient360Screen({ onClose }) {
                             <FlaskConical size={14} />
                           </div>
                           <div>
-                            <h5 className="text-xs font-bold text-slate-900">{l.testName || l.name || 'Lab Observation'}</h5>
+                            <h5 className="text-xs font-bold text-white">{l.testName || l.name || 'Lab Observation'}</h5>
                             {(l.refLow != null || l.refHigh != null) && (
                               <span className="text-[10px] text-slate-400 font-medium">
                                 Reference: {l.refLow} - {l.refHigh} {l.unit}
@@ -1201,7 +1201,7 @@ export function Patient360Screen({ onClose }) {
                       </div>
 
                       <div className="text-right space-y-0.5">
-                        <span className="text-sm font-black text-slate-900 block">
+                        <span className="text-sm font-black text-white block">
                           {l.value ?? l.valueText ?? l.valueNum ?? 'Recorded'}{' '}
                           {l.unit && <span className="text-[10px] text-slate-400 font-normal">{l.unit}</span>}
                         </span>
@@ -1232,7 +1232,7 @@ export function Patient360Screen({ onClose }) {
               </h4>
 
               {encounters.length === 0 ? (
-                <div className="bg-slate-50 p-6 rounded-3xl text-center space-y-1 border border-slate-200">
+                <div className="bg-slate-900/60 p-6 rounded-3xl text-center space-y-1 border border-slate-200">
                   <Stethoscope size={24} className="text-slate-400 mx-auto mb-1" />
                   <p className="text-xs font-bold text-slate-700">No active doctor visits recorded.</p>
                   <p className="text-[11px] text-slate-400">Upload prescription documents or chat with MediBot AI to log consultation encounters.</p>
@@ -1248,7 +1248,7 @@ export function Patient360Screen({ onClose }) {
                     <div key={i} className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-2 hover:border-slate-300 transition">
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <span className="text-xs font-bold text-slate-900 block leading-tight">{encounterTitle}</span>
+                          <span className="text-xs font-bold text-white block leading-tight">{encounterTitle}</span>
                           {encounterDate && (
                             <span className="text-[10px] text-slate-400 font-medium flex items-center gap-1 mt-0.5">
                               <Clock size={11} /> {encounterDate}
@@ -1270,7 +1270,7 @@ export function Patient360Screen({ onClose }) {
                           </span>
                         </div>
                       </div>
-                      <p className="text-[11px] text-slate-600 font-medium bg-slate-50 p-2 rounded-xl border border-slate-100 leading-relaxed">
+                      <p className="text-[11px] text-slate-600 font-medium bg-slate-900/60 p-2 rounded-xl border border-slate-100 leading-relaxed">
                         {complaint}
                       </p>
                     </div>
@@ -1286,7 +1286,7 @@ export function Patient360Screen({ onClose }) {
       {showAddCondition && (
         <div className="fixed inset-0 bg-black/60 z-60 flex items-center justify-center p-4">
           <form onSubmit={handleCreateCondition} className="bg-white rounded-3xl p-5 w-full max-w-sm space-y-3">
-            <h4 className="font-extrabold text-sm text-slate-900">Record Clinical Diagnosis</h4>
+            <h4 className="font-extrabold text-sm text-white">Record Clinical Diagnosis</h4>
             <input
               type="text"
               required
@@ -1334,7 +1334,7 @@ export function Patient360Screen({ onClose }) {
       {showAddMed && (
         <div className="fixed inset-0 bg-black/60 z-60 flex items-center justify-center p-4">
           <form onSubmit={handleCreateMed} className="bg-white rounded-3xl p-5 w-full max-w-sm space-y-3">
-            <h4 className="font-extrabold text-sm text-slate-900">Add Prescribed Medication</h4>
+            <h4 className="font-extrabold text-sm text-white">Add Prescribed Medication</h4>
             <input
               type="text"
               required
@@ -1380,7 +1380,7 @@ export function Patient360Screen({ onClose }) {
       {showAddAllergy && (
         <div className="fixed inset-0 bg-black/60 z-60 flex items-center justify-center p-4">
           <form onSubmit={handleCreateAllergy} className="bg-white rounded-3xl p-5 w-full max-w-sm space-y-3">
-            <h4 className="font-extrabold text-sm text-slate-900">Document Drug Allergy</h4>
+            <h4 className="font-extrabold text-sm text-white">Document Drug Allergy</h4>
             <input
               type="text"
               required
@@ -1428,7 +1428,7 @@ export function Patient360Screen({ onClose }) {
       {showAddLab && (
         <div className="fixed inset-0 bg-black/60 z-60 flex items-center justify-center p-4">
           <form onSubmit={handleCreateLab} className="bg-white rounded-3xl p-5 w-full max-w-sm space-y-3">
-            <h4 className="font-extrabold text-sm text-slate-900">Add Laboratory Observation</h4>
+            <h4 className="font-extrabold text-sm text-white">Add Laboratory Observation</h4>
             <input
               type="text"
               required

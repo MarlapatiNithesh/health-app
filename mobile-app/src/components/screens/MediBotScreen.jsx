@@ -101,7 +101,7 @@ function BotStructuredMessage({ content, onSelectQuestion }) {
     <div className="space-y-2.5">
       {/* ── PROMINENT CLINICAL FOCUS HIGHLIGHT CARD ── */}
       {primaryFocus && (
-        <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-300 shadow-2xs flex items-start gap-2.5">
+        <div className="p-2.5 rounded-xl glass-subcard bg-emerald-950/30 border border-emerald-400/40 shadow-2xs flex items-start gap-2.5">
           <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
             <Sparkles size={13} className="animate-pulse" />
           </div>
@@ -109,7 +109,7 @@ function BotStructuredMessage({ content, onSelectQuestion }) {
             <span className="text-[9px] font-extrabold uppercase tracking-wider text-emerald-800 block">
               Primary Health Focus / Observation
             </span>
-            <p className="text-xs font-bold text-slate-900 mt-0.5 leading-snug">
+            <p className="text-xs font-bold text-slate-100 mt-0.5 leading-snug">
               {primaryFocus}
             </p>
           </div>
@@ -117,7 +117,7 @@ function BotStructuredMessage({ content, onSelectQuestion }) {
       )}
 
       {/* ── STRUCTURED CLINICAL BODY ── */}
-      <div className="space-y-1.5 text-xs leading-relaxed text-slate-700">
+      <div className="space-y-1.5 text-xs leading-relaxed text-slate-200">
         {lines.map((l, idx) => {
           const trimmed = l.trim();
           if (!trimmed) return null;
@@ -159,7 +159,7 @@ function BotStructuredMessage({ content, onSelectQuestion }) {
               <button
                 key={qIdx}
                 onClick={() => onSelectQuestion && onSelectQuestion(q)}
-                className="w-full text-left p-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 hover:border-emerald-400 text-xs text-slate-800 flex items-center justify-between group transition active:scale-[0.99] shadow-2xs cursor-pointer"
+                className="w-full text-left p-2.5 rounded-xl glass-subcard bg-slate-900/70 hover:bg-slate-800/70 border border-white/10 hover:border-cyan-400/40 text-xs text-slate-200 flex items-center justify-between group transition active:scale-[0.99] shadow-2xs cursor-pointer"
                 title="Tap to respond to this question"
               >
                 <span className="leading-snug pr-2">{q}</span>
@@ -773,7 +773,7 @@ export function MediBotScreen({ onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 animate-fade-in font-sans">
-      <div className="bg-[#FAFBFB] text-slate-800 w-full max-w-lg h-[92vh] max-h-[850px] rounded-[36px] shadow-2xl flex flex-col overflow-hidden border border-slate-200 relative">
+      <div className="glass-card bg-slate-950/95 text-slate-100 w-full max-w-lg h-[92vh] max-h-[850px] rounded-[36px] shadow-2xl flex flex-col overflow-hidden border border-white/[0.12] border-t-white/[0.25] relative">
         
         {/* Hidden File Input for PDF, DOC, DOCX, TXT, Images */}
         <input 
@@ -785,7 +785,7 @@ export function MediBotScreen({ onClose }) {
         />
 
         {/* ── TOP HEADER (Matching User's Screenshot) ── */}
-        <div className="bg-white/95 backdrop-blur-md px-5 py-3.5 border-b border-slate-100 flex items-center justify-between shrink-0">
+        <div className="glass-subcard bg-slate-900/90 backdrop-blur-md px-5 py-3.5 border-b border-white/10 flex items-center justify-between shrink-0">
           {/* Left Avatar */}
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-emerald-800/10 shadow-xs flex items-center justify-center bg-emerald-100/80">
@@ -813,7 +813,7 @@ export function MediBotScreen({ onClose }) {
                   loadUploadedDocs();
                 }
               }}
-              className="w-10 h-10 rounded-full border border-slate-200 bg-white flex items-center justify-center text-slate-600 hover:text-[#044343] hover:bg-slate-50 transition shadow-2xs cursor-pointer"
+              className="w-10 h-10 rounded-full border border-white/10 glass-subcard bg-slate-900/80 flex items-center justify-center text-slate-300 hover:text-cyan-300 hover:border-cyan-400/40 transition shadow-2xs cursor-pointer"
               title="Consultation History & Vault"
             >
               <Menu size={18} />
@@ -821,7 +821,7 @@ export function MediBotScreen({ onClose }) {
 
             {/* Wallet Icon */}
             <button 
-              className="w-10 h-10 rounded-full border border-slate-200 bg-white flex items-center justify-center text-[#044343] hover:bg-slate-50 transition shadow-2xs cursor-pointer"
+              className="w-10 h-10 rounded-full border border-white/10 glass-subcard bg-slate-900/80 flex items-center justify-center text-cyan-300 hover:border-cyan-400/40 transition shadow-2xs cursor-pointer"
               title="Health Wallet"
             >
               <Wallet size={19} />
@@ -829,7 +829,7 @@ export function MediBotScreen({ onClose }) {
 
             {/* Notification Bell */}
             <button 
-              className="w-10 h-10 rounded-full border border-slate-200 bg-white flex items-center justify-center text-[#044343] hover:bg-slate-50 transition shadow-2xs relative cursor-pointer"
+              className="w-10 h-10 rounded-full border border-white/10 glass-subcard bg-slate-900/80 flex items-center justify-center text-cyan-300 hover:border-cyan-400/40 transition shadow-2xs relative cursor-pointer"
               title="Notifications"
             >
               <Bell size={19} />
@@ -839,7 +839,7 @@ export function MediBotScreen({ onClose }) {
             {/* Close Button */}
             <button 
               onClick={onClose}
-              className="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 flex items-center justify-center transition cursor-pointer"
+              className="w-10 h-10 rounded-full glass-subcard bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center transition cursor-pointer"
               title="Close"
             >
               <X size={18} />
@@ -848,14 +848,14 @@ export function MediBotScreen({ onClose }) {
         </div>
 
         {/* ── SEGMENTED TOP CONTROLLER (AI Doctor Chat vs Records & Summary) ── */}
-        <div className="bg-white px-5 pt-2 pb-2.5 border-b border-slate-100 flex items-center justify-between gap-2 shrink-0">
-          <div className="flex bg-slate-100 p-1 rounded-2xl w-full">
+        <div className="glass-subcard bg-slate-900/80 px-5 pt-2 pb-2.5 border-b border-white/10 flex items-center justify-between gap-2 shrink-0">
+          <div className="flex bg-slate-950/80 border border-white/10 p-1 rounded-2xl w-full">
             <button
               onClick={() => setActiveTab('chat')}
               className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                 activeTab === 'chat'
-                  ? 'bg-white text-[#044343] shadow-xs'
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 shadow-xs'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               <Bot size={14} className={activeTab === 'chat' ? 'text-emerald-600' : ''} />
@@ -865,8 +865,8 @@ export function MediBotScreen({ onClose }) {
               onClick={() => setActiveTab('records')}
               className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                 activeTab === 'records'
-                  ? 'bg-white text-[#044343] shadow-xs'
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 shadow-xs'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               <FileText size={14} className={activeTab === 'records' ? 'text-emerald-600' : ''} />
@@ -877,7 +877,7 @@ export function MediBotScreen({ onClose }) {
 
         {/* ── CLINICAL AI MODEL SELECTOR ── */}
         {activeTab === 'chat' && (
-          <div className="bg-slate-50/90 px-4 py-2 border-b border-slate-200/70 flex items-center justify-between gap-2 shrink-0">
+          <div className="glass-subcard bg-slate-900/60 px-4 py-2 border-b border-white/10 flex items-center justify-between gap-2 shrink-0">
             <div className="flex items-center gap-1.5 min-w-0">
               <Cpu size={13} className="text-[#044343] shrink-0" />
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 shrink-0">
@@ -897,8 +897,8 @@ export function MediBotScreen({ onClose }) {
                     onClick={() => setSelectedModel(m.id)}
                     className={`px-2.5 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition whitespace-nowrap cursor-pointer ${
                       isSelected
-                        ? 'bg-[#044343] text-white shadow-xs'
-                        : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200/80 hover:border-slate-300'
+                        ? 'bg-cyan-500 text-slate-950 font-black shadow-sm shadow-cyan-500/25'
+                        : 'glass-subcard bg-slate-900/80 text-slate-400 hover:text-white border border-white/10'
                     }`}
                     title={`${m.label} (${m.desc})`}
                   >
@@ -913,7 +913,7 @@ export function MediBotScreen({ onClose }) {
 
         {/* ── COLLAPSIBLE GEMINI LEFT DRAWER (Sessions & Vault) ── */}
         {showSidebar && (
-          <div className="absolute inset-y-0 left-0 w-[82%] sm:w-[320px] bg-white z-40 border-r border-slate-200 shadow-2xl flex flex-col animate-slide-in">
+          <div className="absolute inset-y-0 left-0 w-[82%] sm:w-[320px] glass-card bg-slate-950/98 z-40 border-r border-white/10 shadow-2xl flex flex-col animate-slide-in">
             <div className="p-4 border-b border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-xl bg-emerald-100 text-[#044343] flex items-center justify-center">
@@ -932,7 +932,7 @@ export function MediBotScreen({ onClose }) {
             <div className="p-3">
               <button
                 onClick={startNewSession}
-                className="w-full py-2.5 px-3 bg-[#044343] hover:bg-[#033636] text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition active:scale-98 cursor-pointer"
+                className="w-full py-2.5 px-3 bg-gradient-to-r from-cyan-500 via-teal-400 to-emerald-400 text-slate-950 rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-md shadow-cyan-500/25 transition active:scale-98 cursor-pointer"
               >
                 <Plus size={16} />
                 <span>+ New Consultation</span>
@@ -1034,16 +1034,16 @@ export function MediBotScreen({ onClose }) {
 
         {/* ── TAB CONTENT: CHAT VIEW vs RECORDS & PDF VIEW ── */}
         {activeTab === 'chat' ? (
-          <div className="flex-1 flex flex-col min-h-0 bg-[#F4F7F9]">
+          <div className="flex-1 flex flex-col min-h-0 bg-transparent">
             {/* Top Quick Tools & Clinical Status Banner */}
-            <div className="bg-white/95 backdrop-blur-xs px-4 py-2 border-b border-slate-100 flex items-center justify-between gap-2 shrink-0">
+            <div className="glass-subcard bg-slate-900/70 backdrop-blur-md px-4 py-2 border-b border-white/10 flex items-center justify-between gap-2 shrink-0">
               <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
                 <button
                   onClick={() => setActiveInChatTool(activeInChatTool === 'rag' ? null : 'rag')}
                   className={`px-3 py-1 rounded-xl text-[11px] font-bold transition flex items-center gap-1.5 shrink-0 border cursor-pointer ${
                     activeInChatTool === 'rag'
                       ? 'bg-cyan-100 text-cyan-900 border-cyan-300 shadow-2xs'
-                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                      : 'glass-subcard bg-slate-900/80 text-slate-300 border border-white/10 hover:border-cyan-400/30'
                   }`}
                 >
                   <Search size={12} className="text-cyan-600" />
@@ -1055,7 +1055,7 @@ export function MediBotScreen({ onClose }) {
                   className={`px-3 py-1 rounded-xl text-[11px] font-bold transition flex items-center gap-1.5 shrink-0 border cursor-pointer ${
                     activeInChatTool === 'safety'
                       ? 'bg-purple-100 text-purple-900 border-purple-300 shadow-2xs'
-                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                      : 'glass-subcard bg-slate-900/80 text-slate-300 border border-white/10 hover:border-cyan-400/30'
                   }`}
                 >
                   <Pill size={12} className="text-purple-600" />
@@ -1169,10 +1169,10 @@ export function MediBotScreen({ onClose }) {
                     <div
                       className={`max-w-[90%] rounded-2xl p-3 text-xs leading-relaxed ${
                         isBot
-                          ? 'bg-white text-slate-800 border border-slate-200/90 shadow-2xs'
+                          ? 'glass-subcard bg-slate-900/85 text-slate-100 border border-white/[0.12] shadow-xl backdrop-blur-md'
                           : m.isDocument
-                          ? 'bg-emerald-50 text-emerald-950 border border-emerald-300'
-                          : 'bg-[#044343] text-white shadow-xs font-medium'
+                          ? 'glass-subcard bg-emerald-950/30 text-emerald-300 border border-emerald-400/40'
+                          : 'bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-500 text-slate-950 font-bold shadow-md shadow-cyan-500/20'
                       }`}
                     >
                       {/* Bot Identity Header */}
@@ -1465,7 +1465,7 @@ export function MediBotScreen({ onClose }) {
             </div>
 
             {/* Bottom Sticky Input Container */}
-            <div className="bg-white border-t border-slate-200/80 px-4 py-2.5 shrink-0 space-y-2">
+            <div className="glass-subcard bg-slate-900/90 border-t border-white/10 px-4 py-2.5 shrink-0 space-y-2">
               {/* Quick Prompts Strip */}
               <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar text-[11px]">
                 {['Review my recent lab results', 'Check medication safety', 'How are my steps & vitals?'].map((suggestion, idx) => (
@@ -1480,11 +1480,11 @@ export function MediBotScreen({ onClose }) {
               </div>
 
               {/* Input Pill Bar */}
-              <div className="bg-[#F4F7F9] rounded-full p-1.5 pl-2 border border-slate-200 flex items-center gap-2">
+              <div className="glass-subcard bg-slate-950/90 rounded-full p-1.5 pl-3 border border-white/15 flex items-center gap-2">
                 <button
                   onClick={handleInitiateUpload}
                   disabled={uploadingFile}
-                  className="w-10 h-10 rounded-full bg-[#044343] hover:bg-[#033636] active:scale-95 text-white flex items-center justify-center shrink-0 shadow-sm transition cursor-pointer disabled:opacity-50"
+                  className="w-10 h-10 rounded-full glass-subcard bg-slate-800 hover:bg-slate-700 text-cyan-300 flex items-center justify-center shrink-0 border border-white/10 transition cursor-pointer disabled:opacity-50"
                   title="Upload blood report or prescription (.pdf, .doc, .docx, images)"
                 >
                   <Plus size={22} strokeWidth={2.5} />
@@ -1496,13 +1496,13 @@ export function MediBotScreen({ onClose }) {
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                  className="flex-1 bg-transparent text-slate-800 placeholder:text-slate-400 text-xs sm:text-sm outline-none px-2"
+                  className="flex-1 bg-transparent text-white placeholder:text-slate-500 text-xs sm:text-sm outline-none px-2"
                 />
 
                 <button
                   onClick={() => handleSendMessage()}
                   disabled={!inputText.trim() || isTyping}
-                  className="w-10 h-10 rounded-full bg-[#044343] hover:bg-[#033636] active:scale-95 text-white flex items-center justify-center shrink-0 disabled:opacity-30 transition cursor-pointer shadow-sm"
+                  className="w-10 h-10 rounded-full bg-gradient-to-r from-cyan-500 to-teal-400 hover:opacity-95 active:scale-95 text-slate-950 flex items-center justify-center shrink-0 disabled:opacity-30 transition cursor-pointer shadow-md shadow-cyan-500/25"
                 >
                   <Send size={16} />
                 </button>
@@ -1515,16 +1515,16 @@ export function MediBotScreen({ onClose }) {
             
             {/* 1. Header Title */}
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+              <h1 className="text-2xl font-black text-white tracking-tight">
                 Your Health History
               </h1>
-              <h2 className="text-base font-bold text-slate-900 mt-4 mb-2">
+              <h2 className="text-base font-bold text-slate-200 mt-4 mb-2">
                 Overall Summary
               </h2>
             </div>
 
             {/* 2. Overall Summary White Card */}
-            <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs space-y-3">
+            <div className="glass-card rounded-3xl p-5 border border-white/[0.08] border-t-white/[0.18] shadow-2xl space-y-3">
               {/* Live Clinical Badges */}
               <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold">
@@ -1547,7 +1547,7 @@ export function MediBotScreen({ onClose }) {
                 )}
               </div>
 
-              <p className="text-slate-700 text-xs sm:text-sm leading-relaxed font-normal">
+              <p className="text-slate-300 text-xs sm:text-sm leading-relaxed font-normal">
                 {summaryNarrative}
               </p>
 
@@ -1574,7 +1574,7 @@ export function MediBotScreen({ onClose }) {
               <button
                 onClick={handleDownloadPdf}
                 disabled={downloadingPdf}
-                className="w-full bg-[#044343] hover:bg-[#033636] active:scale-[0.99] text-white py-3.5 px-6 rounded-2xl font-bold text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-md transition cursor-pointer disabled:opacity-75"
+                className="w-full bg-gradient-to-r from-cyan-500 via-teal-400 to-emerald-400 hover:opacity-95 text-slate-950 font-black py-3.5 px-6 rounded-2xl text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-lg shadow-cyan-500/25 transition cursor-pointer disabled:opacity-75"
               >
                 <Download size={19} strokeWidth={2.2} className={downloadingPdf ? 'animate-bounce' : ''} />
                 <span>{downloadingPdf ? (downloadProgress || 'Generating PDF Document…') : 'Download Your Health Summary (PDF)'}</span>
@@ -1641,7 +1641,7 @@ export function MediBotScreen({ onClose }) {
             </div>
 
             {/* 4. Uploaded Medical Documents Vault List */}
-            <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs space-y-3">
+            <div className="glass-card rounded-3xl p-5 border border-white/[0.08] border-t-white/[0.18] shadow-2xl space-y-3">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">Medical Records Vault</h3>

@@ -10,7 +10,8 @@ import {
   TrendingUp,
   HeartHandshake,
   ShoppingBag,
-  Watch
+  Activity,
+  Check
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useAuth } from '../../context/AuthContext';
@@ -22,63 +23,63 @@ export function RewardsScreen() {
   const rewards = [
     {
       id: 'r1',
-      brand: 'GOQii Hardware',
-      title: 'GOQii Smart Vital 2.0 Fitness & ECG Tracker',
+      brand: 'Fitsure Hardware',
+      title: 'Fitsure Smart Vital 2.0 Biometric & ECG Tracker',
       points: 1200,
       value: '₹3,499 Value',
       category: 'Smart Devices',
-      code: 'GOQIIVITAL',
+      code: 'FITSUREVITAL',
     },
     {
       id: 'r2',
-      brand: 'GOQii Smart Scale',
+      brand: 'Fitsure Smart Scale',
       title: 'Body Composition Smart Scale (BMI, Fat%, Muscle)',
       points: 800,
       value: '₹2,299 Value',
       category: 'Smart Devices',
-      code: 'GOQIISCALE',
+      code: 'FITSURESCALE',
     },
     {
       id: 'r3',
-      brand: 'GOQii Diagnostics',
+      brand: 'Fitsure Diagnostics',
       title: 'Full Body Comprehensive Preventive Health Checkup',
       points: 500,
       value: '₹1,499 Value',
       category: 'Health Diagnostics',
-      code: 'GOQIICHECKUP',
+      code: 'FITSURECHECKUP',
     },
     {
       id: 'r4',
-      brand: 'Cult.fit Pass',
+      brand: 'Cult.fit & Fitsure',
       title: '1-Month All-Access Gym & Yoga Studio Pass',
       points: 600,
       value: '₹1,999 Value',
       category: 'Fitness',
-      code: 'CULTGOQII',
+      code: 'CULTFITSURE',
     },
     {
       id: 'r5',
-      brand: 'GOQii Karma Philanthropy',
-      title: 'Donate Wholesome Meals to Underprivileged Children',
+      brand: 'Fitsure Social Impact',
+      title: 'Provide 10 Balanced Meals to Underprivileged Children',
       points: 300,
-      value: 'Social Cause',
-      category: 'Karma Giving',
-      code: 'KARMA_MEALS',
+      value: 'Health Initiative',
+      category: 'Social Impact',
+      code: 'IMPACT_MEALS',
     },
     {
       id: 'r6',
-      brand: 'GOQii Karma Green',
-      title: 'Plant 3 Medicinal Trees in Afforestation Drive',
+      brand: 'Fitsure Green Drive',
+      title: 'Plant 3 Medicinal Plants in Clean Air Project',
       points: 200,
-      value: 'Social Cause',
-      category: 'Karma Giving',
-      code: 'KARMA_TREES',
+      value: 'Green Initiative',
+      category: 'Social Impact',
+      code: 'IMPACT_TREES',
     }
   ];
 
   const handleRedeem = (reward) => {
     if (livaPoints < reward.points) {
-      alert(`You need ${reward.points} points. Current balance is ${livaPoints}. Complete more daily habits & challenges!`);
+      alert(`You need ${reward.points} credits. Current balance is ${livaPoints}. Log daily habits, track hydration, and sync vitals to earn more.`);
       return;
     }
 
@@ -93,96 +94,104 @@ export function RewardsScreen() {
   };
 
   return (
-    <div className="px-5 py-4 space-y-4 animate-fade-in">
+    <div className="px-5 py-4 space-y-4 animate-fade-in text-slate-100">
       {/* Header */}
       <div>
-        <div className="flex items-center gap-1.5 mb-0.5">
-          <span className="text-[#ED1C24] font-black text-xl tracking-tight">GOQ<span className="inline-block relative">i<span className="w-1.5 h-1.5 rounded-full bg-[#ED1C24] absolute -top-1 left-[1px]"></span></span><span className="inline-block relative">i<span className="w-1.5 h-1.5 rounded-full bg-[#ED1C24] absolute -top-1 left-[1px]"></span></span></span>
-          <span className="text-xl font-extrabold text-slate-900 tracking-tight">Store & Karma</span>
+        <div className="flex items-center gap-2 mb-1">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-500 via-teal-400 to-emerald-400 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+            <Activity size={18} className="text-slate-950 font-black" />
+          </div>
+          <span className="text-xl font-black tracking-tight text-white">
+            Fitsure <span className="text-cyan-400">Rewards & Credits</span>
+          </span>
         </div>
-        <p className="text-xs font-semibold text-slate-400">Redeem GOQii Cash for health gear or donate Karma to causes</p>
+        <p className="text-xs font-medium text-slate-400">
+          Redeem earned health credits for biometric hardware, lab diagnostics, and fitness passes
+        </p>
       </div>
 
       {/* Points Balance Banner */}
-      <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-[#ED1C24] rounded-[26px] p-5 text-white shadow-lg shadow-orange-500/25 relative overflow-hidden">
+      <div className="glass-card rounded-2xl p-5 border border-cyan-500/30 shadow-xl relative overflow-hidden bg-gradient-to-br from-cyan-950/40 via-slate-900/80 to-slate-950">
+        <div className="absolute top-0 right-0 w-36 h-36 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none"></div>
         <div className="flex items-center justify-between relative z-10">
           <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-amber-100">Available Balance</span>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-4xl font-extrabold tracking-tight">{livaPoints}</span>
-              <span className="text-sm font-bold text-amber-100">Karma Points / Cash</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-300/80">Available Member Credits</span>
+            <div className="flex items-baseline gap-2 mt-1">
+              <span className="text-4xl font-black tracking-tight text-white">{livaPoints}</span>
+              <span className="text-xs font-semibold text-cyan-300">Fitsure Credits</span>
             </div>
-            <p className="text-[11px] text-amber-100 font-medium mt-2 flex items-center gap-1">
-              <TrendingUp size={13} />
-              <span>Earn 25 pts for habits, 10 pts for water, 20 pts for vitals</span>
+            <p className="text-[11px] text-slate-400 font-medium mt-2 flex items-center gap-1.5">
+              <TrendingUp size={13} className="text-cyan-400" />
+              <span>Earn 25 for habits • 10 for hydration • 20 for vitals</span>
             </p>
           </div>
 
-          <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 text-amber-100">
-            <Star size={32} className="fill-amber-300 text-amber-300" />
+          <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-400/30 flex items-center justify-center text-cyan-300 shadow-inner">
+            <Star size={28} className="fill-cyan-400 text-cyan-400" />
           </div>
         </div>
       </div>
 
       {/* Rewards Grid */}
       <div className="space-y-3">
-        <h2 className="text-sm font-extrabold text-slate-900 tracking-tight flex items-center justify-between">
-          <span>GOQii Health Catalog & Karma</span>
-          <span className="text-xs text-[#ED1C24] font-bold">Featured Deals</span>
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold text-white tracking-wide">
+            Verified Partner Catalog
+          </h2>
+          <span className="text-[11px] text-cyan-400 font-bold bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-400/20">
+            Exclusive Startup Tier
+          </span>
+        </div>
 
         {rewards.map((reward) => {
           const isRedeemed = redeemed.includes(reward.id);
-          const isKarma = reward.category === 'Karma Giving';
+          const isSocialImpact = reward.category === 'Social Impact';
 
           return (
             <div
               key={reward.id}
-              className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between gap-3 hover:shadow-md transition"
+              className="glass-card rounded-2xl p-4 border border-white/5 flex items-center justify-between gap-3 hover:border-cyan-500/30 transition-all duration-300"
             >
               <div className="flex items-center gap-3">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
-                  isKarma ? 'bg-rose-50 text-[#ED1C24]' : 'bg-amber-50 text-amber-600'
-                }`}>
-                  {isKarma ? <HeartHandshake size={22} /> : <ShoppingBag size={22} />}
+                <div className="w-11 h-11 rounded-xl bg-cyan-500/10 border border-cyan-400/20 flex items-center justify-center shrink-0 text-cyan-300">
+                  {isSocialImpact ? <HeartHandshake size={20} /> : <ShoppingBag size={20} />}
                 </div>
 
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">
                       {reward.brand}
                     </span>
-                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+                    <span className="text-[9px] font-semibold text-emerald-300 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
                       {reward.value}
                     </span>
                   </div>
-                  <h3 className="text-xs font-extrabold text-slate-900 leading-snug">
+                  <h3 className="text-xs font-bold text-white leading-snug">
                     {reward.title}
                   </h3>
-                  <div className="flex items-center gap-1 text-[11px] font-bold text-amber-600">
-                    <span>★ {reward.points} Points</span>
+                  <div className="flex items-center gap-1 text-[11px] font-bold text-cyan-300">
+                    <Star size={11} className="fill-cyan-400 text-cyan-400" />
+                    <span>{reward.points} Credits</span>
                   </div>
                 </div>
               </div>
 
-              <div>
+              <div className="shrink-0">
                 {isRedeemed ? (
-                  <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-bold">
-                    <CheckCircle2 size={13} /> Redeemed
+                  <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-bold">
+                    <CheckCircle2 size={13} /> Claimed
                   </span>
                 ) : (
                   <button
                     onClick={() => handleRedeem(reward)}
                     disabled={livaPoints < reward.points}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition shadow-sm ${
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all ${
                       livaPoints >= reward.points
-                        ? isKarma 
-                          ? 'bg-[#ED1C24] hover:bg-rose-700 text-white shadow-rose-500/20 active:scale-95'
-                          : 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20 active:scale-95'
-                        : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                        ? 'bg-gradient-to-r from-cyan-500 via-teal-400 to-emerald-400 text-slate-950 font-black shadow-md shadow-cyan-500/20 active:scale-95 hover:opacity-90'
+                        : 'bg-white/5 text-slate-500 cursor-not-allowed border border-white/5'
                     }`}
                   >
-                    {isKarma ? 'Donate' : 'Redeem'}
+                    {isSocialImpact ? 'Support' : 'Redeem'}
                   </button>
                 )}
               </div>

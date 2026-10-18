@@ -72,7 +72,7 @@ export function healthMessage(h) {
         title: 'Allow access to your steps',
         body: h.platform === 'android'
           ? 'Open Health Connect and allow Steps, Heart rate and Sleep.'
-          : 'Go to Settings › Health › Data Access and allow GOQii Health.',
+          : 'Go to Settings › Health › Data Access and allow Fitsure Health.',
         action: ['Allow now', 'REQUEST_HEALTH_PERMISSIONS'],
       };
     case 'no_data':
@@ -98,7 +98,7 @@ export function healthMessage(h) {
     case 'unavailable':
       if (h.reason === 'NATIVE_MODULE_MISSING') {
         return {
-          title: 'Open the installed GOQii development build',
+          title: 'Open the installed Fitsure development build',
           body: 'Expo Go does not include the native Health Connect / Apple Health module. Phone step counting may still work, but health store sync needs the development build.',
           action: null,
         };
