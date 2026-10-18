@@ -98,35 +98,37 @@ export function ProfileScreen({ openVaultModal, openPatient360Modal }) {
       })
       .catch(() => {});
 
-    // Check scoped consents
-    ['data_access', 'ai_processing', 'document_upload'].forEach(scope => {
-      api.getScopedConsent(scope)
-        .then(res => {
-          if (res?.consent) {
-            setConsents(prev => ({ ...prev, [scope]: res.consent.granted }));
-          }
-        })
-        .catch(() => {});
-    });
-    api.getMemberConsent('health_data')
-      .then((res) => setConsents((prev) => ({ ...prev, health_data: Boolean(res?.consent?.granted) })))
+    // Load initial scoped consents
+    api.getScopedConsents()
+      .then(res => {
+        const c = res?.consents || res || {};
+        setConsents({
+          global: Boolean(c.global),
+          data_access: Boolean(c.data_access),
+          ai_processing: Boolean(c.ai_processing ?? true),
+          document_upload: Boolean(c.document_upload ?? true),
+          health_data: Boolean(c.health_data),
+        });
+      })
       .catch(() => {});
-  }, [member?.id]);
+  }, [member]);
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await updateMemberProfile({
+      const payload = {
         firstName: editForm.firstName,
         lastName: editForm.lastName,
-        fullName: `${editForm.firstName} ${editForm.lastName}`.trim(),
         dob: editForm.dob,
         biologicalSex: editForm.biologicalSex,
-        gender: editForm.biologicalSex,
         heightCm: parseFloat(editForm.heightCm),
         weightKg: parseFloat(editForm.weightKg),
-      });
+      };
+      const res = await api.updateMemberProfile(payload);
+      if (updateMemberProfile) {
+        updateMemberProfile(res.member || res);
+      }
       setIsEditing(false);
     } catch (err) {
       alert(`Update failed: ${err.message}`);
@@ -196,17 +198,17 @@ export function ProfileScreen({ openVaultModal, openPatient360Modal }) {
   const bmi = (weight / ((height / 100) * (height / 100))).toFixed(1);
 
   return (
-    <div className="px-5 py-4 space-y-4 animate-fade-in">
+    <div className="px-5 py-4 space-y-4 animate-fade-in text-slate-100">
       {/* 1. Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Member Profile</h1>
+          <h1 className="text-2xl font-black text-white tracking-tight">Member Profile</h1>
           <p className="text-xs font-semibold text-slate-400 mt-0.5">Demographics, Biometrics & Security</p>
         </div>
 
         <button
           onClick={() => setIsEditing(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-50 text-[#00a8cc] border border-cyan-200/80 rounded-xl text-xs font-bold hover:bg-cyan-100/50 transition"
+          className="flex items-center gap-1.5 px-3 py-1.5 glass-subcard bg-cyan-500/10 text-cyan-300 border border-cyan-400/30 rounded-xl text-xs font-bold hover:bg-cyan-500/20 transition cursor-pointer"
         >
           <Edit3 size={13} />
           <span>Edit</span>
@@ -214,25 +216,25 @@ export function ProfileScreen({ openVaultModal, openPatient360Modal }) {
       </div>
 
       {/* 2. Profile Hero Card */}
-      <div className="bg-white rounded-[26px] p-5 border border-slate-100 shadow-sm space-y-4">
+      <div className="glass-card rounded-[28px] p-5 border border-white/[0.08] border-t-white/[0.18] shadow-2xl space-y-4">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white text-2xl font-extrabold shadow-md shadow-cyan-500/20">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-500 via-teal-400 to-purple-600 flex items-center justify-center text-slate-950 text-2xl font-black shadow-lg shadow-cyan-500/25 ring-2 ring-white/20 shrink-0">
             {(member?.firstName || member?.fullName || 'J')[0]}
           </div>
 
           <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-extrabold text-slate-900 truncate">
+            <h2 className="text-lg font-black text-white truncate">
               {member?.fullName || `${member?.firstName || 'Jane'} ${member?.lastName || 'Doe'}`}
             </h2>
-            <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium mt-0.5">
-              <Phone size={12} className="text-slate-400" />
+            <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium mt-0.5">
+              <Phone size={12} className="text-cyan-400" />
               <span>{member?.phone || member?.phoneE164 || '+14155552671'}</span>
             </div>
             <div className="flex items-center gap-2 mt-2">
-              <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[10px] font-bold uppercase tracking-wider">
+              <span className="px-2.5 py-0.5 glass-pill bg-emerald-500/15 text-emerald-300 border border-emerald-400/30 text-[10px] font-extrabold uppercase tracking-wider">
                 {member?.status || 'Active Member'}
               </span>
-              <span className="px-2.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-[10px] font-bold capitalize">
+              <span className="px-2.5 py-0.5 glass-pill bg-cyan-500/15 text-cyan-300 border border-cyan-400/30 text-[10px] font-extrabold capitalize">
                 Tier: {member?.insuranceTier || 'Corporate Gold'}
               </span>
             </div>
@@ -240,64 +242,67 @@ export function ProfileScreen({ openVaultModal, openPatient360Modal }) {
         </div>
 
         {/* Biometrics Grid */}
-        <div className="grid grid-cols-3 gap-2.5 pt-3 border-t border-slate-100 text-center">
-          <div className="bg-slate-50 p-2.5 rounded-2xl">
-            <span className="text-[10px] font-bold uppercase text-slate-400 block">Height</span>
-            <span className="text-base font-extrabold text-slate-900">{height}</span>
-            <span className="text-[10px] text-slate-500 font-semibold ml-0.5">cm</span>
+        <div className="grid grid-cols-3 gap-2.5 pt-3 border-t border-white/[0.08] text-center">
+          <div className="glass-subcard bg-slate-900/60 p-2.5 rounded-2xl border border-white/5">
+            <span className="text-[10px] font-bold uppercase text-slate-400 block tracking-wider">Height</span>
+            <span className="text-base font-black text-white">{height}</span>
+            <span className="text-[10px] text-slate-400 font-semibold ml-0.5">cm</span>
           </div>
 
-          <div className="bg-slate-50 p-2.5 rounded-2xl">
-            <span className="text-[10px] font-bold uppercase text-slate-400 block">Weight</span>
-            <span className="text-base font-extrabold text-slate-900">{weight}</span>
-            <span className="text-[10px] text-slate-500 font-semibold ml-0.5">kg</span>
+          <div className="glass-subcard bg-slate-900/60 p-2.5 rounded-2xl border border-white/5">
+            <span className="text-[10px] font-bold uppercase text-slate-400 block tracking-wider">Weight</span>
+            <span className="text-base font-black text-white">{weight}</span>
+            <span className="text-[10px] text-slate-400 font-semibold ml-0.5">kg</span>
           </div>
 
-          <div className="bg-cyan-50/60 p-2.5 rounded-2xl border border-cyan-100">
-            <span className="text-[10px] font-bold uppercase text-cyan-600 block">BMI</span>
-            <span className="text-base font-extrabold text-cyan-900">{bmi}</span>
-            <span className="text-[10px] text-cyan-600 font-semibold ml-0.5">Normal</span>
+          <div className="glass-subcard bg-cyan-950/40 p-2.5 rounded-2xl border border-cyan-500/30 shadow-sm shadow-cyan-500/10">
+            <span className="text-[10px] font-bold uppercase text-cyan-400 block tracking-wider">BMI</span>
+            <span className="text-base font-black text-cyan-300 text-glow-cyan">{bmi}</span>
+            <span className="text-[10px] text-cyan-400 font-bold ml-0.5">Normal</span>
           </div>
         </div>
       </div>
 
       {/* 3. Patient Lifestyle, Health Goals & Medications Card */}
-      <div className="bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 rounded-[26px] p-4 text-white shadow-sm space-y-3 border border-emerald-900/50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300">
-              <Sparkles size={16} />
+      <div className="glass-card rounded-[28px] p-5 shadow-2xl border border-white/[0.08] border-t-white/[0.18] space-y-3 relative overflow-hidden">
+        {/* Subtle accent aurora */}
+        <div className="pointer-events-none absolute -top-12 -right-12 w-36 h-36 bg-emerald-500/10 rounded-full blur-2xl" />
+
+        <div className="flex items-center justify-between relative z-10">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300">
+              <Sparkles size={18} />
             </div>
             <div>
-              <h3 className="text-xs font-bold tracking-tight text-white">Lifestyle & Health Goals</h3>
-              <p className="text-[10px] text-slate-400">Integrated into MediBot & Clinical 360 Chart</p>
+              <h3 className="text-xs font-black tracking-wide text-white">Lifestyle & Health Goals</h3>
+              <p className="text-[10px] text-slate-400 font-medium">Integrated into MediBot & Clinical 360 Chart</p>
             </div>
           </div>
           <button
             onClick={() => setShowLifestyleModal(true)}
-            className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl text-[11px] font-bold transition flex items-center gap-1 shadow-xs"
+            className="px-3 py-1.5 glass-pill bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-400/40 rounded-xl text-[11px] font-bold transition flex items-center gap-1 shadow-xs cursor-pointer"
           >
             <span>Manage</span>
             <ChevronRight size={12} />
           </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 pt-1 text-center">
-          <div className="bg-white/5 border border-white/10 rounded-xl p-2">
+        <div className="grid grid-cols-3 gap-2 pt-1 text-center relative z-10">
+          <div className="glass-subcard bg-slate-900/60 border border-white/5 rounded-xl p-2.5">
             <span className="text-[9px] uppercase tracking-wider text-slate-400 block font-bold">Diet & Habits</span>
-            <span className="text-[11px] font-bold text-emerald-300 mt-0.5 block truncate">
+            <span className="text-[11px] font-black text-emerald-300 mt-0.5 block truncate">
               {patientProfile?.lifestyle?.diet ? `${patientProfile.lifestyle.diet}` : (patientProfile?.lifestyle?.activityLevel || 'Not set')}
             </span>
           </div>
-          <div className="bg-white/5 border border-white/10 rounded-xl p-2">
+          <div className="glass-subcard bg-slate-900/60 border border-white/5 rounded-xl p-2.5">
             <span className="text-[9px] uppercase tracking-wider text-slate-400 block font-bold">Health Targets</span>
-            <span className="text-[11px] font-bold text-cyan-300 mt-0.5 block truncate">
+            <span className="text-[11px] font-black text-cyan-300 mt-0.5 block truncate">
               {patientProfile?.goals?.length ? `${patientProfile.goals.length} Goal(s)` : 'None set'}
             </span>
           </div>
-          <div className="bg-white/5 border border-white/10 rounded-xl p-2">
+          <div className="glass-subcard bg-slate-900/60 border border-white/5 rounded-xl p-2.5">
             <span className="text-[9px] uppercase tracking-wider text-slate-400 block font-bold">Active Rx</span>
-            <span className="text-[11px] font-bold text-indigo-300 mt-0.5 block truncate">
+            <span className="text-[11px] font-black text-purple-300 mt-0.5 block truncate">
               {patientMeds?.length ? `${patientMeds.length} Active Rx` : 'None documented'}
             </span>
           </div>
@@ -305,53 +310,51 @@ export function ProfileScreen({ openVaultModal, openPatient360Modal }) {
       </div>
 
       {/* 4. Clinical Consents & Privacy Management */}
-      <div className="bg-white rounded-[26px] p-5 border border-slate-100 shadow-sm space-y-3.5">
+      <div className="glass-card rounded-[28px] p-5 border border-white/[0.08] border-t-white/[0.18] shadow-2xl space-y-3.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <ShieldCheck size={18} className="text-indigo-600" />
-            <h3 className="text-sm font-bold text-slate-900">Clinical AI & Data Consents</h3>
+            <ShieldCheck size={18} className="text-cyan-400" />
+            <h3 className="text-sm font-black text-white">Clinical AI & Data Consents</h3>
           </div>
-          <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-            HIPAA/GDPR
+          <span className="text-[10px] font-extrabold text-cyan-300 bg-cyan-500/15 border border-cyan-400/30 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+            HIPAA • GDPR
           </span>
         </div>
 
-        <p className="text-xs text-slate-500 font-medium">
+        <p className="text-xs text-slate-400 font-medium">
           Control granular permissions for MediBot AI triage, OCR processing, and wearable data sync.
         </p>
 
         <div className="space-y-2.5 pt-1">
-          <div className="flex items-center justify-between text-xs py-1">
-            <div>
-              <strong className="text-slate-800 block">MediBot AI Processing</strong>
+          <div className="glass-subcard bg-slate-900/60 border border-white/5 rounded-2xl p-3 flex items-center justify-between text-xs">
+            <div className="pr-3">
+              <strong className="text-white block font-bold">MediBot AI Processing</strong>
               <span className="text-[10px] text-slate-400">Allow MediBot to process your messages and relevant records to generate responses</span>
             </div>
-            <button onClick={() => toggleConsent('ai_processing')} className="text-indigo-600">
-              {consents.ai_processing ? <ToggleRight size={28} className="text-indigo-600" /> : <ToggleLeft size={28} className="text-slate-300" />}
+            <button onClick={() => toggleConsent('ai_processing')} className="cursor-pointer text-cyan-400 shrink-0">
+              {consents.ai_processing ? <ToggleRight size={30} className="text-cyan-400" /> : <ToggleLeft size={30} className="text-slate-600" />}
             </button>
           </div>
 
-          <div className="flex items-center justify-between text-xs py-1 border-t border-slate-50">
-            <div>
-              <strong className="text-slate-800 block">Document OCR & Vault</strong>
+          <div className="glass-subcard bg-slate-900/60 border border-white/5 rounded-2xl p-3 flex items-center justify-between text-xs">
+            <div className="pr-3">
+              <strong className="text-white block font-bold">Document OCR & Vault</strong>
               <span className="text-[10px] text-slate-400">Upload and extract medications from prescriptions</span>
             </div>
-            <button onClick={() => toggleConsent('document_upload')} className="text-indigo-600">
-              {consents.document_upload ? <ToggleRight size={28} className="text-indigo-600" /> : <ToggleLeft size={28} className="text-slate-300" />}
+            <button onClick={() => toggleConsent('document_upload')} className="cursor-pointer text-cyan-400 shrink-0">
+              {consents.document_upload ? <ToggleRight size={30} className="text-cyan-400" /> : <ToggleLeft size={30} className="text-slate-600" />}
             </button>
           </div>
 
-          <div className="flex items-center justify-between text-xs py-1 border-t border-slate-50">
-            <div>
-              <strong className="text-slate-800 block">Share Phone Health Data</strong>
-              <span className="text-[10px] text-slate-400">Allow synced readings in your health history and MediBot. Choose phone data types under Phone Health → Data Permissions.</span>
+          <div className="glass-subcard bg-slate-900/60 border border-white/5 rounded-2xl p-3 flex items-center justify-between text-xs">
+            <div className="pr-3">
+              <strong className="text-white block font-bold">Share Phone Health Data</strong>
+              <span className="text-[10px] text-slate-400">Allow continuous telemetry from HealthKit / Health Connect to sync with Dr. MediBot</span>
             </div>
-            <button onClick={() => toggleConsent('health_data')} className="text-indigo-600">
-              {consents.health_data ? <ToggleRight size={28} className="text-indigo-600" /> : <ToggleLeft size={28} className="text-slate-300" />}
+            <button onClick={() => toggleConsent('health_data')} className="cursor-pointer text-cyan-400 shrink-0">
+              {consents.health_data ? <ToggleRight size={30} className="text-cyan-400" /> : <ToggleLeft size={30} className="text-slate-600" />}
             </button>
           </div>
-
-
         </div>
       </div>
 
@@ -359,7 +362,7 @@ export function ProfileScreen({ openVaultModal, openPatient360Modal }) {
       <div className="space-y-2 pt-2">
         <button
           onClick={logout}
-          className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2"
+          className="w-full py-3 glass-subcard bg-slate-900/80 hover:bg-slate-800/80 text-slate-200 border border-white/10 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-sm"
         >
           <LogOut size={15} />
           <span>Log Out of Session</span>
@@ -367,7 +370,7 @@ export function ProfileScreen({ openVaultModal, openPatient360Modal }) {
 
         <button
           onClick={handleDeleteAccount}
-          className="w-full py-2.5 text-rose-500 hover:text-rose-600 hover:bg-rose-50 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-1.5"
+          className="w-full py-2.5 glass-subcard bg-rose-950/20 hover:bg-rose-950/40 text-rose-400 border border-rose-500/20 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
         >
           <Trash2 size={14} />
           <span>Delete Account (GDPR / Right to be Forgotten)</span>
@@ -376,63 +379,63 @@ export function ProfileScreen({ openVaultModal, openPatient360Modal }) {
 
       {/* Edit Profile Modal */}
       {isEditing && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl space-y-4">
-            <h3 className="font-extrabold text-slate-900 text-base">Edit Demographics & Biometrics</h3>
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="glass-card bg-slate-950/95 border border-white/[0.12] rounded-3xl p-6 w-full max-w-sm shadow-2xl space-y-4">
+            <h3 className="font-black text-white text-base">Edit Demographics & Biometrics</h3>
 
             <form onSubmit={handleUpdateProfile} className="space-y-3">
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-600 block mb-1">First Name</label>
+                  <label className="text-[11px] font-bold text-slate-400 block mb-1">First Name</label>
                   <input
                     type="text"
                     required
                     value={editForm.firstName}
                     onChange={e => setEditForm({ ...editForm, firstName: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-xl text-xs font-medium focus:ring-2 focus:ring-cyan-500 outline-none"
+                    className="w-full px-3 py-2 glass-subcard bg-slate-900/80 border border-white/10 rounded-xl text-xs font-semibold text-white outline-none focus:border-cyan-400"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-slate-600 block mb-1">Last Name</label>
+                  <label className="text-[11px] font-bold text-slate-400 block mb-1">Last Name</label>
                   <input
                     type="text"
                     required
                     value={editForm.lastName}
                     onChange={e => setEditForm({ ...editForm, lastName: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-xl text-xs font-medium focus:ring-2 focus:ring-cyan-500 outline-none"
+                    className="w-full px-3 py-2 glass-subcard bg-slate-900/80 border border-white/10 rounded-xl text-xs font-semibold text-white outline-none focus:border-cyan-400"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">Date of Birth</label>
+                <label className="text-[11px] font-bold text-slate-400 block mb-1">Date of Birth</label>
                 <input
                   type="date"
                   value={editForm.dob}
                   onChange={e => setEditForm({ ...editForm, dob: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-xl text-xs font-medium focus:ring-2 focus:ring-cyan-500 outline-none"
+                  className="w-full px-3 py-2 glass-subcard bg-slate-900/80 border border-white/10 rounded-xl text-xs font-semibold text-white outline-none focus:border-cyan-400"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-600 block mb-1">Height (cm)</label>
+                  <label className="text-[11px] font-bold text-slate-400 block mb-1">Height (cm)</label>
                   <input
                     type="number"
                     step="0.1"
                     value={editForm.heightCm}
                     onChange={e => setEditForm({ ...editForm, heightCm: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-xl text-xs font-medium focus:ring-2 focus:ring-cyan-500 outline-none"
+                    className="w-full px-3 py-2 glass-subcard bg-slate-900/80 border border-white/10 rounded-xl text-xs font-semibold text-white outline-none focus:border-cyan-400"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-slate-600 block mb-1">Weight (kg)</label>
+                  <label className="text-[11px] font-bold text-slate-400 block mb-1">Weight (kg)</label>
                   <input
                     type="number"
                     step="0.1"
                     value={editForm.weightKg}
                     onChange={e => setEditForm({ ...editForm, weightKg: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-xl text-xs font-medium focus:ring-2 focus:ring-cyan-500 outline-none"
+                    className="w-full px-3 py-2 glass-subcard bg-slate-900/80 border border-white/10 rounded-xl text-xs font-semibold text-white outline-none focus:border-cyan-400"
                   />
                 </div>
               </div>
@@ -441,14 +444,14 @@ export function ProfileScreen({ openVaultModal, openPatient360Modal }) {
                 <button
                   type="button"
                   onClick={() => setIsEditing(false)}
-                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold"
+                  className="flex-1 py-2.5 glass-subcard bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 rounded-xl text-xs font-bold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 py-2.5 bg-[#00a8cc] hover:bg-cyan-600 text-white rounded-xl text-xs font-bold shadow-md shadow-cyan-500/20"
+                  className="flex-1 py-2.5 bg-gradient-to-r from-cyan-500 to-teal-400 hover:opacity-95 text-slate-950 rounded-xl text-xs font-black shadow-md shadow-cyan-500/25 cursor-pointer"
                 >
                   {loading ? 'Saving…' : 'Save Changes'}
                 </button>
@@ -460,22 +463,22 @@ export function ProfileScreen({ openVaultModal, openPatient360Modal }) {
 
       {/* ── Lifestyle Habits & Health Goals Modal ── */}
       {showLifestyleModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 animate-fade-in">
-          <div className="bg-white w-full max-w-md max-h-[90vh] rounded-[28px] shadow-2xl flex flex-col overflow-hidden border border-slate-200">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 animate-fade-in">
+          <div className="glass-card bg-slate-950/95 w-full max-w-md max-h-[90vh] rounded-[28px] shadow-2xl flex flex-col overflow-hidden border border-white/[0.12]">
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-slate-900 via-emerald-950 to-slate-900 p-4 text-white flex items-center justify-between border-b border-emerald-900/40">
+            <div className="glass-subcard bg-slate-900/80 p-4 text-white flex items-center justify-between border-b border-white/10">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300">
                   <Sparkles size={16} />
                 </div>
                 <div>
-                  <h3 className="text-sm font-extrabold tracking-tight">Daily Lifestyle & Target Goals</h3>
+                  <h3 className="text-sm font-black tracking-tight text-white">Daily Lifestyle & Target Goals</h3>
                   <p className="text-[10px] text-slate-400">Syncs directly with your Medical Chart & MediBot</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowLifestyleModal(false)}
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-300 hover:text-white transition"
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-300 hover:text-white transition cursor-pointer"
               >
                 <X size={16} />
               </button>
@@ -485,21 +488,21 @@ export function ProfileScreen({ openVaultModal, openPatient360Modal }) {
             <form onSubmit={handleSaveLifestyleAndGoals} className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar text-xs">
               {/* Diet */}
               <div>
-                <label className="font-bold text-slate-800 block mb-1.5">Dietary Preference</label>
+                <label className="font-bold text-slate-300 block mb-1.5">Dietary Preference</label>
                 <div className="grid grid-cols-2 gap-1.5">
                   {['Balanced', 'Vegetarian', 'Vegan', 'Low Carb / Keto', 'Mediterranean'].map((d) => (
                     <button
                       key={d}
                       type="button"
                       onClick={() => setLifestyleForm({ ...lifestyleForm, diet: d })}
-                      className={`py-2 px-2.5 rounded-xl border text-left font-bold transition flex items-center justify-between ${
+                      className={`py-2 px-2.5 rounded-xl border text-left font-bold transition flex items-center justify-between cursor-pointer ${
                         lifestyleForm.diet === d
-                          ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-xs'
-                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                          ? 'bg-emerald-500/20 border-emerald-400/60 text-emerald-300 shadow-xs'
+                          : 'glass-subcard bg-slate-900/60 border-white/10 text-slate-400 hover:text-slate-200'
                       }`}
                     >
                       <span className="truncate">{d}</span>
-                      {lifestyleForm.diet === d && <Check size={12} className="text-emerald-600 shrink-0" />}
+                      {lifestyleForm.diet === d && <Check size={12} className="text-emerald-400 shrink-0" />}
                     </button>
                   ))}
                 </div>
@@ -507,21 +510,21 @@ export function ProfileScreen({ openVaultModal, openPatient360Modal }) {
 
               {/* Activity Level */}
               <div>
-                <label className="font-bold text-slate-800 block mb-1.5">Daily Physical Activity</label>
+                <label className="font-bold text-slate-300 block mb-1.5">Daily Physical Activity</label>
                 <div className="grid grid-cols-2 gap-1.5">
                   {['Sedentary', 'Lightly Active', 'Moderately Active', 'Very Active'].map((act) => (
                     <button
                       key={act}
                       type="button"
                       onClick={() => setLifestyleForm({ ...lifestyleForm, activityLevel: act })}
-                      className={`py-2 px-2.5 rounded-xl border text-left font-bold transition flex items-center justify-between ${
+                      className={`py-2 px-2.5 rounded-xl border text-left font-bold transition flex items-center justify-between cursor-pointer ${
                         lifestyleForm.activityLevel === act
-                          ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-xs'
-                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                          ? 'bg-emerald-500/20 border-emerald-400/60 text-emerald-300 shadow-xs'
+                          : 'glass-subcard bg-slate-900/60 border-white/10 text-slate-400 hover:text-slate-200'
                       }`}
                     >
                       <span className="truncate">{act}</span>
-                      {lifestyleForm.activityLevel === act && <Check size={12} className="text-emerald-600 shrink-0" />}
+                      {lifestyleForm.activityLevel === act && <Check size={12} className="text-emerald-400 shrink-0" />}
                     </button>
                   ))}
                 </div>
@@ -530,47 +533,47 @@ export function ProfileScreen({ openVaultModal, openPatient360Modal }) {
               {/* Smoking & Alcohol */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-bold text-slate-800 block mb-1.5">Smoking Status</label>
+                  <label className="font-bold text-slate-300 block mb-1.5">Smoking Status</label>
                   <select
                     value={lifestyleForm.smoking || 'Non-smoker'}
                     onChange={(e) => setLifestyleForm({ ...lifestyleForm, smoking: e.target.value })}
-                    className="w-full px-2.5 py-2 border rounded-xl bg-slate-50 border-slate-200 text-xs font-semibold outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="w-full px-2.5 py-2 glass-subcard bg-slate-900/80 border border-white/10 rounded-xl text-xs font-semibold text-white outline-none focus:border-cyan-400"
                   >
-                    <option value="Non-smoker">Non-smoker</option>
-                    <option value="Former smoker">Former smoker</option>
-                    <option value="Occasional">Occasional</option>
-                    <option value="Regular">Regular</option>
+                    <option value="Non-smoker" className="bg-slate-900 text-white">Non-smoker</option>
+                    <option value="Former smoker" className="bg-slate-900 text-white">Former smoker</option>
+                    <option value="Occasional" className="bg-slate-900 text-white">Occasional</option>
+                    <option value="Regular" className="bg-slate-900 text-white">Regular</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="font-bold text-slate-800 block mb-1.5">Alcohol Intake</label>
+                  <label className="font-bold text-slate-300 block mb-1.5">Alcohol Intake</label>
                   <select
                     value={lifestyleForm.alcohol || 'Occasional'}
                     onChange={(e) => setLifestyleForm({ ...lifestyleForm, alcohol: e.target.value })}
-                    className="w-full px-2.5 py-2 border rounded-xl bg-slate-50 border-slate-200 text-xs font-semibold outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="w-full px-2.5 py-2 glass-subcard bg-slate-900/80 border border-white/10 rounded-xl text-xs font-semibold text-white outline-none focus:border-cyan-400"
                   >
-                    <option value="None">None (Teetotaler)</option>
-                    <option value="Occasional">Occasional</option>
-                    <option value="Moderate">Moderate</option>
-                    <option value="Regular">Regular</option>
+                    <option value="None" className="bg-slate-900 text-white">None (Teetotaler)</option>
+                    <option value="Occasional" className="bg-slate-900 text-white">Occasional</option>
+                    <option value="Moderate" className="bg-slate-900 text-white">Moderate</option>
+                    <option value="Regular" className="bg-slate-900 text-white">Regular</option>
                   </select>
                 </div>
               </div>
 
               {/* Sleep Target */}
               <div>
-                <label className="font-bold text-slate-800 block mb-1.5">Nightly Sleep Target</label>
+                <label className="font-bold text-slate-300 block mb-1.5">Nightly Sleep Target</label>
                 <div className="grid grid-cols-4 gap-1.5">
                   {['6 Hours', '7 Hours', '8 Hours', '9+ Hours'].map((slp) => (
                     <button
                       key={slp}
                       type="button"
                       onClick={() => setLifestyleForm({ ...lifestyleForm, sleepTarget: slp })}
-                      className={`py-2 px-1 text-center rounded-xl border font-bold text-[11px] transition ${
+                      className={`py-2 px-1 text-center rounded-xl border font-bold text-[11px] transition cursor-pointer ${
                         lifestyleForm.sleepTarget === slp
-                          ? 'bg-purple-50 border-purple-500 text-purple-900 shadow-xs'
-                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                          ? 'bg-purple-500/20 border-purple-400/60 text-purple-300 shadow-xs'
+                          : 'glass-subcard bg-slate-900/60 border-white/10 text-slate-400 hover:text-slate-200'
                       }`}
                     >
                       {slp}
@@ -580,9 +583,9 @@ export function ProfileScreen({ openVaultModal, openPatient360Modal }) {
               </div>
 
               {/* Health Goals List */}
-              <div className="pt-2 border-t border-slate-100 space-y-2">
+              <div className="pt-2 border-t border-white/10 space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="font-bold text-slate-800">Target Health Goals ({goalsList.length})</label>
+                  <label className="font-bold text-slate-300">Target Health Goals ({goalsList.length})</label>
                   <span className="text-[10px] text-slate-400 font-medium">Synced to Patient 360</span>
                 </div>
 
@@ -593,7 +596,7 @@ export function ProfileScreen({ openVaultModal, openPatient360Modal }) {
                     placeholder="e.g. Walk 10,000 steps daily"
                     value={newGoalInput}
                     onChange={(e) => setNewGoalInput(e.target.value)}
-                    className="flex-1 px-3 py-2 border rounded-xl bg-slate-50 border-slate-200 text-xs font-medium outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="flex-1 px-3 py-2 glass-subcard bg-slate-900/80 border border-white/10 rounded-xl text-xs font-medium text-white placeholder:text-slate-500 outline-none focus:border-cyan-400"
                   />
                   <button
                     type="button"
@@ -603,7 +606,7 @@ export function ProfileScreen({ openVaultModal, openPatient360Modal }) {
                         setNewGoalInput('');
                       }
                     }}
-                    className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-xs"
+                    className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-xs cursor-pointer"
                   >
                     <Plus size={14} />
                     <span>Add</span>
@@ -625,7 +628,7 @@ export function ProfileScreen({ openVaultModal, openPatient360Modal }) {
                       onClick={() => {
                         if (!goalsList.includes(preset)) setGoalsList([...goalsList, preset]);
                       }}
-                      className="px-2 py-0.5 bg-slate-100 text-slate-600 border border-slate-200 rounded-lg text-[10px] font-medium hover:bg-emerald-50 hover:border-emerald-300"
+                      className="px-2 py-0.5 glass-subcard bg-slate-900/80 text-cyan-300 border border-cyan-400/30 rounded-lg text-[10px] font-bold hover:bg-cyan-500/20 transition cursor-pointer"
                     >
                       + {preset}
                     </button>
@@ -635,12 +638,12 @@ export function ProfileScreen({ openVaultModal, openPatient360Modal }) {
                 {/* Existing goals */}
                 <div className="space-y-1 pt-1">
                   {goalsList.map((g, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-2 bg-slate-50 border border-slate-200 rounded-xl">
-                      <span className="font-semibold text-slate-800 text-[11px] truncate">{g}</span>
+                    <div key={idx} className="flex items-center justify-between p-2 glass-subcard bg-slate-900/60 border border-white/5 rounded-xl">
+                      <span className="font-semibold text-slate-200 text-[11px] truncate">{g}</span>
                       <button
                         type="button"
                         onClick={() => setGoalsList(goalsList.filter((_, i) => i !== idx))}
-                        className="text-slate-400 hover:text-rose-500 p-1 transition"
+                        className="text-slate-400 hover:text-rose-400 p-1 transition cursor-pointer"
                       >
                         <Trash2 size={12} />
                       </button>
@@ -650,18 +653,18 @@ export function ProfileScreen({ openVaultModal, openPatient360Modal }) {
               </div>
 
               {/* Modal Actions */}
-              <div className="flex gap-2 pt-2 border-t border-slate-100">
+              <div className="flex gap-2 pt-2 border-t border-white/10">
                 <button
                   type="button"
                   onClick={() => setShowLifestyleModal(false)}
-                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition"
+                  className="flex-1 py-2.5 glass-subcard bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 rounded-xl text-xs font-bold transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={savingLifestyle}
-                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition shadow-md shadow-emerald-600/20"
+                  className="flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-400 hover:opacity-95 text-slate-950 rounded-xl text-xs font-black transition shadow-md shadow-emerald-500/25 cursor-pointer"
                 >
                   {savingLifestyle ? 'Saving…' : 'Save to Chart'}
                 </button>

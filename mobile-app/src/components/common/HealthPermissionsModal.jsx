@@ -253,7 +253,7 @@ export function HealthPermissionsModal({
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Choose which readings already available in your phone health store GOQii may read. The phone pedometer can count steps while the app is open.
+              Choose which readings already available in your phone health store Fitsure may read. The phone pedometer can count steps while the app is open.
             </p>
           </div>
         </div>
@@ -284,8 +284,8 @@ export function HealthPermissionsModal({
 
         <p className="text-[11px] text-slate-500 leading-snug mb-3">
           {isAndroid
-            ? 'If Health Connect has no step records, GOQii can count steps with your phone while the app is open.'
-            : 'If Apple Health has no step records, GOQii can use the phone pedometer while the app is open.'}
+            ? 'If Health Connect has no step records, Fitsure can count steps with your phone while the app is open.'
+            : 'If Apple Health has no step records, Fitsure can use the phone pedometer while the app is open.'}
           {' '}Phone pedometer updates pause while the app is in the background.
         </p>
         <p className="text-[11px] text-slate-500 leading-snug mb-3">
@@ -343,7 +343,7 @@ export function HealthPermissionsModal({
         <div className="bg-slate-50 rounded-2xl p-2.5 border border-slate-100 flex items-center gap-2 text-[11px] text-slate-500 mb-4">
           <Lock size={13} className="text-emerald-500 shrink-0" />
           <span>
-            Data is strictly private & synced directly to your secure GOQii Health Locker.
+            Data is strictly private & synced directly to your secure Fitsure Health Locker.
           </span>
         </div>
 

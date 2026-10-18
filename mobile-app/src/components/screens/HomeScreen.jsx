@@ -88,7 +88,7 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
       });
   }, [member?.id, token, refreshKey]);
 
-  // Modals for GOQii features
+  // Modals for Fitsure features
   const [showHraModal, setShowHraModal] = useState(false);
   const [showHealthPermissionsModal, setShowHealthPermissionsModal] = useState(false);
 
@@ -377,7 +377,7 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
     'Band', 'band',
     'Fit', 'fit',
     'Luna', 'luna',
-    'GOQii', 'goqii',
+    'Fitsure', 'fitsure',
     'Health', 'health',
     'Titan', 'titan',
     'Boult', 'boult',
@@ -1237,7 +1237,7 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
     return res;
   }, [dailyData?.intraday, nativeTelemetry?.today]);
 
-  // Target: 10,000 steps daily (standard GOQii milestone)
+  // Target: 10,000 steps daily (standard Fitsure milestone)
   const STEP_TARGET = 10000;
   const isTodayTargetMet = steps >= STEP_TARGET;
 
@@ -1298,7 +1298,7 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
     };
   });
 
-  // ── Accurate GOQii Streak & Habit Active Tracking ──
+  // ── Accurate Fitsure Streak & Habit Active Tracking ──
 
   const calculatedStreak = useMemo(() => {
     let count = isTodayTargetMet ? 1 : 0;
@@ -1465,71 +1465,71 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
       providerName={phoneProviderName}
       isAndroid={isAndroid}
     >
-      <div className="px-5 py-4 space-y-5 animate-fade-in">
-      {/* 1. GOQii Header (Brand + Greeting + Karma Points + Bell) */}
+      <div className="px-5 py-4 space-y-5 animate-fade-in text-slate-100">
+      {/* 1. Fitsure Brand Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-1.5 mb-0.5">
-            <span className="text-[#ED1C24] font-black text-xl tracking-tight flex items-center">
-              GOQ<span className="inline-block relative">i<span className="w-1.5 h-1.5 rounded-full bg-[#ED1C24] absolute -top-1 left-[1px]"></span></span><span className="inline-block relative">i<span className="w-1.5 h-1.5 rounded-full bg-[#ED1C24] absolute -top-1 left-[1px]"></span></span>
-            </span>
-            <span className="text-[10px] font-bold px-1.5 py-0.5 bg-rose-50 text-[#ED1C24] border border-rose-200/80 rounded uppercase tracking-wider">
-              Health OS
-            </span>
+        <div className="flex items-center gap-2.5">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 via-teal-400 to-emerald-400 flex items-center justify-center text-slate-950 shadow-md shadow-cyan-500/20 ring-1 ring-white/20">
+            <svg className="w-6 h-6 text-slate-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 12h3.5l2.5-6 4 12 2.5-6H21" />
+            </svg>
           </div>
-          <p className="text-xs font-semibold text-slate-400 tracking-wide uppercase">Good Evening, {displayName}</p>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-2xl font-black tracking-tight text-white">
+                FIT<span className="text-cyan-400 text-glow-cyan">SURE</span>
+              </span>
+              <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-cyan-300 uppercase tracking-widest">
+                AI
+              </span>
+            </div>
+            <p className="text-[11px] font-semibold text-slate-400 tracking-wide">Hello, {displayName}</p>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Karma Points / GOQii Cash Badge */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200/80 rounded-full shadow-sm">
-            <span className="text-amber-500 font-extrabold text-xs">★</span>
-            <span className="text-xs font-bold text-amber-900">{livaPoints}</span>
-            <span className="text-[10px] text-amber-700 font-semibold hidden sm:inline">Karma</span>
-          </div>
-
-          {/* Coach Status Badge */}
-          <div className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 border border-emerald-200/80 rounded-full text-[11px] font-bold text-emerald-700 shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>Coach Active</span>
+          {/* Real-time Health Telemetry Status */}
+          <div className="glass-pill px-3 py-1.5 flex items-center gap-1.5 border border-cyan-400/30 text-cyan-300 shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+            <span className="text-xs font-bold">Connected</span>
           </div>
 
           {/* Notification Bell */}
-          <div className="relative p-2 bg-white rounded-full border border-slate-200 shadow-sm text-slate-700 hover:bg-slate-50 transition cursor-pointer">
+          <div className="relative p-2 glass-pill text-slate-300 hover:text-white transition cursor-pointer">
             <Bell size={18} />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#ED1C24] rounded-full ring-2 ring-white"></span>
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(6,182,212,0.9)]"></span>
           </div>
         </div>
       </div>
 
-      {/* 2. Signature GOQii Steps & Activity Dial */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-850 to-indigo-950 rounded-3xl p-5 text-white shadow-xl border border-slate-800/80 space-y-4">
+      {/* 2. Signature Activity & Telemetry Matrix */}
+      <div className="glass-card p-5 text-white space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="p-1.5 bg-[#ED1C24]/20 text-[#ED1C24] rounded-xl border border-[#ED1C24]/30 shadow-inner">
+          <div className="flex items-center gap-2.5">
+            <span className="p-2 bg-cyan-500/20 text-cyan-400 rounded-xl border border-cyan-500/30 shadow-inner">
               <Footprints size={18} />
             </span>
             <div>
-              <span className="text-xs font-black uppercase tracking-wider text-slate-200">
-                GOQii Daily Steps & Activity
+              <span className="text-xs font-black uppercase tracking-wider text-slate-100">
+                Daily Steps & Biometrics
               </span>
               <p className="text-[10px] text-slate-400 font-semibold">
-                Target: 10,000 steps • 1 Karma per 1,000 steps
+                Target: 10,000 steps • Continuous Sensor Sync
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/15 px-2.5 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span>{rawLiveSteps > 0 ? 'Live Sensor Active' : 'Health Connect Synced'}</span>
+            <span className="text-[10px] font-bold text-cyan-300 glass-pill px-2.5 py-0.5 border border-cyan-400/30 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+              <span>{rawLiveSteps > 0 ? 'Live Telemetry' : 'Health Connect Active'}</span>
             </span>
           </div>
         </div>
 
         {/* Central Radial Steps Gauge & Big Counter */}
-        <div className="flex items-center justify-around py-1">
+        <div className="flex items-center justify-around py-2">
           {/* Circular SVG Gauge */}
           <div className="relative w-36 h-36 flex items-center justify-center shrink-0">
             <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
@@ -1538,7 +1538,7 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
                 cy="60"
                 r="50"
                 fill="none"
-                stroke="rgba(255, 255, 255, 0.1)"
+                stroke="rgba(255, 255, 255, 0.08)"
                 strokeWidth="10"
               />
               <circle
@@ -1546,7 +1546,7 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
                 cy="60"
                 r="50"
                 fill="none"
-                stroke="url(#goqiiStepsGradient)"
+                stroke="url(#cyberStepsGradient)"
                 strokeWidth="10"
                 strokeDasharray="314.16"
                 strokeDashoffset={314.16 * (1 - Math.min(1, (Number(steps || 0) / 10000)))}
@@ -1554,17 +1554,18 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
                 className="transition-all duration-700 ease-out"
               />
               <defs>
-                <linearGradient id="goqiiStepsGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#ED1C24" />
-                  <stop offset="100%" stopColor="#FF6B00" />
+                <linearGradient id="cyberStepsGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#00f2fe" />
+                  <stop offset="50%" stopColor="#38bdf8" />
+                  <stop offset="100%" stopColor="#8b5cf6" />
                 </linearGradient>
               </defs>
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-              <span className="text-2xl font-black text-white leading-none tracking-tight">
+              <span className="text-2xl font-black text-white leading-none tracking-tight text-glow-cyan">
                 {Number(steps || 0).toLocaleString()}
               </span>
-              <span className="text-[9px] font-extrabold uppercase tracking-widest text-[#FF6B00] mt-1">
+              <span className="text-[9px] font-extrabold uppercase tracking-widest text-cyan-300 mt-1">
                 Steps
               </span>
               <span className="text-[9px] font-bold text-slate-400 mt-0.5">
@@ -1575,77 +1576,77 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
 
           {/* Goal Progress Overview */}
           <div className="space-y-2 text-left pl-3 flex-1 min-w-0">
-            <div className="bg-slate-800/60 p-2.5 rounded-2xl border border-slate-700/60 space-y-1">
+            <div className="glass-subcard p-3 space-y-1.5">
               <div className="flex items-center justify-between text-[11px] font-bold">
                 <span className="text-slate-300">Daily Target</span>
-                <span className="text-amber-400">10,000</span>
+                <span className="text-cyan-300">10,000</span>
               </div>
-              <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden p-0.5">
+              <div className="w-full h-2 bg-slate-950/80 rounded-full overflow-hidden p-0.5 border border-white/5">
                 <div
-                  className="h-full bg-gradient-to-r from-[#ED1C24] via-orange-500 to-amber-400 rounded-full transition-all duration-500"
+                  className="h-full bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500 rounded-full transition-all duration-500"
                   style={{ width: `${Math.min(100, Math.max(5, Math.round((Number(steps || 0) / 10000) * 100)))}%` }}
                 ></div>
               </div>
               <div className="flex items-center justify-between text-[10px] text-slate-400">
                 <span>{10000 - Number(steps || 0) > 0 ? `${(10000 - Number(steps || 0)).toLocaleString()} to go` : 'Goal crushed! 🎉'}</span>
-                <span className="text-emerald-400 font-bold">{Math.round((Number(steps || 0) / 10000) * 100)}%</span>
+                <span className="text-cyan-300 font-bold">{Math.round((Number(steps || 0) / 10000) * 100)}%</span>
               </div>
             </div>
 
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-2 flex items-center gap-2 text-amber-300">
-              <span className="text-sm font-black">★</span>
-              <div className="text-[10px] leading-tight">
-                <span className="font-extrabold">+{Math.max(1, Math.floor(Number(steps || 0) / 1000))} GOQii Karma</span> earned today!
+            <div className="glass-subcard p-2 flex items-center gap-2 text-slate-300 border-white/5">
+              <Activity size={14} className="text-cyan-400 shrink-0" />
+              <div className="text-[10px] leading-tight text-slate-300">
+                <span className="font-extrabold text-white">{Number(steps || 0) >= 10000 ? 'Target Achieved' : `${(10000 - Number(steps || 0)).toLocaleString()} steps remaining`}</span> today
               </div>
             </div>
           </div>
         </div>
 
         {/* 4-Stat Biometrics Grid */}
-        <div className="grid grid-cols-4 gap-2 pt-1 border-t border-slate-800/80 text-center">
-          <div className="bg-slate-800/40 rounded-xl p-2 border border-slate-700/40">
-            <span className="text-[9px] text-orange-400 font-bold block truncate">Active Burn</span>
+        <div className="grid grid-cols-4 gap-2 pt-1 border-t border-white/[0.08] text-center">
+          <div className="glass-subcard p-2">
+            <span className="text-[9px] text-rose-400 font-bold block truncate">Active Burn</span>
             <span className="text-xs font-black text-white">{Number(calories || 0).toLocaleString()} <span className="text-[9px] font-normal text-slate-400">kcal</span></span>
           </div>
 
-          <div className="bg-slate-800/40 rounded-xl p-2 border border-slate-700/40">
+          <div className="glass-subcard p-2">
             <span className="text-[9px] text-cyan-400 font-bold block truncate">Distance</span>
             <span className="text-xs font-black text-white">{((Number(steps || 0) * 0.75) / 1000).toFixed(2)} <span className="text-[9px] font-normal text-slate-400">km</span></span>
           </div>
 
-          <div className="bg-slate-800/40 rounded-xl p-2 border border-slate-700/40">
+          <div className="glass-subcard p-2">
             <span className="text-[9px] text-emerald-400 font-bold block truncate">Active Time</span>
             <span className="text-xs font-black text-white">{Math.round(Number(steps || 0) / 100)} <span className="text-[9px] font-normal text-slate-400">min</span></span>
           </div>
 
-          <div className="bg-slate-800/40 rounded-xl p-2 border border-slate-700/40">
-            <span className="text-[9px] text-amber-400 font-bold block truncate">GOQii Karma</span>
-            <span className="text-xs font-black text-white">★ {Math.max(1, Math.floor(Number(steps || 0) / 1000))}</span>
+          <div className="glass-subcard p-2">
+            <span className="text-[9px] text-cyan-400 font-bold block truncate">Pace</span>
+            <span className="text-xs font-black text-white">{steps > 0 ? (5.2).toFixed(1) : '0.0'} <span className="text-[9px] font-normal text-slate-400">km/h</span></span>
           </div>
         </div>
 
-        {/* Auto-Sync Footer & Sync Action */}
-        <div className="flex items-center justify-between pt-1 border-t border-slate-800 text-xs">
+        {/* Auto-Sync Footer */}
+        <div className="flex items-center justify-between pt-1 border-t border-white/[0.08] text-xs">
           <div className="flex items-center gap-1.5 text-[11px] text-slate-300 font-semibold">
-            <RefreshCw size={11} className="text-emerald-400 animate-spin" style={{ animationDuration: '6s' }} />
-            <span>Auto-Sync Active • {lastSyncedTime ? `Synced: ${lastSyncedTime}` : 'Live stream active'}</span>
+            <RefreshCw size={11} className="text-cyan-400 animate-spin" style={{ animationDuration: '6s' }} />
+            <span>Telemetry Active • {lastSyncedTime ? `Synced: ${lastSyncedTime}` : 'Live stream active'}</span>
           </div>
 
           <button
             onClick={() => syncPhoneHealthToCloud(false)}
             disabled={isSyncingPhone}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-[#ED1C24] to-orange-500 hover:from-rose-600 hover:to-orange-600 text-white font-extrabold rounded-xl text-[11px] shadow-sm transition active:scale-95 disabled:opacity-50 cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-cyan-500 via-teal-400 to-emerald-400 hover:opacity-95 text-slate-950 font-extrabold rounded-xl text-[11px] shadow-sm transition active:scale-95 disabled:opacity-50 cursor-pointer"
           >
             <RefreshCw size={11} className={isSyncingPhone ? 'animate-spin' : ''} />
-            <span>{isSyncingPhone ? 'Syncing…' : 'Sync GOQii Tracker'}</span>
+            <span>{isSyncingPhone ? 'Syncing…' : 'Sync Wearables'}</span>
           </button>
         </div>
 
         {/* Sync Feedback Toast */}
         {syncFeedback && (
-          <div className={`p-2 border rounded-xl text-[10px] font-bold flex items-center justify-between animate-fade-in ${syncFeedback.status === 'error' ? 'bg-rose-500/20 border-rose-500/40 text-rose-200' : syncFeedback.status === 'local' ? 'bg-blue-500/20 border-blue-500/40 text-blue-200' : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-200'}`}>
+          <div className={`p-2 border rounded-xl text-[10px] font-bold flex items-center justify-between animate-fade-in ${syncFeedback.status === 'error' ? 'bg-rose-500/20 border-rose-500/40 text-rose-200' : syncFeedback.status === 'local' ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-200' : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-200'}`}>
             <div className="flex items-center gap-1.5">
-              {syncFeedback.status === 'error' ? <AlertCircle size={13} className="text-rose-400" /> : syncFeedback.status === 'saved' ? <CheckCircle2 size={13} className="text-emerald-400" /> : <Info size={13} className="text-blue-300" />}
+              {syncFeedback.status === 'error' ? <AlertCircle size={13} className="text-rose-400" /> : syncFeedback.status === 'saved' ? <CheckCircle2 size={13} className="text-emerald-400" /> : <Info size={13} className="text-cyan-300" />}
               <span>
                 {syncFeedback.message || (
                   (syncFeedback.count != null && syncFeedback.count > 0)
@@ -1661,35 +1662,35 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
         )}
       </div>
 
-      {/* 3. Hero Card: GOQii Health Score (82 / 100) */}
-      <div className="gradient-hero-score rounded-[26px] p-5 text-white shadow-lg shadow-blue-500/20 relative overflow-hidden">
+      {/* 3. Hero Card: Clinical Health Matrix (82 / 100) */}
+      <div className="glass-card p-5 text-white relative overflow-hidden">
         {/* Subtle background glow */}
-        <div className="absolute -right-6 -bottom-6 w-36 h-36 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
+        <div className="absolute -right-6 -bottom-6 w-36 h-36 bg-cyan-500/15 rounded-full blur-2xl pointer-events-none"></div>
 
         <div className="flex items-center justify-between relative z-10">
           <div>
             <div className="flex items-center gap-2">
-              <p className="text-xs font-semibold text-blue-100/90 tracking-wide">Your Health Score</p>
-              <span className="text-[9px] font-bold px-1.5 py-0.5 bg-white/20 rounded-full text-white uppercase tracking-wider">
+              <p className="text-xs font-semibold text-cyan-300/90 tracking-wide">Clinical Health Matrix</p>
+              <span className="text-[9px] font-bold px-2 py-0.5 glass-pill border border-cyan-400/30 text-cyan-200 uppercase tracking-wider">
                 HRA Verified
               </span>
             </div>
 
             <div className="flex items-baseline gap-1 mt-1">
-              <span className="text-4xl font-extrabold tracking-tight">{healthScore}</span>
-              <span className="text-base font-semibold text-blue-200/80">/100</span>
+              <span className="text-4xl font-black tracking-tight text-white text-glow-cyan">{healthScore}</span>
+              <span className="text-base font-semibold text-slate-400">/100</span>
             </div>
 
-            <div className="flex items-center gap-1.5 mt-2 text-xs font-medium text-cyan-200">
-              <TrendingUp size={14} className="text-cyan-300" />
-              <span>+3 from last week</span>
+            <div className="flex items-center gap-1.5 mt-2 text-xs font-medium text-emerald-300">
+              <TrendingUp size={14} className="text-emerald-400" />
+              <span>+3 pts improvement from last week</span>
             </div>
 
             <button
               onClick={() => setShowHraModal(true)}
-              className="mt-3 inline-flex items-center gap-1 text-[11px] font-bold px-3 py-1 bg-white/15 hover:bg-white/25 rounded-full backdrop-blur-sm transition border border-white/20"
+              className="mt-3 inline-flex items-center gap-1 text-[11px] font-bold px-3 py-1.5 glass-pill hover:border-cyan-400/40 text-cyan-200 hover:text-white transition cursor-pointer"
             >
-              <span>View HRA Breakdown</span>
+              <span>View Assessment Details</span>
               <ChevronRight size={12} />
             </button>
           </div>
@@ -1702,7 +1703,7 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
                 cy="50"
                 r="40"
                 fill="none"
-                stroke="rgba(255, 255, 255, 0.2)"
+                stroke="rgba(255, 255, 255, 0.08)"
                 strokeWidth="8"
               />
               <circle
@@ -1710,57 +1711,58 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
                 cy="50"
                 r="40"
                 fill="none"
-                stroke="#38bdf8"
+                stroke="#00f2fe"
                 strokeWidth="8"
                 strokeDasharray="251.2"
                 strokeDashoffset={251.2 * (1 - healthScore / 100)}
                 strokeLinecap="round"
+                className="drop-shadow-[0_0_8px_rgba(6,182,212,0.6)]"
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-              <span className="text-xl font-extrabold text-white leading-none">{healthScore}</span>
-              <span className="text-[10px] font-semibold text-blue-100/80 mt-0.5">Score</span>
+              <span className="text-xl font-extrabold text-white leading-none text-glow-cyan">{healthScore}</span>
+              <span className="text-[10px] font-semibold text-cyan-300 mt-0.5">Score</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 3. GOQii Lifestyle & Wellness Habit Trackers */}
+      {/* 4. Habit Streak & Hydration Trackers */}
       <div className="grid grid-cols-2 gap-3.5">
-        {/* GOQii Habit Streak */}
-        <div className="bg-white rounded-3xl p-4 border border-slate-100 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center gap-2 text-slate-500">
-            <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-500 shadow-xs">
+        {/* Habit Streak */}
+        <div className="glass-card p-4 flex flex-col justify-between">
+          <div className="flex items-center gap-2 text-slate-400">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-xs">
               <Zap size={16} />
             </div>
             <div>
-              <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase block">GOQii Streak</span>
-              <span className="text-xs font-black text-slate-800">{calculatedStreak > 0 ? 'Habit Active' : 'Start Streak'}</span>
+              <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase block">Streak</span>
+              <span className="text-xs font-black text-white">{calculatedStreak > 0 ? 'Active Habit' : 'Start Streak'}</span>
             </div>
           </div>
 
           <div className="my-2.5">
             <div className="flex items-baseline gap-1">
-              <span className="text-2xl font-black text-slate-900">{calculatedStreak}</span>
-              <span className="text-xs font-bold text-amber-600">{calculatedStreak === 1 ? 'Day' : 'Days'}</span>
+              <span className="text-2xl font-black text-white text-glow-purple">{calculatedStreak}</span>
+              <span className="text-xs font-bold text-amber-400">{calculatedStreak === 1 ? 'Day' : 'Days'}</span>
             </div>
-            <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
-              {steps >= 10000 ? '✓ 10k Target Met' : `${Number(steps || 0).toLocaleString()} / 10k steps today`}
+            <p className="text-[10px] text-slate-400 font-semibold mt-0.5 truncate">
+              {steps >= 10000 ? '✓ 10k Target Met' : `${Number(steps || 0).toLocaleString()} / 10k steps`}
             </p>
           </div>
 
           <div className="flex items-center gap-1">
             {weekPills.map((pill, idx) => {
               const isSelected = selectedHistoryDate === pill.date || (!selectedHistoryDate && pill.isCurrentDay);
-              let badgeClass = 'bg-slate-100 text-slate-400';
+              let badgeClass = 'bg-white/5 text-slate-400 border border-white/5';
               if (pill.completed) {
                 badgeClass = pill.isCurrentDay
                   ? 'bg-amber-400 text-slate-950 font-black shadow-xs ring-1 ring-amber-400'
                   : 'bg-amber-400 text-slate-950 font-black';
               } else if (pill.isCurrentDay) {
-                badgeClass = 'bg-[#ED1C24] text-white animate-pulse font-black';
+                badgeClass = 'bg-cyan-500 text-slate-950 font-black animate-pulse';
               } else if (pill.isFuture) {
-                badgeClass = 'bg-slate-50 text-slate-300 font-medium cursor-not-allowed';
+                badgeClass = 'bg-white/[0.02] text-slate-600 font-medium cursor-not-allowed';
               }
               return (
                 <div
@@ -1768,7 +1770,7 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
                   onClick={() => !pill.isFuture && setSelectedHistoryDate(pill.date)}
                   title={`${pill.label} (${pill.fullDate}): ${pill.steps.toLocaleString()} steps • Click to inspect`}
                   className={`flex-1 h-5 rounded-md text-[9px] flex items-center justify-center transition-all cursor-pointer ${badgeClass} ${
-                    isSelected ? 'ring-2 ring-slate-900 font-black scale-105 shadow-sm' : 'hover:scale-105'
+                    isSelected ? 'ring-2 ring-cyan-400 font-black scale-105 shadow-sm' : 'hover:scale-105'
                   }`}
                 >
                   {pill.label}
@@ -1778,63 +1780,67 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
           </div>
         </div>
 
-        {/* GOQii Water & Hydration Tracker */}
-        <div className="bg-white rounded-3xl p-4 border border-slate-100 shadow-sm flex flex-col justify-between">
+        {/* Water & Hydration Tracker */}
+        <div className="glass-card p-4 flex flex-col justify-between overflow-hidden">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-slate-500">
-              <div className="w-8 h-8 rounded-xl bg-sky-50 border border-sky-200 flex items-center justify-center text-sky-500 shadow-xs">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shadow-xs shrink-0">
                 <Droplets size={16} />
               </div>
-              <div>
-                <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase block">Hydration</span>
-                <span className="text-xs font-black text-slate-800">Water Log</span>
+              <div className="min-w-0">
+                <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase block truncate">Hydration</span>
+                <span className="text-xs font-black text-white truncate">Daily Intake</span>
               </div>
             </div>
 
-            {/* Quick +/- buttons */}
-            <div className="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded-xl border border-slate-200">
-              <button
-                type="button"
-                onClick={() => logWater(-1)}
-                className="w-5 h-5 rounded flex items-center justify-center text-slate-500 hover:text-slate-800 active:scale-95 text-xs font-black cursor-pointer"
-                title="Remove 250ml glass"
-              >
-                -
-              </button>
-              <span className="text-[11px] font-black text-slate-800 px-1">{hydrationGlasses}</span>
-              <button
-                type="button"
-                onClick={() => logWater(1)}
-                className="w-5 h-5 rounded flex items-center justify-center text-sky-600 hover:text-sky-800 active:scale-95 text-xs font-black cursor-pointer"
-                title="Add 250ml glass"
-              >
-                +
-              </button>
-            </div>
+            <span className="text-[10px] font-black text-cyan-300 glass-subcard px-1.5 py-0.5 rounded-md border border-cyan-500/20 shrink-0">
+              {Math.min(100, Math.round(((hydrationGlasses * 250) / 2500) * 100))}%
+            </span>
           </div>
 
-          <div className="my-2.5">
+          <div className="my-2">
             <div className="flex items-baseline gap-1">
-              <span className="text-2xl font-black text-slate-900">{hydrationGlasses * 250}</span>
-              <span className="text-xs font-bold text-sky-600">/ 2,500 ml</span>
+              <span className="text-2xl font-black text-white text-glow-cyan leading-none">{hydrationGlasses * 250}</span>
+              <span className="text-xs font-bold text-cyan-400">/ 2,500 ml</span>
             </div>
-            <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
-              {Math.min(100, Math.round(((hydrationGlasses * 250) / 2500) * 100))}% of Daily Hydration ({hydrationGlasses} / 10 glasses)
-            </p>
+            <div className="w-full h-1.5 bg-slate-950/80 rounded-full overflow-hidden mt-1.5 p-0.5 border border-white/5">
+              <div
+                className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(6,182,212,0.5)]"
+                style={{ width: `${Math.min(100, Math.round(((hydrationGlasses * 250) / 2500) * 100))}%` }}
+              ></div>
+            </div>
           </div>
 
-          <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden p-0.5">
-            <div
-              className="h-full bg-gradient-to-r from-sky-400 to-blue-500 rounded-full transition-all duration-300"
-              style={{ width: `${Math.min(100, Math.round(((hydrationGlasses * 250) / 2500) * 100))}%` }}
-            ></div>
+          {/* Stepper neatly contained inside card without any edge clipping */}
+          <div className="flex items-center justify-between gap-1 w-full bg-white/[0.03] border border-white/10 rounded-lg p-1">
+            <button
+              type="button"
+              onClick={() => logWater(-1)}
+              disabled={hydrationGlasses <= 0}
+              className="w-6 h-6 rounded-md bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white disabled:opacity-25 disabled:cursor-not-allowed flex items-center justify-center text-xs font-black transition active:scale-95 shrink-0"
+              title="Remove 250ml glass"
+            >
+              -
+            </button>
+            <span className="text-[10px] font-black text-cyan-300 truncate text-center flex-1">
+              {hydrationGlasses}/10 Glasses
+            </span>
+            <button
+              type="button"
+              onClick={() => logWater(1)}
+              disabled={hydrationGlasses >= 10}
+              className="w-6 h-6 rounded-md bg-gradient-to-r from-cyan-500 to-teal-400 text-slate-950 hover:opacity-90 disabled:opacity-25 disabled:cursor-not-allowed flex items-center justify-center text-xs font-black transition active:scale-95 shadow-sm shadow-cyan-500/30 shrink-0"
+              title="Add 250ml glass"
+            >
+              +
+            </button>
           </div>
         </div>
       </div>
 
-      {/* ── Proactive Clinical Health Insight Banner (Proactive Ping Engine) ── */}
+      {/* ── Proactive Clinical Health Insight Banner ── */}
       {proactiveInsight && !insightDismissed && (
-        <div className="bg-gradient-to-r from-emerald-950 via-teal-950 to-slate-900 rounded-3xl p-4 sm:p-5 border border-emerald-500/40 shadow-xl text-white relative overflow-hidden space-y-3 animate-fade-in">
+        <div className="glass-card p-4 sm:p-5 border-emerald-500/30 text-white relative overflow-hidden space-y-3 animate-fade-in">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-start gap-3 min-w-0">
               <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
@@ -1843,7 +1849,7 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400">
-                    Proactive Clinical Check-in
+                    Proactive Clinical Triage
                   </span>
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
                 </div>
@@ -1861,7 +1867,7 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
             </button>
           </div>
 
-          <p className="text-xs text-slate-200 leading-relaxed font-normal bg-white/5 p-3 rounded-2xl border border-white/10">
+          <p className="text-xs text-slate-200 leading-relaxed font-normal glass-subcard p-3">
             {proactiveInsight.pingMessage || proactiveInsight.summary}
           </p>
 
@@ -1876,7 +1882,7 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
 
             <button
               onClick={openMediBotModal}
-              className="px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-bold text-xs flex items-center gap-1 shadow-md shadow-emerald-500/20 transition cursor-pointer shrink-0"
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500 via-teal-400 to-emerald-400 hover:opacity-95 text-slate-950 font-black text-xs flex items-center gap-1 shadow-md shadow-emerald-500/20 transition cursor-pointer shrink-0"
             >
               <span>Reply to Dr. MediBot</span>
               <ChevronRight size={14} />
@@ -1885,26 +1891,26 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
         </div>
       )}
 
-      {/* 4. Unified GOQii AI Doctor & Health Locker Assistant Banner */}
+      {/* 5. Unified Clinical AI Doctor & Health Vault Banner */}
       <button
         onClick={openMediBotModal}
-        className="w-full bg-gradient-to-r from-indigo-950 via-slate-900 to-sky-950 p-4 sm:p-5 rounded-3xl text-left border border-indigo-800/60 shadow-xl text-white group hover:border-cyan-400/60 transition relative overflow-hidden flex items-center justify-between cursor-pointer"
+        className="w-full glass-card p-4 sm:p-5 text-left text-white group hover:border-cyan-400/50 transition relative overflow-hidden flex items-center justify-between cursor-pointer"
       >
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-cyan-500/25 shrink-0">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-cyan-500/30 shrink-0">
             <Stethoscope size={24} />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-sm sm:text-base font-extrabold text-white group-hover:text-cyan-300 transition tracking-tight">
-                GOQii AI Doctor & Health Locker
+                Dr. MediBot & Health Vault
               </h3>
-              <span className="text-[9px] font-bold px-2 py-0.5 bg-cyan-400/20 text-cyan-300 rounded-full border border-cyan-400/30">
-                Agentic LLM
+              <span className="text-[9px] font-bold px-2 py-0.5 glass-pill border border-cyan-400/30 text-cyan-300">
+                Clinical AI RAG
               </span>
             </div>
             <p className="text-[11px] text-slate-300 font-medium mt-1 leading-snug">
-              Consult AI Doctor • Upload PDFs & Reports • Clinical RAG & Drug Safety
+              Instant AI Doctor Consults • Medical Document Analysis • Drug Interactions
             </p>
           </div>
         </div>
@@ -1913,19 +1919,19 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
         </div>
       </button>
 
-      {/* 5. Watch & Ring External Sleep Telemetry Section */}
+      {/* 6. Watch & Ring Sleep Telemetry */}
       <div className="space-y-2.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <h2 className="text-base font-bold text-slate-900">Sleep Tracking (Watch & Ring)</h2>
-            <span className="text-[10px] font-bold px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full border border-indigo-100 flex items-center gap-1">
+            <h2 className="text-base font-extrabold text-white tracking-tight">Sleep Architecture</h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 glass-pill text-purple-300 border border-purple-400/30 flex items-center gap-1">
               <Watch size={10} />
-              <span>External Sensor Telemetry</span>
+              <span>Bio-Telemetry</span>
             </span>
           </div>
           <button
             onClick={openPhoneHealthModal}
-            className="text-xs font-bold text-[#00a8cc] hover:underline cursor-pointer flex items-center gap-1"
+            className="text-xs font-bold text-cyan-400 hover:text-cyan-300 cursor-pointer flex items-center gap-1"
           >
             <span>Wearables Hub</span>
             <ChevronRight size={13} />
@@ -1934,34 +1940,34 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
 
         <div 
           onClick={openPhoneHealthModal}
-          className="bg-white rounded-3xl p-4 sm:p-5 border border-indigo-100 shadow-sm space-y-3.5 cursor-pointer hover:border-indigo-300 transition group"
+          className="glass-card p-4 sm:p-5 space-y-3.5 cursor-pointer hover:border-purple-400/40 transition group"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 group-hover:scale-105 transition shrink-0">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-purple-500/25 group-hover:scale-105 transition shrink-0">
                 <Moon size={22} />
               </div>
               <div>
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl sm:text-3xl font-black text-slate-900">
+                  <span className="text-2xl sm:text-3xl font-black text-white text-glow-purple">
                     {sleepMinutes ? `${Math.floor(sleepMinutes / 60)}h ${sleepMinutes % 60}m` : '--'}
                   </span>
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${
-                    sleepMinutes ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-slate-400 bg-slate-50 border-slate-200'
+                    sleepMinutes ? 'text-emerald-300 bg-emerald-500/20 border-emerald-500/40' : 'text-slate-400 bg-white/5 border-white/10'
                   }`}>
                     {sleepMinutes ? `Score: ${wearableMetrics?.sleep_score || Math.min(100, Math.round((sleepMinutes / 480) * 100))}` : 'No Sleep Recorded'}
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 font-medium mt-0.5 flex items-center gap-1.5">
-                  <span className={`w-1.5 h-1.5 rounded-full ${sleepMinutes ? 'bg-emerald-500' : 'bg-slate-300'}`}></span>
-                  <span>{sleepMinutes ? `Captured from ${bleDevice?.name || 'Smartwatch / Ring'}` : 'Sync watch/ring to capture sleep telemetry'}</span>
+                <p className="text-xs text-slate-400 font-medium mt-0.5 flex items-center gap-1.5">
+                  <span className={`w-1.5 h-1.5 rounded-full ${sleepMinutes ? 'bg-emerald-400' : 'bg-slate-500'}`}></span>
+                  <span>{sleepMinutes ? `Telemetry from ${bleDevice?.name || 'Smartwatch / Ring'}` : 'Sync watch/ring to capture sleep telemetry'}</span>
                 </p>
               </div>
             </div>
 
             <div className="hidden sm:flex flex-col items-end">
               <span className={`text-[11px] font-bold px-2.5 py-1 rounded-xl ${
-                sleepMinutes ? 'text-indigo-600 bg-indigo-50' : 'text-slate-400 bg-slate-100'
+                sleepMinutes ? 'text-purple-300 bg-purple-500/20' : 'text-slate-400 bg-white/5'
               }`}>
                 {sleepMinutes ? 'Restorative Sleep' : 'Awaiting Night Data'}
               </span>
@@ -1972,31 +1978,31 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
           {/* Sleep Stages Progress Bar */}
           {sleepMinutes ? (
             <div className="space-y-1.5 pt-1">
-              <div className="flex items-center justify-between text-[11px] font-bold text-slate-600">
-                <span className="flex items-center gap-1.5 text-indigo-700">
-                  <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
+              <div className="flex items-center justify-between text-[11px] font-bold text-slate-300">
+                <span className="flex items-center gap-1.5 text-indigo-300">
+                  <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
                   Deep: {wearableMetrics?.deep_sleep ? `${Math.floor(wearableMetrics.deep_sleep / 60)}h ${wearableMetrics.deep_sleep % 60}m` : `${Math.floor((sleepMinutes * 0.25) / 60)}h ${Math.round(sleepMinutes * 0.25) % 60}m`}
                 </span>
-                <span className="flex items-center gap-1.5 text-purple-700">
-                  <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                <span className="flex items-center gap-1.5 text-purple-300">
+                  <span className="w-2 h-2 rounded-full bg-purple-400"></span>
                   REM: {wearableMetrics?.rem_sleep ? `${Math.floor(wearableMetrics.rem_sleep / 60)}h ${wearableMetrics.rem_sleep % 60}m` : `${Math.floor((sleepMinutes * 0.2) / 60)}h ${Math.round(sleepMinutes * 0.2) % 60}m`}
                 </span>
-                <span className="flex items-center gap-1.5 text-sky-700">
-                  <span className="w-2 h-2 rounded-full bg-sky-400"></span>
+                <span className="flex items-center gap-1.5 text-cyan-300">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
                   Light: {wearableMetrics?.light_sleep ? `${Math.floor(wearableMetrics.light_sleep / 60)}h ${wearableMetrics.light_sleep % 60}m` : `${Math.floor((sleepMinutes * 0.55) / 60)}h ${Math.round(sleepMinutes * 0.55) % 60}m`}
                 </span>
               </div>
 
-              <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
-                <div className="h-full bg-indigo-600 transition-all duration-500" style={{ width: '25%' }} title="Deep Sleep"></div>
+              <div className="w-full h-3 bg-slate-950/80 rounded-full overflow-hidden flex shadow-inner border border-white/5">
+                <div className="h-full bg-indigo-500 transition-all duration-500" style={{ width: '25%' }} title="Deep Sleep"></div>
                 <div className="h-full bg-purple-500 transition-all duration-500" style={{ width: '20%' }} title="REM Sleep"></div>
-                <div className="h-full bg-sky-400 transition-all duration-500" style={{ width: '55%' }} title="Light Sleep"></div>
+                <div className="h-full bg-cyan-400 transition-all duration-500" style={{ width: '55%' }} title="Light Sleep"></div>
               </div>
             </div>
           ) : (
-            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3 text-xs text-slate-400 flex items-center justify-between">
+            <div className="glass-subcard p-3 text-xs text-slate-400 flex items-center justify-between">
               <span>Sleep tracking activates automatically when wearing your watch or ring overnight.</span>
-              <button onClick={openPhoneHealthModal} className="text-indigo-600 font-bold hover:underline cursor-pointer">
+              <button onClick={openPhoneHealthModal} className="text-cyan-400 font-bold hover:underline cursor-pointer">
                 Connect Wearable
               </button>
             </div>
@@ -2004,12 +2010,12 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
         </div>
       </div>
 
-      {/* 5B. OpenWearables Cloud Hub */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-4 sm:p-5 text-white shadow-xl border border-indigo-500/30 space-y-3.5">
+      {/* 7. OpenWearables Cloud Hub */}
+      <div className="glass-card p-4 sm:p-5 text-white space-y-3.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-400 shadow-inner">
-              <Watch size={20} className={openWearableConnections.some(c => c.status === 'connected') ? 'text-emerald-400 animate-pulse' : 'text-indigo-400'} />
+            <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 border border-cyan-400/30 flex items-center justify-center text-cyan-400 shadow-inner">
+              <Watch size={20} className={openWearableConnections.some(c => c.status === 'connected') ? 'text-emerald-400 animate-pulse' : 'text-cyan-400'} />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -2017,33 +2023,33 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
                 <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
                   openWearableConnections.some(c => c.status === 'connected')
                     ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse'
-                    : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                    : 'glass-pill border border-white/10 text-slate-300'
                 }`}>
                   {openWearableConnections.filter(c => c.status === 'connected').length > 0
                     ? `${openWearableConnections.filter(c => c.status === 'connected').length} Provider(s) Synced`
                     : '14 Providers Supported'}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 font-medium">Google Health · Garmin · Oura · WHOOP · Fitbit · Withings</p>
+              <p className="text-[11px] text-slate-400 font-medium">Google Health · Apple Health · Garmin · Oura · WHOOP · Fitbit</p>
             </div>
           </div>
 
           <button
             onClick={openPhoneHealthModal}
-            className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-[10px] font-bold text-slate-300 transition flex items-center gap-1 border border-slate-700 cursor-pointer"
+            className="px-2.5 py-1 rounded-xl glass-pill hover:border-cyan-400/40 text-[10px] font-bold text-slate-300 transition flex items-center gap-1 cursor-pointer"
           >
-            <span>All Providers</span>
+            <span>Providers</span>
             <ChevronRight size={12} />
           </button>
         </div>
 
         {/* Active Connected Providers List */}
         {openWearableConnections.filter(c => c.status === 'connected').length > 0 ? (
-          <div className="bg-slate-800/90 rounded-2xl p-4 border border-slate-700/80 space-y-3">
+          <div className="glass-subcard p-4 space-y-3">
             <div className="space-y-2">
               {openWearableConnections.filter(c => c.status === 'connected').map((conn) => {
                 return (
-                  <div key={conn.id || conn.provider} className="flex items-center justify-between bg-slate-900/60 p-2.5 rounded-xl border border-slate-700/60">
+                  <div key={conn.id || conn.provider} className="flex items-center justify-between bg-slate-950/60 p-2.5 rounded-xl border border-white/10">
                     <div className="flex items-center gap-2.5">
                       <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
                         <Watch size={15} className="animate-pulse" />
@@ -2061,7 +2067,7 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
                     <button
                       onClick={() => handleQuickSyncOpenWearables()}
                       disabled={syncingOpenWearable}
-                      className="px-2.5 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-200 border border-emerald-500/40 text-[10px] font-bold transition flex items-center gap-1 cursor-pointer"
+                      className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold transition flex items-center gap-1 cursor-pointer"
                     >
                       <RefreshCw size={10} className={syncingOpenWearable ? "animate-spin" : ""} />
                       <span>Sync</span>
@@ -2076,7 +2082,7 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
               {/* 1. Live Pulse */}
               <div
                 onClick={() => setSelectedVitalModal('heart_rate')}
-                className="bg-slate-900/90 p-3 rounded-xl border border-slate-700/60 cursor-pointer hover:border-rose-500/60 transition active:scale-[0.98] group"
+                className="glass-subcard p-3 cursor-pointer hover:border-rose-400/40 transition active:scale-[0.98] group"
                 title="View Today's Heart Rate Timeline"
               >
                 <div className="text-[10px] text-slate-400 font-bold flex items-center justify-between">
@@ -2087,60 +2093,60 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
                 </div>
                 <div className="text-xl font-black text-white mt-0.5">
                   {heartRate !== null ? (
-                    <>{heartRate} <span className="text-xs text-slate-400">BPM</span></>
+                    <>{heartRate} <span className="text-xs text-slate-400 font-normal">BPM</span></>
                   ) : (
                     <span className="text-slate-500 text-lg">--</span>
                   )}
                 </div>
                 <span className={`text-[9px] font-medium ${heartRate ? 'text-emerald-400' : 'text-slate-400'}`}>
-                  {heartRate ? '✓ OpenWearables Telemetry' : 'Awaiting sensor pulse'}
+                  {heartRate ? '✓ Active Sensor Pulse' : 'Awaiting sensor pulse'}
                 </span>
               </div>
 
               {/* 2. Blood Oxygen SpO2 */}
               <div
                 onClick={() => setSelectedVitalModal('spo2')}
-                className="bg-slate-900/90 p-3 rounded-xl border border-slate-700/60 cursor-pointer hover:border-teal-500/60 transition active:scale-[0.98] group"
+                className="glass-subcard p-3 cursor-pointer hover:border-cyan-400/40 transition active:scale-[0.98] group"
                 title="View Today's SpO2 Timeline"
               >
                 <div className="text-[10px] text-slate-400 font-bold flex items-center justify-between">
                   <div className="flex items-center gap-1">
-                    <Gauge size={12} className={spo2 !== null ? "text-teal-400" : "text-slate-500"} /> Blood Oxygen
+                    <Gauge size={12} className={spo2 !== null ? "text-cyan-400" : "text-slate-500"} /> Blood Oxygen
                   </div>
-                  <span className="text-[9px] text-teal-400 opacity-0 group-hover:opacity-100 transition">Graph →</span>
+                  <span className="text-[9px] text-cyan-400 opacity-0 group-hover:opacity-100 transition">Graph →</span>
                 </div>
                 <div className="text-xl font-black text-white mt-0.5">
                   {spo2 !== null ? (
-                    <>{spo2} <span className="text-xs text-slate-400">% SpO2</span></>
+                    <>{spo2} <span className="text-xs text-slate-400 font-normal">% SpO2</span></>
                   ) : (
                     <span className="text-slate-500 text-lg">--</span>
                   )}
                 </div>
-                <span className={`text-[9px] font-medium ${spo2 !== null ? 'text-teal-300' : 'text-slate-400'}`}>
-                  {spo2 !== null ? (spo2 >= 95 ? 'Optimal Saturation' : 'Low O2') : 'Awaiting sensor reading'}
+                <span className={`text-[9px] font-medium ${spo2 !== null ? 'text-cyan-300' : 'text-slate-400'}`}>
+                  {spo2 !== null ? (spo2 >= 95 ? 'Optimal Saturation' : 'Low O2') : 'Awaiting reading'}
                 </span>
               </div>
 
               {/* 3. Blood Pressure */}
               <div
                 onClick={() => setSelectedVitalModal('blood_pressure')}
-                className="bg-slate-900/90 p-3 rounded-xl border border-slate-700/60 cursor-pointer hover:border-sky-500/60 transition active:scale-[0.98] group"
+                className="glass-subcard p-3 cursor-pointer hover:border-blue-400/40 transition active:scale-[0.98] group"
                 title="View Today's Blood Pressure Timeline"
               >
                 <div className="text-[10px] text-slate-400 font-bold flex items-center justify-between">
                   <div className="flex items-center gap-1">
-                    <Activity size={12} className={bpSys ? "text-sky-400" : "text-slate-500"} /> Blood Pressure
+                    <Activity size={12} className={bpSys ? "text-blue-400" : "text-slate-500"} /> Blood Pressure
                   </div>
-                  <span className="text-[9px] text-sky-400 opacity-0 group-hover:opacity-100 transition">Graph →</span>
+                  <span className="text-[9px] text-blue-400 opacity-0 group-hover:opacity-100 transition">Graph →</span>
                 </div>
                 <div className="text-xl font-black text-white mt-0.5">
                   {bpSys && bpDia ? (
-                    <>{bpSys}/{bpDia} <span className="text-xs text-slate-400">mmHg</span></>
+                    <>{bpSys}/{bpDia} <span className="text-xs text-slate-400 font-normal">mmHg</span></>
                   ) : (
                     <span className="text-slate-500 text-lg">--/--</span>
                   )}
                 </div>
-                <span className={`text-[9px] font-medium ${bpSys ? 'text-sky-300' : 'text-slate-400'}`}>
+                <span className={`text-[9px] font-medium ${bpSys ? 'text-blue-300' : 'text-slate-400'}`}>
                   {bpSys ? 'Normotensive' : 'Awaiting reading'}
                 </span>
               </div>
@@ -2148,7 +2154,7 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
               {/* 4. Blood Glucose */}
               <div
                 onClick={() => setSelectedVitalModal('blood_glucose')}
-                className="bg-slate-900/90 p-3 rounded-xl border border-slate-700/60 cursor-pointer hover:border-amber-500/60 transition active:scale-[0.98] group"
+                className="glass-subcard p-3 cursor-pointer hover:border-amber-400/40 transition active:scale-[0.98] group"
                 title="View Today's Blood Glucose Timeline"
               >
                 <div className="text-[10px] text-slate-400 font-bold flex items-center justify-between">
@@ -2159,7 +2165,7 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
                 </div>
                 <div className="text-xl font-black text-white mt-0.5">
                   {bloodGlucose !== null ? (
-                    <>{bloodGlucose} <span className="text-xs text-slate-400">mg/dL</span></>
+                    <>{bloodGlucose} <span className="text-xs text-slate-400 font-normal">mg/dL</span></>
                   ) : (
                     <span className="text-slate-500 text-lg">--</span>
                   )}
@@ -2170,20 +2176,20 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
               </div>
 
               {/* 5. Steps */}
-              <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-700/60">
+              <div className="glass-subcard p-3">
                 <div className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
-                  <Footprints size={12} className={steps > 0 ? "text-orange-400" : "text-slate-500"} /> Step Count
+                  <Footprints size={12} className={steps > 0 ? "text-cyan-400" : "text-slate-500"} /> Step Count
                 </div>
                 <div className="text-xl font-black text-white mt-0.5">
-                  {Number(steps || 0).toLocaleString()} <span className="text-xs text-slate-400">steps</span>
+                  {Number(steps || 0).toLocaleString()} <span className="text-xs text-slate-400 font-normal">steps</span>
                 </div>
-                <span className="text-[9px] text-orange-400 font-medium">Goal: 10,000 steps</span>
+                <span className="text-[9px] text-cyan-400 font-medium">Goal: 10,000 steps</span>
               </div>
 
               {/* 6. Sleep Duration */}
-              <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-700/60">
+              <div className="glass-subcard p-3">
                 <div className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
-                  <Moon size={12} className={sleepMinutes ? "text-indigo-400" : "text-slate-500"} /> Device Sleep
+                  <Moon size={12} className={sleepMinutes ? "text-purple-400" : "text-slate-500"} /> Device Sleep
                 </div>
                 <div className="text-xl font-black text-white mt-0.5">
                   {sleepMinutes ? (
@@ -2192,17 +2198,17 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
                     <span className="text-slate-500 text-lg">--</span>
                   )}
                 </div>
-                <span className={`text-[9px] font-medium ${sleepMinutes ? 'text-indigo-300' : 'text-slate-400'}`}>
+                <span className={`text-[9px] font-medium ${sleepMinutes ? 'text-purple-300' : 'text-slate-400'}`}>
                   {sleepMinutes ? `Score: ${Math.min(100, Math.round((sleepMinutes / 480) * 100))}` : 'Awaiting sleep telemetry'}
                 </span>
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-700/60">
+            <div className="flex items-center justify-between text-[11px] pt-1 border-t border-white/[0.08]">
               <button
                 type="button"
                 onClick={openPhoneHealthModal}
-                className="text-indigo-300 hover:text-white font-bold flex items-center gap-1 cursor-pointer"
+                className="text-cyan-300 hover:text-white font-bold flex items-center gap-1 cursor-pointer"
               >
                 <span>Manage Connected Accounts</span>
                 <ChevronRight size={11} />
@@ -2210,7 +2216,7 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
             </div>
           </div>
         ) : (
-          <div className="bg-slate-800/80 rounded-2xl p-4 border border-slate-700 space-y-3">
+          <div className="glass-subcard p-4 space-y-3">
             <p className="text-xs text-slate-300 leading-relaxed">
               Connect your wearable accounts through <strong>OpenWearables Cloud Sync</strong> to automatically stream pulse, sleep, SpO2, and activity into your health profile.
             </p>
@@ -2219,7 +2225,7 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
               <button
                 type="button"
                 onClick={openPhoneHealthModal}
-                className="py-2.5 px-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-600 hover:from-blue-500 hover:to-emerald-500 text-white font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
+                className="py-2.5 px-3 bg-gradient-to-r from-cyan-500 via-blue-600 to-purple-600 hover:from-cyan-400 hover:to-purple-500 text-white font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
               >
                 <Link2 size={13} />
                 <span>Connect Google Health</span>
@@ -2228,15 +2234,15 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
               <button
                 type="button"
                 onClick={openPhoneHealthModal}
-                className="py-2.5 px-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
+                className="py-2.5 px-3 glass-pill hover:border-cyan-400/40 text-slate-200 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
               >
-                <Watch size={13} className="text-indigo-400" />
+                <Watch size={13} className="text-cyan-400" />
                 <span>View All 14 Providers</span>
               </button>
             </div>
 
-            <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/60 text-[10px] text-slate-400 flex items-center justify-between">
-              <span>Supports Google Health, Garmin, Oura, WHOOP, Fitbit, Withings & more</span>
+            <div className="bg-slate-950/60 rounded-xl p-2.5 border border-white/5 text-[10px] text-slate-400 flex items-center justify-between">
+              <span>Supports Google Health, Apple Health, Garmin, Oura, WHOOP, Fitbit & more</span>
               <ShieldCheck size={13} className="text-emerald-400 shrink-0" />
             </div>
           </div>
@@ -2244,56 +2250,56 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
       </div>
 
 
-      {/* 6. GOQii Vitals Hub (Interactive + Direct DB Logging) */}
+      {/* 8. Clinical Vitals Hub */}
       <div className="space-y-2.5">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-slate-900">GOQii Vitals Hub</h2>
+          <h2 className="text-base font-extrabold text-white tracking-tight">Clinical Vitals Hub</h2>
           <div className="flex items-center gap-2">
             <button
               onClick={openPhoneHealthModal}
-              className="text-xs font-bold text-emerald-600 hover:underline flex items-center gap-1 cursor-pointer"
+              className="text-xs font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer"
               title="Pair Smartwatch via Health Connect / Apple Health"
             >
               <Watch size={13} />
               <span>Connect Watch</span>
             </button>
-            <span className="text-slate-300">•</span>
+            <span className="text-slate-600">•</span>
             <button
               onClick={openPatient360Modal}
-              className="text-xs font-bold text-[#00a8cc] hover:underline cursor-pointer"
+              className="text-xs font-bold text-purple-400 hover:text-purple-300 cursor-pointer"
             >
               Patient 360
             </button>
           </div>
         </div>
 
-        {/* 4-Box Vitals Grid */}
+        {/* 4-Box Vitals Grid - All sharing the exact same .glass-card dark shade! */}
         <div className="grid grid-cols-2 gap-3">
           {/* Heart Rate */}
           <div
             onClick={() => setSelectedVitalModal('heart_rate')}
-            className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm flex flex-col justify-between cursor-pointer hover:border-rose-300 hover:shadow-md transition active:scale-[0.98] group"
+            className="glass-card p-3.5 flex flex-col justify-between cursor-pointer hover:border-rose-400/50 transition active:scale-[0.98] group"
             title="Click to view Today's Heart Rate Graph & Log"
           >
-            <div className="flex items-center justify-between text-slate-500">
+            <div className="flex items-center justify-between text-slate-400">
               <div className="flex items-center gap-1.5">
-                <div className="w-6 h-6 rounded-lg bg-rose-50 flex items-center justify-center text-rose-500">
+                <div className="w-6 h-6 rounded-lg bg-rose-500/20 flex items-center justify-center text-rose-400">
                   <Heart size={14} className={heartRate ? 'animate-pulse' : ''} />
                 </div>
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Heart Rate</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Heart Rate</span>
               </div>
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${heartRate ? 'text-emerald-600 bg-emerald-50' : 'text-slate-400 bg-slate-100'}`}>
-                {heartRate ? (heartRate < 60 ? 'Bradycardia' : heartRate <= 100 ? 'Normal' : 'Elevated') : 'Unrecorded'}
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${heartRate ? 'text-emerald-300 bg-emerald-500/20' : 'text-slate-400 bg-white/5'}`}>
+                {heartRate ? (heartRate < 60 ? 'Brady' : heartRate <= 100 ? 'Optimal' : 'Elevated') : 'Unrecorded'}
               </span>
             </div>
             <div className="mt-2">
-              <span className="text-2xl font-extrabold text-slate-900">{heartRate !== null ? heartRate : '--'}</span>
+              <span className="text-2xl font-black text-white">{heartRate !== null ? heartRate : '--'}</span>
               <span className="text-xs text-slate-400 ml-1 font-semibold">bpm</span>
               <div className="flex items-center justify-between mt-0.5">
-                <p className="text-[10px] text-slate-400 font-medium">
-                  {restingHeartRate ? `Resting: ${restingHeartRate} bpm` : (heartRate ? 'Captured reading' : 'No captured data')}
+                <p className="text-[10px] text-slate-400 font-medium truncate">
+                  {restingHeartRate ? `Resting: ${restingHeartRate} bpm` : (heartRate ? 'Continuous stream' : 'No captured data')}
                 </p>
-                <span className="text-[9px] text-rose-500 font-bold opacity-0 group-hover:opacity-100 transition">Graph →</span>
+                <span className="text-[9px] text-rose-400 font-bold opacity-0 group-hover:opacity-100 transition">Graph →</span>
               </div>
             </div>
           </div>
@@ -2301,28 +2307,28 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
           {/* Blood Pressure */}
           <div
             onClick={() => setSelectedVitalModal('blood_pressure')}
-            className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm flex flex-col justify-between cursor-pointer hover:border-blue-300 hover:shadow-md transition active:scale-[0.98] group"
+            className="glass-card p-3.5 flex flex-col justify-between cursor-pointer hover:border-blue-400/50 transition active:scale-[0.98] group"
             title="Click to view Today's Blood Pressure Graph & Log"
           >
-            <div className="flex items-center justify-between text-slate-500">
+            <div className="flex items-center justify-between text-slate-400">
               <div className="flex items-center gap-1.5">
-                <div className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                <div className="w-6 h-6 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400">
                   <Activity size={14} />
                 </div>
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Blood Pressure</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Blood Pressure</span>
               </div>
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${bpSys ? 'text-emerald-600 bg-emerald-50' : 'text-slate-400 bg-slate-100'}`}>
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${bpSys ? 'text-emerald-300 bg-emerald-500/20' : 'text-slate-400 bg-white/5'}`}>
                 {bpSys ? (bpSys < 120 && (bpDia == null || bpDia < 80) ? 'Optimal' : bpSys <= 129 ? 'Elevated' : 'Stage 1') : 'Unrecorded'}
               </span>
             </div>
             <div className="mt-2">
-              <span className="text-2xl font-extrabold text-slate-900">{bpSys && bpDia ? `${bpSys}/${bpDia}` : '--/--'}</span>
+              <span className="text-2xl font-black text-white">{bpSys && bpDia ? `${bpSys}/${bpDia}` : '--/--'}</span>
               <span className="text-xs text-slate-400 ml-1 font-semibold">mmHg</span>
               <div className="flex items-center justify-between mt-0.5">
-                <p className="text-[10px] text-slate-400 font-medium">
-                  {bpSys ? 'Saved reading' : 'No captured data'}
+                <p className="text-[10px] text-slate-400 font-medium truncate">
+                  {bpSys ? 'Normotensive' : 'No captured data'}
                 </p>
-                <span className="text-[9px] text-blue-500 font-bold opacity-0 group-hover:opacity-100 transition">Graph →</span>
+                <span className="text-[9px] text-blue-400 font-bold opacity-0 group-hover:opacity-100 transition">Graph →</span>
               </div>
             </div>
           </div>
@@ -2330,28 +2336,28 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
           {/* Blood Glucose */}
           <div
             onClick={() => setSelectedVitalModal('blood_glucose')}
-            className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm flex flex-col justify-between cursor-pointer hover:border-amber-300 hover:shadow-md transition active:scale-[0.98] group"
+            className="glass-card p-3.5 flex flex-col justify-between cursor-pointer hover:border-amber-400/50 transition active:scale-[0.98] group"
             title="Click to view Today's Blood Glucose Graph & Log"
           >
-            <div className="flex items-center justify-between text-slate-500">
+            <div className="flex items-center justify-between text-slate-400">
               <div className="flex items-center gap-1.5">
-                <div className="w-6 h-6 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
+                <div className="w-6 h-6 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400">
                   <Droplets size={14} />
                 </div>
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Blood Glucose</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Blood Glucose</span>
               </div>
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${bloodGlucose ? 'text-emerald-600 bg-emerald-50' : 'text-slate-400 bg-slate-100'}`}>
-                {bloodGlucose ? (bloodGlucose < 100 ? 'Fasting Normal' : bloodGlucose < 126 ? 'Pre-diabetic' : 'High') : 'Unrecorded'}
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${bloodGlucose ? 'text-emerald-300 bg-emerald-500/20' : 'text-slate-400 bg-white/5'}`}>
+                {bloodGlucose ? (bloodGlucose < 100 ? 'Normal' : bloodGlucose < 126 ? 'Pre-diabetic' : 'High') : 'Unrecorded'}
               </span>
             </div>
             <div className="mt-2">
-              <span className="text-2xl font-extrabold text-slate-900">{bloodGlucose !== null ? bloodGlucose : '--'}</span>
+              <span className="text-2xl font-black text-white">{bloodGlucose !== null ? bloodGlucose : '--'}</span>
               <span className="text-xs text-slate-400 ml-1 font-semibold">mg/dL</span>
               <div className="flex items-center justify-between mt-0.5">
-                <p className="text-[10px] text-slate-400 font-medium">
-                  {bloodGlucose ? 'Recent Reading' : 'No captured data'}
+                <p className="text-[10px] text-slate-400 font-medium truncate">
+                  {bloodGlucose ? 'Fasting Optimal' : 'No captured data'}
                 </p>
-                <span className="text-[9px] text-amber-500 font-bold opacity-0 group-hover:opacity-100 transition">Graph →</span>
+                <span className="text-[9px] text-amber-400 font-bold opacity-0 group-hover:opacity-100 transition">Graph →</span>
               </div>
             </div>
           </div>
@@ -2359,45 +2365,45 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
           {/* SpO2 */}
           <div
             onClick={() => setSelectedVitalModal('spo2')}
-            className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm flex flex-col justify-between cursor-pointer hover:border-teal-300 hover:shadow-md transition active:scale-[0.98] group"
+            className="glass-card p-3.5 flex flex-col justify-between cursor-pointer hover:border-teal-400/50 transition active:scale-[0.98] group"
             title="Click to view Today's Blood Oxygen Graph & Log"
           >
-            <div className="flex items-center justify-between text-slate-500">
+            <div className="flex items-center justify-between text-slate-400">
               <div className="flex items-center gap-1.5">
-                <div className="w-6 h-6 rounded-lg bg-teal-50 flex items-center justify-center text-teal-600">
+                <div className="w-6 h-6 rounded-lg bg-teal-500/20 flex items-center justify-center text-teal-400">
                   <Gauge size={14} />
                 </div>
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Blood Oxygen</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Blood Oxygen</span>
               </div>
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${spo2 ? 'text-emerald-600 bg-emerald-50' : 'text-slate-400 bg-slate-100'}`}>
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${spo2 ? 'text-emerald-300 bg-emerald-500/20' : 'text-slate-400 bg-white/5'}`}>
                 {spo2 ? (spo2 >= 95 ? 'Optimal' : 'Low O2') : 'Unrecorded'}
               </span>
             </div>
             <div className="mt-2">
-              <span className="text-2xl font-extrabold text-slate-900">{spo2 !== null ? spo2 : '--'}</span>
+              <span className="text-2xl font-black text-white">{spo2 !== null ? spo2 : '--'}</span>
               <span className="text-xs text-slate-400 ml-1 font-semibold">%</span>
               <div className="flex items-center justify-between mt-0.5">
-                <p className="text-[10px] text-slate-400 font-medium">
+                <p className="text-[10px] text-slate-400 font-medium truncate">
                   {spo2 ? 'Recent Reading' : 'No captured data'}
                 </p>
-                <span className="text-[9px] text-teal-500 font-bold opacity-0 group-hover:opacity-100 transition">Graph →</span>
+                <span className="text-[9px] text-teal-400 font-bold opacity-0 group-hover:opacity-100 transition">Graph →</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 7. Weekly & 30-Day Monthly Steps Analytics */}
+      {/* 9. Step Analytics */}
       <div className="space-y-2.5">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-slate-900">Step Analytics</h2>
-          <div className="flex items-center p-1 bg-slate-100 rounded-xl text-[11px] font-extrabold">
+          <h2 className="text-base font-extrabold text-white tracking-tight">Activity Trends</h2>
+          <div className="flex items-center p-1 glass-subcard rounded-xl text-[11px] font-extrabold">
             <button
               onClick={() => setStepChartTab('7days')}
               className={`px-3 py-1 rounded-lg transition ${
                 stepChartTab === '7days'
-                  ? 'bg-white text-[#00A8D0] shadow-sm font-black'
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? 'bg-cyan-500 text-slate-950 shadow-sm font-black'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               7 Days
@@ -2406,8 +2412,8 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
               onClick={() => setStepChartTab('30days')}
               className={`px-3 py-1 rounded-lg transition ${
                 stepChartTab === '30days'
-                  ? 'bg-white text-[#00A8D0] shadow-sm font-black'
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? 'bg-cyan-500 text-slate-950 shadow-sm font-black'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               30 Days
@@ -2416,9 +2422,9 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
         </div>
 
         {stepChartTab === '7days' ? (
-          <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm space-y-2">
+          <div className="glass-card p-5 space-y-2">
             <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold px-1">
-              <span>Weekly Step Breakdown</span>
+              <span>Weekly Step Histogram</span>
               <span>Tap any day to inspect</span>
             </div>
             <div className="flex items-end justify-between h-36 pt-4 pb-2 px-1">
@@ -2429,37 +2435,37 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
                     key={idx}
                     onClick={() => !item.isFuture && setSelectedHistoryDate(item.date)}
                     className={`flex flex-col items-center gap-1.5 flex-1 transition-all ${
-                      item.isFuture ? 'cursor-not-allowed opacity-40' : 'cursor-pointer hover:opacity-90 active:scale-95'
+                      item.isFuture ? 'cursor-not-allowed opacity-30' : 'cursor-pointer hover:opacity-90 active:scale-95'
                     }`}
                     title={`${item.day} (${item.fullDate}): ${item.steps.toLocaleString()} steps • Click to view`}
                   >
-                    <span className={`text-[10px] font-bold ${isSelected ? 'text-[#00A8D0] font-black' : 'text-slate-500'}`}>
+                    <span className={`text-[10px] font-bold ${isSelected ? 'text-cyan-300 font-black' : 'text-slate-400'}`}>
                       {item.count}
                     </span>
-                    <div className={`w-7 bg-slate-100 rounded-t-lg flex items-end h-24 overflow-hidden transition-all ${
-                      isSelected ? 'ring-2 ring-[#00A8D0] shadow-sm' : ''
+                    <div className={`w-7 bg-slate-950/70 rounded-t-lg flex items-end h-24 overflow-hidden transition-all ${
+                      isSelected ? 'ring-2 ring-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.4)]' : ''
                     }`}>
                       <div
                         className={`w-full rounded-t-lg transition-all duration-500 ${
                           isSelected
-                            ? 'bg-[#00A8D0]'
+                            ? 'bg-gradient-to-t from-cyan-500 to-cyan-300'
                             : item.isCurrent
-                            ? 'bg-[#00a8cc]'
+                            ? 'bg-cyan-400'
                             : item.completed
                             ? 'bg-emerald-400'
                             : item.steps > 0
-                            ? 'bg-[#93e2f5]'
-                            : 'bg-slate-200'
+                            ? 'bg-sky-500/70'
+                            : 'bg-white/10'
                         }`}
                         style={{ height: item.height }}
                       ></div>
                     </div>
                     <span className={`text-[11px] font-bold ${
                       isSelected
-                        ? 'text-[#00A8D0] font-black underline underline-offset-4 decoration-2'
+                        ? 'text-cyan-300 font-black underline underline-offset-4 decoration-2'
                         : item.isCurrent
-                        ? 'text-[#00a8cc]'
-                        : 'text-slate-400'
+                        ? 'text-cyan-400'
+                        : 'text-slate-500'
                     }`}>
                       {item.day}
                     </span>
@@ -2469,23 +2475,23 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
             </div>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-4">
+          <div className="glass-card p-4 space-y-4">
             {/* 30-Day Key Summary Metrics */}
             <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="bg-slate-50 rounded-xl p-2.5 border border-slate-100">
+              <div className="glass-subcard p-2.5">
                 <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block">30-Day Total</span>
-                <span className="text-sm font-black text-slate-900">{total30DaySteps.toLocaleString()}</span>
+                <span className="text-sm font-black text-white">{total30DaySteps.toLocaleString()}</span>
                 <span className="text-[9px] text-slate-400 font-semibold block">steps</span>
               </div>
-              <div className="bg-cyan-50/60 rounded-xl p-2.5 border border-cyan-100">
-                <span className="text-[9px] font-extrabold text-cyan-600 uppercase tracking-wider block">Daily Average</span>
-                <span className="text-sm font-black text-[#00A8D0]">{avg30DaySteps.toLocaleString()}</span>
-                <span className="text-[9px] text-cyan-600 font-semibold block">steps/day</span>
+              <div className="glass-subcard p-2.5 border-cyan-500/30">
+                <span className="text-[9px] font-extrabold text-cyan-400 uppercase tracking-wider block">Daily Average</span>
+                <span className="text-sm font-black text-cyan-300">{avg30DaySteps.toLocaleString()}</span>
+                <span className="text-[9px] text-cyan-400/80 font-semibold block">steps/day</span>
               </div>
-              <div className="bg-emerald-50/60 rounded-xl p-2.5 border border-emerald-100">
-                <span className="text-[9px] font-extrabold text-emerald-600 uppercase tracking-wider block">Peak Day</span>
-                <span className="text-sm font-black text-emerald-700">{peak30DaySteps.toLocaleString()}</span>
-                <span className="text-[9px] text-emerald-600 font-semibold block">highest</span>
+              <div className="glass-subcard p-2.5 border-emerald-500/30">
+                <span className="text-[9px] font-extrabold text-emerald-400 uppercase tracking-wider block">Peak Day</span>
+                <span className="text-sm font-black text-emerald-300">{peak30DaySteps.toLocaleString()}</span>
+                <span className="text-[9px] text-emerald-400/80 font-semibold block">highest</span>
               </div>
             </div>
 
@@ -2495,7 +2501,7 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
                 <span>Past 30 Days Activity Trend (Tap any day)</span>
                 <span>Today (Right)</span>
               </div>
-              <div className="flex items-end justify-between h-28 pt-2 pb-1 px-1 bg-slate-50 rounded-xl border border-slate-100 gap-0.5 overflow-x-auto no-scrollbar">
+              <div className="flex items-end justify-between h-28 pt-2 pb-1 px-1 glass-subcard gap-0.5 overflow-x-auto no-scrollbar">
                 {past30Days.map((item, idx) => {
                   const maxVal = Math.max(10000, peak30DaySteps);
                   const heightPct = `${Math.min(100, Math.max(8, Math.round((item.steps / maxVal) * 100)))}%`;
@@ -2509,22 +2515,22 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
                       }`}
                       title={`${item.dateLabel} (${item.fullDate}): ${item.steps.toLocaleString()} steps • Click to view`}
                     >
-                      <div className={`w-full bg-slate-200/80 rounded-t-sm flex items-end h-20 overflow-hidden ${
-                        isSelected ? 'ring-2 ring-cyan-500' : ''
+                      <div className={`w-full bg-slate-950/70 rounded-t-sm flex items-end h-20 overflow-hidden ${
+                        isSelected ? 'ring-2 ring-cyan-400' : ''
                       }`}>
                         <div
                           className={`w-full rounded-t-sm transition-all duration-300 ${
                             isSelected
-                              ? 'bg-cyan-500 font-black'
+                              ? 'bg-cyan-400 font-black'
                               : item.isToday
-                              ? 'bg-[#00A8D0]'
+                              ? 'bg-cyan-500'
                               : item.steps >= 10000
-                              ? 'bg-emerald-500'
-                              : item.steps >= 8000
                               ? 'bg-emerald-400'
+                              : item.steps >= 8000
+                              ? 'bg-emerald-500/80'
                               : item.steps > 0
-                              ? 'bg-sky-300'
-                              : 'bg-slate-200'
+                              ? 'bg-sky-500/60'
+                              : 'bg-white/10'
                           }`}
                           style={{ height: heightPct }}
                         ></div>
@@ -2539,25 +2545,25 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
 
         {/* Selected Day Activity Breakdown Card */}
         {selectedDayInfo && (
-          <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-3 animate-fade-in">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+          <div className="glass-card p-4 space-y-3 animate-fade-in">
+            <div className="flex items-center justify-between border-b border-white/[0.08] pb-2.5">
               <div className="flex items-center gap-2">
                 <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs ${
-                  selectedDayInfo.isToday ? 'bg-[#00A8D0]/10 text-[#00A8D0]' : 'bg-slate-100 text-slate-700'
+                  selectedDayInfo.isToday ? 'bg-cyan-500/20 text-cyan-300' : 'glass-pill text-slate-300'
                 }`}>
                   <Calendar size={15} />
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-black text-slate-900">
+                    <span className="text-xs font-black text-white">
                       {selectedDayInfo.fullDate || selectedDayInfo.date}
                     </span>
                     {selectedDayInfo.isToday ? (
-                      <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 bg-cyan-50 text-[#00A8D0] rounded-full border border-cyan-200">
+                      <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 bg-cyan-500/20 text-cyan-300 rounded-full border border-cyan-400/30">
                         Live Today
                       </span>
                     ) : (
-                      <span className="text-[9px] font-bold text-slate-500 px-1.5 py-0.5 bg-slate-100 rounded-full">
+                      <span className="text-[9px] font-bold text-slate-400 px-2 py-0.5 glass-pill">
                         Selected Day
                       </span>
                     )}
@@ -2576,7 +2582,7 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
                 <button
                   type="button"
                   onClick={() => setSelectedHistoryDate(null)}
-                  className="px-2.5 py-1 text-[10px] font-black text-[#00A8D0] bg-cyan-50 hover:bg-cyan-100 rounded-lg transition active:scale-95 flex items-center gap-1"
+                  className="px-2.5 py-1 text-[10px] font-black text-cyan-300 glass-pill hover:border-cyan-400/40 transition active:scale-95 flex items-center gap-1 cursor-pointer"
                   title="Return to today's live activity"
                 >
                   <RefreshCw size={11} />
@@ -2588,26 +2594,26 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
             {/* 4-Item Metrics Grid for Selected Day */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {/* Steps Card */}
-              <div className="bg-slate-50/80 rounded-xl p-2.5 border border-slate-100">
+              <div className="glass-subcard p-2.5">
                 <div className="flex items-center justify-between text-slate-400 text-[10px] font-bold">
                   <span className="flex items-center gap-1">
-                    <Footprints size={12} className="text-[#00A8D0]" /> Steps
+                    <Footprints size={12} className="text-cyan-400" /> Steps
                   </span>
-                  <span className="text-[9px] font-black text-[#00A8D0]">
+                  <span className="text-[9px] font-black text-cyan-300">
                     {Math.round((selectedDayInfo.steps / 10000) * 100)}%
                   </span>
                 </div>
                 <div className="mt-1">
-                  <span className="text-base font-black text-slate-900">
+                  <span className="text-base font-black text-white">
                     {selectedDayInfo.steps.toLocaleString()}
                   </span>
                   <span className="text-[10px] text-slate-400 font-semibold ml-1">/ 10k</span>
                 </div>
                 {/* Micro progress bar */}
-                <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden mt-1.5">
+                <div className="w-full bg-slate-950/80 h-1.5 rounded-full overflow-hidden mt-1.5 border border-white/5">
                   <div
                     className={`h-full rounded-full transition-all duration-300 ${
-                      selectedDayInfo.steps >= 10000 ? 'bg-emerald-500' : 'bg-[#00A8D0]'
+                      selectedDayInfo.steps >= 10000 ? 'bg-emerald-400' : 'bg-cyan-400'
                     }`}
                     style={{ width: `${Math.min(100, Math.round((selectedDayInfo.steps / 10000) * 100))}%` }}
                   ></div>
@@ -2615,14 +2621,14 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
               </div>
 
               {/* Calories Card */}
-              <div className="bg-slate-50/80 rounded-xl p-2.5 border border-slate-100">
+              <div className="glass-subcard p-2.5">
                 <div className="flex items-center justify-between text-slate-400 text-[10px] font-bold">
                   <span className="flex items-center gap-1">
-                    <Flame size={12} className="text-rose-500" /> Active Burn
+                    <Flame size={12} className="text-rose-400" /> Active Burn
                   </span>
                 </div>
                 <div className="mt-1">
-                  <span className="text-base font-black text-slate-900">
+                  <span className="text-base font-black text-white">
                     {(selectedDayInfo.calories || (selectedDayInfo.steps > 0 ? Math.round(selectedDayInfo.steps * 0.045) : 0)).toLocaleString()}
                   </span>
                   <span className="text-[10px] text-slate-400 font-semibold ml-1">kcal</span>
@@ -2631,14 +2637,14 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
               </div>
 
               {/* Distance Card */}
-              <div className="bg-slate-50/80 rounded-xl p-2.5 border border-slate-100">
+              <div className="glass-subcard p-2.5">
                 <div className="flex items-center justify-between text-slate-400 text-[10px] font-bold">
                   <span className="flex items-center gap-1">
-                    <MapPin size={12} className="text-emerald-500" /> Distance
+                    <MapPin size={12} className="text-emerald-400" /> Distance
                   </span>
                 </div>
                 <div className="mt-1">
-                  <span className="text-base font-black text-slate-900">
+                  <span className="text-base font-black text-white">
                     {selectedDayInfo.distance > 0
                       ? (selectedDayInfo.distance >= 1000
                           ? (selectedDayInfo.distance / 1000).toFixed(2)
@@ -2653,27 +2659,27 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
               </div>
 
               {/* Vitals / Day Summary Card */}
-              <div className="bg-slate-50/80 rounded-xl p-2.5 border border-slate-100">
+              <div className="glass-subcard p-2.5">
                 <div className="flex items-center justify-between text-slate-400 text-[10px] font-bold">
                   <span className="flex items-center gap-1">
-                    <Heart size={12} className="text-red-500" /> Vitals & Rest
+                    <Heart size={12} className="text-rose-400" /> Vitals & Rest
                   </span>
                 </div>
                 <div className="mt-1">
                   {selectedDayInfo.heartRate ? (
                     <div>
-                      <span className="text-base font-black text-slate-900">{selectedDayInfo.heartRate}</span>
+                      <span className="text-base font-black text-white">{selectedDayInfo.heartRate}</span>
                       <span className="text-[10px] text-slate-400 font-semibold ml-1">bpm</span>
                     </div>
                   ) : selectedDayInfo.sleep ? (
                     <div>
-                      <span className="text-base font-black text-slate-900">
+                      <span className="text-base font-black text-white">
                         {Math.floor(selectedDayInfo.sleep / 60)}h {selectedDayInfo.sleep % 60}m
                       </span>
                     </div>
                   ) : (
                     <div>
-                      <span className="text-xs font-bold text-slate-500">
+                      <span className="text-xs font-bold text-slate-400">
                         {selectedDayInfo.completed ? 'Goal Achieved' : selectedDayInfo.steps > 0 ? 'Normal Active' : 'Rest Day'}
                       </span>
                     </div>
@@ -2688,99 +2694,121 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
         )}
       </div>
 
-      {/* 8. Hydration Tracker (Synced directly to PostgreSQL) */}
+      {/* 10. Hydration Matrix */}
       <div className="space-y-2.5">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-slate-900">Hydration Tracker</h2>
-          <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-            Auto-synced to DB
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-extrabold text-white tracking-tight">Hydration Matrix</h2>
+            <span className="text-[10px] font-black text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-400/20">
+              10-Glass Protocol
+            </span>
+          </div>
+          <span className="text-[11px] font-semibold text-cyan-300 glass-pill px-2.5 py-0.5">
+            Auto-Synced to Cloud
           </span>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-3">
+        <div className="glass-card p-4 space-y-3.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center text-sky-500">
+              <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0 shadow-inner">
                 <Droplets size={20} />
               </div>
               <div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-extrabold text-slate-900">{hydrationLiters}L</span>
-                  <span className="text-xs text-slate-400 font-medium">of 2.5L daily goal</span>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-2xl font-black text-white text-glow-cyan leading-none">{hydrationLiters}L</span>
+                  <span className="text-xs text-slate-400 font-medium">of 2.5L Target</span>
                 </div>
+                <p className="text-[10px] text-cyan-300/80 font-semibold mt-1">
+                  {hydrationGlasses >= 10 ? '✓ Daily Hydration Goal Achieved' : `${10 - hydrationGlasses} glasses remaining today`}
+                </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200">
+            {/* Stepper with unified cyan-to-teal action */}
+            <div className="flex items-center gap-1 glass-subcard p-1 border border-white/10 rounded-xl shrink-0">
               <button
                 onClick={() => logWater(-1)}
-                className="w-7 h-7 rounded-lg bg-white shadow-sm flex items-center justify-center text-slate-600 hover:text-slate-900 active:scale-95"
+                disabled={hydrationGlasses <= 0}
+                className="w-7 h-7 rounded-lg glass-pill flex items-center justify-center text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed active:scale-95 cursor-pointer"
+                title="Remove glass"
               >
-                <Minus size={14} />
+                <Minus size={13} />
               </button>
-              <span className="text-xs font-bold px-2 text-slate-800">{hydrationGlasses}</span>
+              <span className="text-xs font-black px-2.5 text-cyan-300">{hydrationGlasses}</span>
               <button
                 onClick={() => logWater(1)}
-                className="w-7 h-7 rounded-lg bg-sky-500 text-white shadow-sm flex items-center justify-center hover:bg-sky-600 active:scale-95"
+                disabled={hydrationGlasses >= 10}
+                className="w-7 h-7 rounded-lg bg-gradient-to-r from-cyan-500 to-teal-400 text-slate-950 shadow-md shadow-cyan-500/30 flex items-center justify-center hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed active:scale-95 cursor-pointer font-black"
+                title="Add glass"
               >
-                <Plus size={14} />
+                <Plus size={13} />
               </button>
             </div>
           </div>
 
-          {/* 8 Clickable Droplet Glasses */}
-          <div className="flex items-center justify-between pt-2">
-            {[...Array(8)].map((_, i) => (
-              <button
-                key={i}
-                onClick={() => logWater(i < hydrationGlasses ? -1 : 1)}
-                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${i < hydrationGlasses
-                    ? 'bg-sky-500 text-white shadow-sm shadow-sky-500/30 scale-105'
-                    : 'bg-sky-50 text-sky-300 hover:bg-sky-100'
+          {/* 10 Clickable Responsive Droplet Glasses (Fluid 10-column grid that never overflows) */}
+          <div className="space-y-1.5">
+            <div className="grid grid-cols-10 gap-1 sm:gap-1.5 w-full pt-1">
+              {[...Array(10)].map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => logWater(i < hydrationGlasses ? -1 : 1)}
+                  className={`aspect-square w-full rounded-lg flex flex-col items-center justify-center transition-all cursor-pointer ${
+                    i < hydrationGlasses
+                      ? 'bg-gradient-to-b from-cyan-400 to-teal-400 text-slate-950 shadow-[0_0_10px_rgba(6,182,212,0.5)] scale-105 font-black'
+                      : 'glass-subcard text-slate-500 hover:text-cyan-300 hover:border-cyan-400/30'
                   }`}
-                title={`Glass ${i + 1} (250 mL)`}
-              >
-                <Droplets size={16} />
-              </button>
-            ))}
+                  title={`Glass ${i + 1} • 250 mL`}
+                >
+                  <Droplets size={12} />
+                  <span className="text-[8px] font-bold mt-0.5 leading-none">{i + 1}</span>
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center justify-between text-[10px] text-slate-400 font-medium px-0.5 pt-0.5">
+              <span>0L (Baseline)</span>
+              <span>1.25L (Midpoint)</span>
+              <span className="text-cyan-400 font-bold">2.5L (Optimal)</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* 9. Connected Health Providers Tracker */}
-      <div className="bg-slate-900 rounded-2xl p-4 border border-slate-800 text-white space-y-3 shadow-md">
+      {/* 11. Connected Health Ecosystem */}
+      <div className="glass-card p-4 text-white space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="p-1.5 bg-cyan-500/20 text-cyan-400 rounded-xl">
               <ShieldCheck size={16} />
             </span>
             <div>
-              <h3 className="text-xs font-black text-white uppercase tracking-wider">Connected Health Providers</h3>
-              <p className="text-[10px] text-slate-400 font-medium">Real-time sync with native health hubs</p>
+              <h3 className="text-xs font-black text-white uppercase tracking-wider">Connected Health Ecosystem</h3>
+              <p className="text-[10px] text-slate-400 font-medium">Continuous telemetry with native health hubs</p>
             </div>
           </div>
           <button
             onClick={() => setShowHealthPermissionsModal(true)}
-            className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold rounded-lg text-[10px] border border-slate-700 transition cursor-pointer"
+            className="px-2.5 py-1 glass-pill hover:border-cyan-400/40 text-cyan-300 font-bold text-[10px] transition cursor-pointer"
           >
             Manage
           </button>
         </div>
 
         <div className="grid grid-cols-3 gap-2 text-center text-[10px]">
-          <div className="p-2 bg-slate-800/60 rounded-xl border border-slate-700/60 flex flex-col items-center gap-1">
-            <span className="font-extrabold text-emerald-400">{isAndroid ? '🤖 Health Connect' : '🍏 Apple Health'}</span>
-            <span className="text-[9px] text-emerald-300 bg-emerald-500/20 px-1.5 py-0.5 rounded font-bold">Connected</span>
+          <div className="p-2 glass-subcard flex flex-col items-center gap-1">
+            <span className="font-extrabold text-emerald-300">{isAndroid ? '🤖 Health Connect' : '🍏 Apple Health'}</span>
+            <span className="text-[9px] text-emerald-300 bg-emerald-500/20 px-1.5 py-0.5 rounded-full font-bold">Connected</span>
           </div>
 
-          <div className="p-2 bg-slate-800/60 rounded-xl border border-slate-700/60 flex flex-col items-center gap-1">
-            <span className="font-extrabold text-purple-400">⌚ boAt / Wearables</span>
-            <span className="text-[9px] text-purple-300 bg-purple-500/20 px-1.5 py-0.5 rounded font-bold">Open Wearable</span>
+          <div className="p-2 glass-subcard flex flex-col items-center gap-1">
+            <span className="font-extrabold text-purple-300">⌚ Wearables & Rings</span>
+            <span className="text-[9px] text-purple-300 bg-purple-500/20 px-1.5 py-0.5 rounded-full font-bold">OpenWearables</span>
           </div>
 
-          <div className="p-2 bg-slate-800/60 rounded-xl border border-slate-700/60 flex flex-col items-center gap-1">
-            <span className="font-extrabold text-cyan-400">🐘 PostgreSQL DB</span>
-            <span className="text-[9px] text-cyan-300 bg-cyan-500/20 px-1.5 py-0.5 rounded font-bold">Auto-Synced</span>
+          <div className="p-2 glass-subcard flex flex-col items-center gap-1">
+            <span className="font-extrabold text-cyan-300">🐘 Clinical Cloud DB</span>
+            <span className="text-[9px] text-cyan-300 bg-cyan-500/20 px-1.5 py-0.5 rounded-full font-bold">PostgreSQL</span>
           </div>
         </div>
       </div>
@@ -2790,78 +2818,78 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
         <button
           onClick={() => setRefreshKey(k => k + 1)}
           disabled={loading}
-          className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 font-medium"
+          className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-cyan-300 font-medium transition cursor-pointer"
         >
           <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-          <span>{loading ? 'Refreshing vitals…' : 'Sync data with PostgreSQL server'}</span>
+          <span>{loading ? 'Refreshing vitals…' : 'Sync data with Clinical Health Server'}</span>
         </button>
       </div>
 
       {/* ── MODAL 1: HRA Assessment Breakdown ── */}
       {showHraModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl border border-slate-200 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="glass-card w-full max-w-sm rounded-[32px] p-6 shadow-2xl border border-white/15 bg-slate-950/95 space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
                   <ShieldCheck size={18} />
                 </div>
-                <h3 className="font-extrabold text-slate-900 text-sm">Health Risk Assessment (HRA)</h3>
+                <h3 className="font-extrabold text-white text-sm">Health Risk Assessment (HRA)</h3>
               </div>
-              <button onClick={() => setShowHraModal(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setShowHraModal(false)} className="text-slate-400 hover:text-white p-1 transition cursor-pointer">
                 <X size={18} />
               </button>
             </div>
 
             <div className="space-y-3 text-xs">
               <div>
-                <div className="flex justify-between font-bold text-slate-700 mb-1">
+                <div className="flex justify-between font-bold text-slate-300 mb-1">
                   <span>Cardiovascular Health</span>
-                  <span className="text-emerald-600">85% (Low Risk)</span>
+                  <span className="text-emerald-400">85% (Optimal)</span>
                 </div>
-                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: '85%' }}></div>
+                <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-white/5">
+                  <div className="h-full bg-emerald-400 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]" style={{ width: '85%' }}></div>
                 </div>
               </div>
 
               <div>
-                <div className="flex justify-between font-bold text-slate-700 mb-1">
+                <div className="flex justify-between font-bold text-slate-300 mb-1">
                   <span>Metabolic Fitness</span>
-                  <span className="text-emerald-600">80% (Normal)</span>
+                  <span className="text-emerald-400">80% (Normal)</span>
                 </div>
-                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: '80%' }}></div>
+                <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-white/5">
+                  <div className="h-full bg-emerald-400 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]" style={{ width: '80%' }}></div>
                 </div>
               </div>
 
               <div>
-                <div className="flex justify-between font-bold text-slate-700 mb-1">
+                <div className="flex justify-between font-bold text-slate-300 mb-1">
                   <span>Sleep & Recovery</span>
-                  <span className="text-sky-600">78% (Good)</span>
+                  <span className="text-cyan-400">78% (Good)</span>
                 </div>
-                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-sky-500 rounded-full" style={{ width: '78%' }}></div>
+                <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-white/5">
+                  <div className="h-full bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(6,182,212,0.5)]" style={{ width: '78%' }}></div>
                 </div>
               </div>
 
               <div>
-                <div className="flex justify-between font-bold text-slate-700 mb-1">
+                <div className="flex justify-between font-bold text-slate-300 mb-1">
                   <span>Stress Resilience</span>
-                  <span className="text-indigo-600">86% (Resilient)</span>
+                  <span className="text-purple-400">86% (Resilient)</span>
                 </div>
-                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-indigo-500 rounded-full" style={{ width: '86%' }}></div>
+                <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-white/5">
+                  <div className="h-full bg-purple-400 rounded-full shadow-[0_0_8px_rgba(139,92,246,0.5)]" style={{ width: '86%' }}></div>
                 </div>
               </div>
             </div>
 
-            <p className="text-[11px] text-slate-500 leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-              💡 <strong>Coach Recommendation:</strong> Maintain your 8,000+ daily steps routine and 2.5L water intake to stay in the low cardiovascular risk bracket.
+            <p className="text-[11px] text-slate-300 leading-relaxed glass-subcard p-3">
+              💡 <strong>Clinical Guidance:</strong> Maintain your 8,000+ daily steps routine and 2.5L water intake to stay in the low cardiovascular risk bracket.
             </p>
 
             <button
               onClick={() => setShowHraModal(false)}
-              className="w-full py-2.5 bg-[#00a8cc] hover:bg-[#0092b3] text-white font-bold rounded-xl text-xs transition"
+              className="w-full py-2.5 bg-gradient-to-r from-cyan-500 via-teal-400 to-emerald-400 hover:opacity-95 text-slate-950 font-bold rounded-xl text-xs transition cursor-pointer shadow-md shadow-cyan-500/20"
             >
               Close Assessment
             </button>
@@ -2873,26 +2901,26 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
       {showSleepDetailsModal && (
         <div 
           onClick={() => setShowSleepDetailsModal(false)}
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 animate-fade-in"
+          className="fixed inset-0 bg-black/80 backdrop-blur-xl z-50 flex items-center justify-center p-3 animate-fade-in"
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-[28px] max-w-sm w-full p-5 space-y-4 shadow-2xl border border-slate-100"
+            className="glass-card rounded-[32px] max-w-sm w-full p-6 space-y-4 shadow-2xl border border-white/15 bg-slate-950/95"
           >
             {/* Header with clear (X) close button */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600">
+                <div className="w-9 h-9 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400">
                   <Moon size={20} />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-sm text-slate-900">Sleep Analysis & Recovery</h3>
+                  <h3 className="font-extrabold text-sm text-white">Sleep Analysis & Recovery</h3>
                   <p className="text-[10px] text-slate-400 font-medium">Circadian rhythm & sleep tracking</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowSleepDetailsModal(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition"
+                className="w-8 h-8 rounded-full glass-pill hover:border-white/20 flex items-center justify-center text-slate-400 hover:text-white transition cursor-pointer"
                 title="Close"
               >
                 <X size={16} />
@@ -2900,12 +2928,12 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
             </div>
 
             {/* Today's Sleep Stat */}
-            <div className="bg-gradient-to-br from-purple-50 to-indigo-50/50 p-4 rounded-2xl border border-purple-100 text-center space-y-1">
-              <span className="text-[10px] uppercase tracking-wider font-bold text-purple-600 block">Today's Recorded Sleep</span>
-              <span className="text-3xl font-black text-slate-900 block">
+            <div className="glass-subcard p-4 rounded-2xl text-center space-y-1">
+              <span className="text-[10px] uppercase tracking-wider font-bold text-purple-400 block">Today's Recorded Sleep</span>
+              <span className="text-3xl font-black text-white text-glow-purple block">
                 {sleepMinutes ? `${Math.floor(sleepMinutes / 60)}h ${sleepMinutes % 60}m` : '--'}
               </span>
-              <p className="text-xs text-slate-500 font-medium">
+              <p className="text-xs text-slate-400 font-medium">
                 {sleepMinutes 
                   ? (sleepMinutes >= 420 ? 'Optimal restorative sleep (7h+)' : 'Slightly below recommended 7-8h target') 
                   : 'No sleep reading tracked yet today'}
@@ -2914,14 +2942,14 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
 
             {/* Quick Log Sleep Duration */}
             <div className="space-y-2 pt-1">
-              <span className="text-xs font-bold text-slate-800 block">Log Last Night's Sleep</span>
+              <span className="text-xs font-bold text-slate-200 block">Log Last Night's Sleep</span>
               <div className="grid grid-cols-4 gap-1.5">
                 {[6, 7, 7.5, 8].map((hrs) => (
                   <button
                     key={hrs}
                     onClick={() => handleSaveSleep(hrs)}
                     disabled={savingSleep}
-                    className="py-2 text-center rounded-xl border border-slate-200 bg-slate-50 hover:bg-purple-50 hover:border-purple-300 font-bold text-xs text-slate-700 transition"
+                    className="py-2 text-center rounded-xl glass-pill hover:border-purple-400/50 font-bold text-xs text-slate-200 transition cursor-pointer"
                   >
                     {hrs} hrs
                   </button>
@@ -2936,12 +2964,12 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
                   placeholder="Custom hours (e.g. 7.5)"
                   value={manualSleepHours}
                   onChange={(e) => setManualSleepHours(e.target.value)}
-                  className="flex-1 px-3 py-2 border rounded-xl bg-slate-50 border-slate-200 text-xs font-medium outline-none focus:ring-1 focus:ring-purple-500"
+                  className="flex-1 px-3 py-2 border rounded-xl bg-slate-900 border-white/10 text-xs font-medium text-white outline-none focus:border-cyan-400"
                 />
                 <button
                   onClick={() => handleSaveSleep(manualSleepHours)}
                   disabled={savingSleep || !manualSleepHours}
-                  className="px-3.5 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition shadow-xs"
+                  className="px-3.5 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition cursor-pointer shadow-xs"
                 >
                   {savingSleep ? 'Saving…' : 'Save'}
                 </button>
@@ -2949,10 +2977,10 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
             </div>
 
             {/* Close Button at bottom */}
-            <div className="pt-2 border-t border-slate-100 flex gap-2">
+            <div className="pt-2 border-t border-white/10 flex gap-2">
               <button
                 onClick={() => setShowSleepDetailsModal(false)}
-                className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition"
+                className="w-full py-2.5 glass-pill hover:border-white/20 text-slate-300 font-bold rounded-xl text-xs transition cursor-pointer"
               >
                 Close
               </button>
@@ -2981,18 +3009,18 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
 
       {/* ── Quick Manual Vital Entry Modal ── */}
       {showLogVitalModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-3xl p-5 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-fade-in">
+          <div className="glass-card rounded-[32px] p-6 max-w-sm w-full shadow-2xl border border-white/15 bg-slate-950/95 space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <div className="flex items-center gap-2">
-                <span className="p-2 rounded-xl bg-slate-100 text-slate-800">
-                  {showLogVitalModal === 'heart_rate' && <Heart size={18} className="text-rose-500" />}
-                  {showLogVitalModal === 'spo2' && <Gauge size={18} className="text-teal-500" />}
-                  {showLogVitalModal === 'blood_pressure' && <Activity size={18} className="text-sky-500" />}
-                  {showLogVitalModal === 'blood_glucose' && <Droplets size={18} className="text-amber-500" />}
+                <span className="p-2 rounded-xl bg-cyan-500/20 text-cyan-400">
+                  {showLogVitalModal === 'heart_rate' && <Heart size={18} className="text-rose-400" />}
+                  {showLogVitalModal === 'spo2' && <Gauge size={18} className="text-teal-400" />}
+                  {showLogVitalModal === 'blood_pressure' && <Activity size={18} className="text-blue-400" />}
+                  {showLogVitalModal === 'blood_glucose' && <Droplets size={18} className="text-amber-400" />}
                 </span>
                 <div>
-                  <h3 className="font-extrabold text-sm text-slate-900">
+                  <h3 className="font-extrabold text-sm text-white">
                     {showLogVitalModal === 'heart_rate' && 'Log Pulse (Heart Rate)'}
                     {showLogVitalModal === 'spo2' && 'Log Blood Oxygen (SpO2)'}
                     {showLogVitalModal === 'blood_pressure' && 'Log Blood Pressure'}
@@ -3004,7 +3032,7 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
               <button
                 type="button"
                 onClick={() => setShowLogVitalModal(null)}
-                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                className="text-slate-400 hover:text-white p-1 cursor-pointer transition"
               >
                 <X size={16} />
               </button>
@@ -3014,32 +3042,32 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
               {showLogVitalModal === 'blood_pressure' ? (
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 block mb-1">Systolic (mmHg)</label>
+                    <label className="text-[10px] font-bold text-slate-400 block mb-1">Systolic (mmHg)</label>
                     <input
                       type="number"
                       placeholder="e.g. 120"
                       value={vitalSysInput}
                       onChange={(e) => setVitalSysInput(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:border-[#00a8cc]"
+                      className="w-full px-3 py-2 border border-white/10 bg-slate-900 rounded-xl text-sm font-bold text-white focus:outline-none focus:border-cyan-400"
                       required
                       autoFocus
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 block mb-1">Diastolic (mmHg)</label>
+                    <label className="text-[10px] font-bold text-slate-400 block mb-1">Diastolic (mmHg)</label>
                     <input
                       type="number"
                       placeholder="e.g. 80"
                       value={vitalDiaInput}
                       onChange={(e) => setVitalDiaInput(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:border-[#00a8cc]"
+                      className="w-full px-3 py-2 border border-white/10 bg-slate-900 rounded-xl text-sm font-bold text-white focus:outline-none focus:border-cyan-400"
                       required
                     />
                   </div>
                 </div>
               ) : (
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 block mb-1">
+                  <label className="text-[10px] font-bold text-slate-400 block mb-1">
                     {showLogVitalModal === 'heart_rate' && 'Pulse Value (BPM)'}
                     {showLogVitalModal === 'spo2' && 'Oxygen Percentage (%)'}
                     {showLogVitalModal === 'blood_glucose' && 'Glucose Level (mg/dL)'}
@@ -3053,7 +3081,7 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
                     }
                     value={vitalInputValue}
                     onChange={(e) => setVitalInputValue(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:border-[#00a8cc]"
+                    className="w-full px-3 py-2 border border-white/10 bg-slate-900 rounded-xl text-sm font-bold text-white focus:outline-none focus:border-cyan-400"
                     required
                     autoFocus
                   />
@@ -3064,14 +3092,14 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
                 <button
                   type="button"
                   onClick={() => setShowLogVitalModal(null)}
-                  className="w-1/2 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition cursor-pointer"
+                  className="w-1/2 py-2.5 glass-pill hover:border-white/20 text-slate-300 font-bold rounded-xl text-xs transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loggingVital}
-                  className="w-1/2 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl text-xs transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  className="w-1/2 py-2.5 bg-gradient-to-r from-cyan-500 via-teal-400 to-emerald-400 hover:opacity-95 text-slate-950 font-black rounded-xl text-xs transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-md shadow-cyan-500/20"
                 >
                   {loggingVital && <RefreshCw size={12} className="animate-spin" />}
                   <span>Save Reading</span>
