@@ -67,7 +67,7 @@ export class MemberService {
     try {
       member = await this.memberRepo.findMemberById(memberId);
     } catch {
-      // ignore
+
     }
     if (member?.owUserId && this.openWearables?.deleteUser) {
       try {
@@ -91,3 +91,4 @@ export class MemberService {
     return member;
   }
 }
+

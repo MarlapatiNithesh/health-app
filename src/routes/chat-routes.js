@@ -1,16 +1,6 @@
 import { Router } from 'express';
 import { requireAuthentication } from '../middleware/authentication.js';
-import { logger } from '../logger.js';
-
-function tagLogger(tag) {
-  return (req, _res, next) => {
-    logger.info(`[${tag}] ${req.method} ${req.baseUrl || ''}${req.path}`, {
-      memberId: req.memberId,
-      params: req.params,
-    });
-    next();
-  };
-}
+import { tagLogger } from '../middleware/tag-logger.js';
 
 export function createChatRouter({
   jwtSecret,
@@ -21,7 +11,7 @@ export function createChatRouter({
 }) {
   const router = Router();
   const auth = authMiddleware || requireAuthentication(jwtSecret, memberRepo);
-  const consent = consentMiddleware || ((req, res, next) => next());
+  const consent = consentMiddleware || ((_req, _res, next) => next());
 
   router.post(
     '/chat',

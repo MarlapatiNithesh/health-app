@@ -194,8 +194,6 @@ export class OpenWearablesClient {
     );
   }
 
-  // getTimeseries is defined below with full options support
-
   async getWorkouts(userId, startDate, endDate, options = {}) {
     const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
     if (options.limit) params.set('limit', String(options.limit));
@@ -386,10 +384,6 @@ export class OpenWearablesClient {
     return this.request(`/api/v1/users/${encodeURIComponent(userId)}/sync/runs?limit=${safeLimit}`);
   }
 
-  /**
-   * Fetch health/readiness scores (Whoop recovery, Oura readiness, etc.)
-   * Uses the /summaries/health-scores endpoint if available.
-   */
   async getHealthScores(userId, startDate, endDate, options = {}) {
     const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
     if (options.limit) params.set('limit', String(options.limit));
@@ -398,9 +392,6 @@ export class OpenWearablesClient {
     return this.request(`/api/v1/users/${encodeURIComponent(userId)}/summaries/health-scores?${params}`);
   }
 
-  /**
-   * Fetch generic activity sessions (not workouts).
-   */
   async getActivities(userId, startDate, endDate, options = {}) {
     const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
     if (options.limit) params.set('limit', String(options.limit));
@@ -631,3 +622,4 @@ export class OpenWearablesClient {
     }
   }
 }
+

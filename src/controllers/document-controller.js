@@ -12,7 +12,6 @@ export class DocumentController {
   upload = asyncHandler(async (req, res) => {
     let file = req.file || (req.files && (req.files.find(f => f.fieldname === 'file' || f.fieldname === 'document') || req.files[0]));
 
-    // Support frontend uploading via document/image URL
     if (!file && req.body?.url) {
       const docUrl = req.body.url;
       try {
@@ -129,3 +128,4 @@ export class DocumentController {
     res.json(result);
   });
 }
+

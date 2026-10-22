@@ -5,11 +5,9 @@ import { requireAuthentication } from '../middleware/authentication.js';
 export function createMemberRouter(controller, jwtSecret, memberRepo = null) {
   const router = Router();
 
-  // Allow delete account even if the member was already soft-deleted (GDPR idempotency)
   router.delete('/', requireAuthentication(jwtSecret), asyncHandler((request, response) =>
     controller.deleteAccount(request, response)));
 
-  // For other profile endpoints, require an active member
   router.use(requireAuthentication(jwtSecret, memberRepo));
 
   router.get('/profile', asyncHandler((request, response) =>

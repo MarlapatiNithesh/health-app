@@ -127,11 +127,9 @@ export function createAppContainer(config = {}) {
     }));
   }
 
-  // Symptom priority service (singleton — stateless, safe to share)
   if (config.symptomPriorityService) container.registerInstance('symptomPriorityService', config.symptomPriorityService);
   else container.registerClass('symptomPriorityService', SymptomPriorityService, []);
 
-  // Response safety validator
   if (config.responseSafetyValidator) container.registerInstance('responseSafetyValidator', config.responseSafetyValidator);
   else container.register('responseSafetyValidator', () => new ResponseSafetyValidator({ strictMode: false }));
 
@@ -185,3 +183,4 @@ export function createAppContainer(config = {}) {
 
   return container;
 }
+

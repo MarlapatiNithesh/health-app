@@ -82,7 +82,6 @@ export const CLINICAL_TOOL_DEFINITIONS = [
   },
 ];
 
-// ── Gemini JSON-extraction system prompt ────────────────────────────────────────
 const SYMPTOM_EXTRACTION_SYSTEM_PROMPT = `You are a medical symptom extraction assistant.
 Extract symptom information from the patient's message and return ONLY a valid JSON object.
 Return only the fields that are NEW or CHANGED based on what the patient just said.
@@ -119,8 +118,6 @@ export class LLMService {
     this.endpointUrl = endpointUrl || `https://generativelanguage.googleapis.com/v1beta/models/${defaultModel}:generateContent`;
     this.timeoutMs = timeoutMs;
   }
-
-  // ── Main conversational completion ──────────────────────────────────────────
 
   async generateCompletion({ messages, systemPrompt = '', tools = CLINICAL_TOOL_DEFINITIONS }) {
     const startTime = Date.now();
@@ -175,8 +172,6 @@ export class LLMService {
     return this.#deterministicFallback(messages, promptHash, Date.now() - startTime);
   }
 
-  // ── Tool Calling Loop ──────────────────────────────────────────────
-
   async generateWithToolCalling({
     messages,
     systemPrompt = '',
@@ -191,7 +186,6 @@ export class LLMService {
     const promptString = JSON.stringify({ systemPrompt, messages });
     const promptHash = createHash('sha256').update(promptString).digest('hex');
 
-    // ── MedGemma (Hugging Face) Routing ──────────────────────────────────
     if (requestedModel === 'medgamma' || requestedModel === 'medgemma') {
       const hfSystemPrompt = `${systemPrompt}\n\nNote: You have access to tools, but tool calling via HF is currently manual. For now, answer the user using only the provided context.`;
       const hfResponse = await this.#callHuggingFace(currentMessages, hfSystemPrompt);
@@ -207,7 +201,6 @@ export class LLMService {
       logger.warn('MedGemma HF call skipped or failed, falling back to Gemini / rule engine.');
     }
 
-    // ── GPT-4o (OpenAI) Routing ──────────────────────────────────────────
     if (requestedModel === 'gpt-4o' || requestedModel === 'openai') {
       const gptResponse = await this.#callOpenAI(currentMessages, systemPrompt);
       if (gptResponse) {
@@ -222,7 +215,6 @@ export class LLMService {
       logger.warn('GPT-4o OpenAI call skipped or failed, falling back to Gemini / rule engine.');
     }
 
-    // ── Gemini Routing (Default) ─────────────────────────────────────────
     if (this.geminiApiKey) {
       let loopCount = 0;
       const MAX_TOOL_LOOPS = 5;
@@ -242,7 +234,7 @@ export class LLMService {
         const response = await this.#callGemini(this.endpointUrl, requestBody);
         if (!response.ok) {
           logger.warn('Gemini endpoint returned error status during tool calling', { status: response.status });
-          break; // break to deterministic fallback
+          break; 
         }
 
         const data = await response.json();
@@ -272,7 +264,7 @@ export class LLMService {
             });
           });
 
-          continue; // Loop: LLM sees all results and responds or calls more tools
+          continue; 
         }
 
         const textParts = parts.filter((p) => typeof p.text === 'string').map((p) => p.text);
@@ -293,7 +285,6 @@ export class LLMService {
       }
     }
 
-    // ── Resilient Rule-Based Fallback (drives symptom questionnaire loop) ──
     return this.#deterministicFallback(
       currentMessages,
       promptHash,
@@ -304,13 +295,6 @@ export class LLMService {
     );
   }
 
-  // ── JSON extraction call (for structured symptom extraction) ────────────────
-
-  /**
-   * Extract structured data from free text using the LLM in JSON mode.
-   * Returns a parsed JavaScript object.
-   * Safe to call — never throws; returns {} on failure.
-   */
   async generateJsonExtraction(userText, existingState = {}) {
     if (!this.geminiApiKey || !userText) return {};
 
@@ -322,7 +306,6 @@ export class LLMService {
 
     const fullText = userText + contextHint;
 
-    // ── Try with JSON response mode first ────────────────────────────────────
     try {
       const requestBody = {
         contents: [{ role: 'user', parts: [{ text: fullText }] }],
@@ -352,7 +335,6 @@ export class LLMService {
       logger.debug('LLMService.generateJsonExtraction: JSON mode failed, trying text mode', { error: err.message });
     }
 
-    // ── Fallback: plain text with explicit JSON instruction ──────────────────
     try {
       const fallbackPrompt = `${SYMPTOM_EXTRACTION_SYSTEM_PROMPT}\n\nPatient message: "${fullText}"\n\nRespond with ONLY a JSON object, nothing else:`;
       const requestBody = {
@@ -379,21 +361,14 @@ export class LLMService {
   }
 
   #tryParseJson(text) {
-    try { return JSON.parse(text); } catch { /* try regex */ }
+    try { return JSON.parse(text); } catch {  }
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
-      try { return JSON.parse(jsonMatch[0]); } catch { /* give up */ }
+      try { return JSON.parse(jsonMatch[0]); } catch {  }
     }
     return null;
   }
 
-
-  // ── Short summarisation call (for session summarisation) ────────────────────
-
-  /**
-   * Generate a concise clinical summary of a conversation.
-   * Returns a plain string.
-   */
   async generateSummary(conversationText) {
     if (!this.geminiApiKey || !conversationText) {
       return 'Consultation summary unavailable.';
@@ -432,15 +407,9 @@ Do not diagnose. Write in third person (e.g. "Patient reported...").`,
     return 'Summary unavailable.';
   }
 
-  // ── Multi-Agent & Safety Features ──────────────────────────────────────────
-
-  /**
-   * Detects extreme emotions (anxiety, fear, panic) using a lightweight classification model.
-   */
   async detectEmotion(text) {
     if (!this.huggingFaceApiKey || !text) return null;
-    
-    // Using a fast emotion classifier on HF
+
     const hfUrl = `https://api-inference.huggingface.co/models/SamLowe/roberta-base-go_emotions`;
     try {
       const response = await fetch(hfUrl, {
@@ -455,12 +424,11 @@ Do not diagnose. Write in third person (e.g. "Patient reported...").`,
       if (response.ok) {
         const data = await response.json();
         const predictions = Array.isArray(data[0]) ? data[0] : data;
-        
-        // Find if anxiety/fear is in the top 3 and high confidence
+
         const highAnxiety = predictions.slice(0, 3).find(
           p => (p.label === 'nervousness' || p.label === 'fear' || p.label === 'anxiety') && p.score > 0.4
         );
-        
+
         if (highAnxiety) return 'HIGH_ANXIETY';
       }
     } catch (err) {
@@ -469,9 +437,6 @@ Do not diagnose. Write in third person (e.g. "Patient reported...").`,
     return null;
   }
 
-  /**
-   * Acts as an "Attending Physician" to double check MedGemma's draft against allergies.
-   */
   async clinicalReviewAgent(draftResponse, allergiesText) {
     const systemPrompt = `You are the Clinical Review Board (Attending Physician).
 Your job is to read a draft response from a junior AI and verify it against the patient's allergies.
@@ -488,7 +453,7 @@ Respond in valid JSON only.`;
     };
 
     try {
-      // Use standard Gemini-Flash for the fast critic step
+
       const response = await this.#callGemini(this.endpointUrl, requestBody);
       if (response.ok) {
         const data = await response.json();
@@ -499,10 +464,8 @@ Respond in valid JSON only.`;
     } catch (err) {
       logger.debug('Clinical review agent failed, defaulting to safe', { error: err.message });
     }
-    return { approved: true }; // Fail open if critic crashes, let traditional validator handle it
+    return { approved: true }; 
   }
-
-  // ── Private helpers ────────────────────────────────────────────────────────
 
   #buildContents(messages) {
     const filtered = (messages || []).filter(
@@ -512,8 +475,8 @@ Respond in valid JSON only.`;
     const contents = [];
     for (const m of filtered) {
       let role = m.role === 'assistant' ? 'model' : m.role === 'tool' ? 'user' : 'user';
-      if (m.content.functionCall || m.content.functionResponse) role = m.role === 'model' ? 'model' : 'user'; // functionCall is model, functionResponse is user
-      
+      if (m.content.functionCall || m.content.functionResponse) role = m.role === 'model' ? 'model' : 'user'; 
+
       let part;
       if (typeof m.content === 'string') {
         part = { text: m.content.trim() };
@@ -521,7 +484,6 @@ Respond in valid JSON only.`;
         part = m.content;
       }
 
-      // Merge consecutive same-role text messages (Gemini requirement)
       if (contents.length > 0 && contents[contents.length - 1].role === role && typeof m.content === 'string' && contents[contents.length - 1].parts[0].text) {
         contents[contents.length - 1].parts[0].text += '\n' + m.content.trim();
       } else {
@@ -550,7 +512,6 @@ Respond in valid JSON only.`;
         signal: controller.signal,
       });
 
-      // Auto-fallback on rate limit or overload
       if (!response.ok && (response.status === 503 || response.status === 429)) {
         logger.warn('Gemini primary endpoint busy, attempting fallback model', { status: response.status });
         const fallbackModel = 'gemini-2.0-flash';
@@ -586,7 +547,6 @@ Respond in valid JSON only.`;
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     const hfUrl = `https://api-inference.huggingface.co/models/${modelId}/v1/chat/completions`;
 
-    // HF uses standard OpenAI chat format
     const hfMessages = [];
     if (systemPrompt) hfMessages.push({ role: 'system', content: systemPrompt });
     messages.forEach(m => hfMessages.push({ role: m.role, content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content) }));
@@ -672,7 +632,6 @@ Respond in valid JSON only.`;
     }
   }
 
-  // ── Hugging Face Embeddings (for Semantic Memory) ─────────────────────────
   async embedTextHuggingFace(text) {
     if (!this.huggingFaceApiKey || !text) return new Float32Array(384).fill(0.01);
 
@@ -689,7 +648,7 @@ Respond in valid JSON only.`;
 
       if (response.ok) {
         const data = await response.json();
-        // The API returns an array of arrays if multiple inputs are provided, or just one array.
+
         const vector = Array.isArray(data[0]) ? data[0] : data;
         return vector;
       }
@@ -722,7 +681,7 @@ Respond in valid JSON only.`;
   }
 
   #generateDeterministicResponse(userQuery, symptomState = null, nextField = null, assessmentComplete = false) {
-    // 1. If currently in active symptom questionnaire loop
+
     if (symptomState?.primarySymptom && nextField) {
       const symptomName = symptomState.primarySymptom;
       const fieldLabel = FIELD_LABELS[nextField] || nextField;
@@ -741,7 +700,6 @@ Respond in valid JSON only.`;
       ].join('\n');
     }
 
-    // 2. If symptom assessment just completed
     if (assessmentComplete && symptomState?.primarySymptom) {
       const s = symptomState;
       const lines = [
@@ -770,7 +728,6 @@ Respond in valid JSON only.`;
       return lines.join('\n');
     }
 
-    // 3. General health query handling
     const lower = userQuery.toLowerCase();
     if (lower.includes('chest pain') || lower.includes('shortness of breath') || lower.includes('heart attack')) {
       return '🚨 **EMERGENCY WARNING**: Chest pain and severe shortness of breath can indicate a critical medical emergency. Please call emergency services (e.g. 911 or 112) or go to the nearest emergency room immediately.';
@@ -816,3 +773,4 @@ Respond in valid JSON only.`;
     ].join('\n');
   }
 }
+

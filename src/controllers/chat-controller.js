@@ -20,7 +20,7 @@ export class ChatController {
     const message = rawMsg.trim();
 
     if (stream) {
-      // SSE Setup for real-time agentic progress updates
+
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
@@ -130,3 +130,4 @@ export class ChatController {
 
 export const OrchestratorController = ChatController;
 export default ChatController;
+

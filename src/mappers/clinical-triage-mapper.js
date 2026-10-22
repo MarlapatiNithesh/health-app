@@ -7,7 +7,7 @@ export class ClinicalTriageMapper {
     status = 'in_progress',
     messageId,
     latencyMs = 0,
-    // ── Symptom assessment fields ─────────────────────────────────────────────
+
     symptomState = null,
     nextField = null,
     assessmentComplete = false,
@@ -27,7 +27,6 @@ export class ClinicalTriageMapper {
       ...(modelName ? { modelName } : {}),
     };
 
-    // Only include symptom assessment metadata if an assessment is active
     if (symptomState && symptomState.primarySymptom) {
       dto.symptomAssessment = {
         primarySymptom: symptomState.primarySymptom,
@@ -79,3 +78,4 @@ export class ClinicalTriageMapper {
     };
   }
 }
+

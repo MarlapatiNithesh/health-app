@@ -59,75 +59,119 @@ export function ProfileScreen({ openVaultModal, openPatient360Modal }) {
   const [goalsList, setGoalsList] = useState([]);
   const [newGoalInput, setNewGoalInput] = useState('');
 
+  const getInitialDob = (m) => {
+    if (!m?.dob) return '1994-12-31';
+    if (typeof m.dob === 'string') return m.dob.split('T')[0];
+    try {
+      return new Date(m.dob).toISOString().split('T')[0];
+    } catch {
+      return '1994-12-31';
+    }
+  };
+
   const [editForm, setEditForm] = useState({
-    firstName: member?.firstName || '',
-    lastName: member?.lastName || '',
-    dob: member?.dob ? member.dob.split('T')[0] : '1990-05-15',
-    biologicalSex: member?.gender || member?.biologicalSex || 'female',
-    heightCm: member?.heightCm || 172.5,
-    weightKg: member?.weightKg || 68.4,
+    firstName: member?.firstName || member?.fullName?.split(' ')[0] || '',
+    lastName: member?.lastName || member?.fullName?.split(' ').slice(1).join(' ') || '',
+    dob: getInitialDob(member),
+    biologicalSex: member?.gender || member?.biologicalSex || 'male',
+    heightCm: Number(member?.heightCm) || 170,
+    weightKg: Number(member?.weightKg) || 65,
   });
 
   useEffect(() => {
+    if (member) {
+      const parts = (member.fullName || '').trim().split(/\s+/).filter(Boolean);
+      const fName = member.firstName || parts[0] || '';
+      const lName = member.lastName || parts.slice(1).join(' ') || '';
+      setEditForm({
+        firstName: fName,
+        lastName: lName,
+        dob: getInitialDob(member),
+        biologicalSex: member.gender || member.biologicalSex || 'male',
+        heightCm: Number(member.heightCm) || 170,
+        weightKg: Number(member.weightKg) || 65,
+      });
+    }
+  }, [member]);
+
+  useEffect(() => {
     const pid = member?.id || 'me';
-    api.getPatientChart(pid)
-      .then(res => {
-        const p = res?.patient || res;
-        setPatientProfile(p);
-        if (p?.lifestyle && typeof p.lifestyle === 'object') {
-          setLifestyleForm(prev => ({ ...prev, ...p.lifestyle }));
-        }
-        if (Array.isArray(p?.goals)) {
-          setGoalsList(p.goals);
-        }
-      })
-      .catch(() => {});
-    api.getMedications(pid)
-      .then(res => setPatientMeds(Array.isArray(res) ? res : res?.medications || []))
-      .catch(() => {});
+    if (typeof api?.getPatientChart === 'function') {
+      api.getPatientChart(pid)
+        .then(res => {
+          const p = res?.patient || res;
+          setPatientProfile(p);
+          if (p?.lifestyle && typeof p.lifestyle === 'object') {
+            setLifestyleForm(prev => ({ ...prev, ...p.lifestyle }));
+          }
+          if (Array.isArray(p?.goals)) {
+            setGoalsList(p.goals);
+          }
+        })
+        .catch(() => {});
+    }
+
+    if (typeof api?.getMedications === 'function') {
+      api.getMedications(pid)
+        .then(res => setPatientMeds(Array.isArray(res) ? res : res?.medications || []))
+        .catch(() => {});
+    }
 
     // Fetch weight progress & history
-    api.getWeightProgress()
-      .then(res => setWeightProgress(res))
-      .catch(() => {});
+    if (typeof api?.getWeightProgress === 'function') {
+      api.getWeightProgress()
+        .then(res => setWeightProgress(res))
+        .catch(() => {});
+    }
 
-    api.getProfileHistory()
-      .then(res => {
-        if (Array.isArray(res)) setHistoryLogs(res);
-        else if (res?.history) setHistoryLogs(res.history);
-      })
-      .catch(() => {});
+    if (typeof api?.getProfileHistory === 'function') {
+      api.getProfileHistory()
+        .then(res => {
+          if (Array.isArray(res)) setHistoryLogs(res);
+          else if (res?.history) setHistoryLogs(res.history);
+        })
+        .catch(() => {});
+    }
 
     // Load initial scoped consents
-    api.getScopedConsents()
-      .then(res => {
-        const c = res?.consents || res || {};
-        setConsents({
-          global: Boolean(c.global),
-          data_access: Boolean(c.data_access),
-          ai_processing: Boolean(c.ai_processing ?? true),
-          document_upload: Boolean(c.document_upload ?? true),
-          health_data: Boolean(c.health_data),
-        });
-      })
-      .catch(() => {});
+    if (typeof api?.getScopedConsents === 'function') {
+      api.getScopedConsents()
+        .then(res => {
+          const c = res?.consents || res || {};
+          setConsents({
+            global: Boolean(c.global ?? true),
+            data_access: Boolean(c.data_access ?? true),
+            ai_processing: Boolean(c.ai_processing ?? true),
+            document_upload: Boolean(c.document_upload ?? true),
+            health_data: Boolean(c.health_data),
+          });
+        })
+        .catch(() => {});
+    }
   }, [member]);
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
+      const fName = editForm.firstName?.trim() || '';
+      const lName = editForm.lastName?.trim() || '';
+      const fullName = `${fName} ${lName}`.trim() || member?.fullName || 'Member';
       const payload = {
-        firstName: editForm.firstName,
-        lastName: editForm.lastName,
+        firstName: fName,
+        lastName: lName,
+        fullName,
         dob: editForm.dob,
-        biologicalSex: editForm.biologicalSex,
-        heightCm: parseFloat(editForm.heightCm),
-        weightKg: parseFloat(editForm.weightKg),
+        gender: editForm.biologicalSex || 'male',
+        biologicalSex: editForm.biologicalSex || 'male',
+        heightCm: parseFloat(editForm.heightCm) || 170,
+        weightKg: parseFloat(editForm.weightKg) || 65,
       };
-      const res = await api.updateMemberProfile(payload);
-      if (updateMemberProfile) {
-        updateMemberProfile(res.member || res);
+
+      if (typeof updateMemberProfile === 'function') {
+        await updateMemberProfile(payload);
+      } else if (typeof api?.updateProfile === 'function') {
+        await api.updateProfile(payload);
       }
       setIsEditing(false);
     } catch (err) {
@@ -193,9 +237,9 @@ export function ProfileScreen({ openVaultModal, openPatient360Modal }) {
     }
   };
 
-  const height = member?.heightCm || 172.5;
-  const weight = member?.weightKg || 68.4;
-  const bmi = (weight / ((height / 100) * (height / 100))).toFixed(1);
+  const height = Number(member?.heightCm) || 170;
+  const weight = Number(member?.weightKg) || 65;
+  const bmi = height > 0 ? (weight / ((height / 100) * (height / 100))).toFixed(1) : '22.5';
 
   return (
     <div className="px-5 py-4 space-y-4 animate-fade-in text-slate-100">
@@ -438,6 +482,20 @@ export function ProfileScreen({ openVaultModal, openPatient360Modal }) {
                     className="w-full px-3 py-2 glass-subcard bg-slate-900/80 border border-white/10 rounded-xl text-xs font-semibold text-white outline-none focus:border-cyan-400"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 block mb-1">Biological Sex / Gender</label>
+                <select
+                  value={editForm.biologicalSex || 'male'}
+                  onChange={e => setEditForm({ ...editForm, biologicalSex: e.target.value })}
+                  className="w-full px-3 py-2 glass-subcard bg-slate-900/80 border border-white/10 rounded-xl text-xs font-semibold text-white outline-none focus:border-cyan-400"
+                >
+                  <option value="male" className="bg-slate-900 text-white">Male</option>
+                  <option value="female" className="bg-slate-900 text-white">Female</option>
+                  <option value="other" className="bg-slate-900 text-white">Other</option>
+                  <option value="prefer_not_to_say" className="bg-slate-900 text-white">Prefer not to say</option>
+                </select>
               </div>
 
               <div className="flex gap-2 pt-2">

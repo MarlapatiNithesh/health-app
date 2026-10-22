@@ -1,14 +1,6 @@
 import { ApplicationError } from '../errors/application-error.js';
 import { ClinicalRecordMapper, PatientMapper, HealthEventMapper } from '../mappers/index.js';
 
-/**
- * ClinicalService — pure business-logic layer for clinical records.
- *
- * Rules:
- *  - NO direct database queries here (delegate to clinicalRepo).
- *  - NO cache manipulation here (ClinicalRecordRepository handles cache invalidation).
- *  - All returned objects pass through the appropriate Mapper.
- */
 export class ClinicalService {
   constructor(clinicalRepo, proactiveMonitoringService = null) {
     this.clinicalRepo = clinicalRepo;

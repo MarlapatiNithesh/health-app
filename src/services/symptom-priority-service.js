@@ -1,144 +1,129 @@
 import { logger } from '../logger.js';
 
-/**
- * SymptomPriorityService
- *
- * Implements the Clinical Priority Table from Phase 5 of the MediBot implementation plan.
- * Determines the NEXT highest-priority uncollected symptom field for each symptom type.
- * This drives the one-question-per-turn adaptive questioning loop.
- *
- * Rules:
- *  - Priority tables are clinician-ordered (most diagnostically important fields first)
- *  - The LLM is NEVER allowed to decide which field to ask about next
- *  - This service always returns the single next field, or null when assessment is complete
- */
-
-// ── Clinical Priority Tables ───────────────────────────────────────────────────
-// Each array is ordered: index 0 = highest clinical priority
 const SYMPTOM_PRIORITY_TABLE = {
   chest_pain: [
-    'radiation',        // Arm/jaw/back radiation is the #1 differentiator for cardiac
-    'associatedSymptoms', // Breathlessness, sweating, nausea
-    'severity',         // 0-10 scale
-    'character',        // Sharp / dull / pressure / squeezing
-    'onset',            // Sudden vs gradual
-    'aggravatingFactors', // Exertion, deep breath
-    'relievingFactors', // Rest, GTN, position
-    'duration',         // Seconds vs minutes vs hours
-    'location',         // Precordial, epigastric
+    'radiation',        
+    'associatedSymptoms', 
+    'severity',         
+    'character',        
+    'onset',            
+    'aggravatingFactors', 
+    'relievingFactors', 
+    'duration',         
+    'location',         
   ],
   headache: [
     'severity',
-    'character',        // Throbbing / pressure / sudden thunderclap
-    'location',         // Unilateral, bilateral, occipital
-    'onset',            // Sudden "thunderclap" is red flag
+    'character',        
+    'location',         
+    'onset',            
     'duration',
-    'associatedSymptoms', // Visual changes, nausea, fever, neck stiffness
-    'radiation',        // Neck
-    'aggravatingFactors', // Light, sound, bending
-    'relievingFactors', // Rest, dark room
+    'associatedSymptoms', 
+    'radiation',        
+    'aggravatingFactors', 
+    'relievingFactors', 
   ],
   abdominal_pain: [
-    'location',         // RUQ, LUQ, RLQ, LLQ, periumbilical, diffuse
+    'location',         
     'severity',
-    'character',        // Crampy / constant / colicky / burning
+    'character',        
     'onset',
     'duration',
-    'associatedSymptoms', // Nausea, vomiting, fever, diarrhoea, constipation
-    'radiation',        // Back, shoulder tip
-    'aggravatingFactors', // Eating, movement
-    'relievingFactors', // Fasting, antacids, position
+    'associatedSymptoms', 
+    'radiation',        
+    'aggravatingFactors', 
+    'relievingFactors', 
   ],
   back_pain: [
-    'location',         // Lumbar, thoracic, cervical
-    'radiation',        // Sciatica pattern, groin
+    'location',         
+    'radiation',        
     'severity',
     'onset',
-    'character',        // Dull ache / sharp / electric
-    'aggravatingFactors', // Movement, bending, lifting
-    'relievingFactors', // Rest, position
-    'associatedSymptoms', // Numbness, weakness, bladder/bowel changes
+    'character',        
+    'aggravatingFactors', 
+    'relievingFactors', 
+    'associatedSymptoms', 
     'duration',
   ],
   breathlessness: [
-    'onset',            // Sudden vs gradual
+    'onset',            
     'severity',
-    'associatedSymptoms', // Chest pain, wheeze, cough, ankle swelling
-    'aggravatingFactors', // Exertion, lying flat
-    'relievingFactors', // Sitting up, bronchodilators
-    'character',        // Wheeze / stridor / no wheeze
+    'associatedSymptoms', 
+    'aggravatingFactors', 
+    'relievingFactors', 
+    'character',        
     'duration',
     'radiation',
     'location',
   ],
   fever: [
-    'severity',         // Temperature reading if known
+    'severity',         
     'duration',
     'onset',
-    'associatedSymptoms', // Rigors, headache, rash, cough, dysuria, sore throat
-    'character',        // Continuous / intermittent / night sweats
+    'associatedSymptoms', 
+    'character',        
     'location',
     'aggravatingFactors',
     'relievingFactors',
     'radiation',
   ],
   cough: [
-    'character',        // Dry / productive / barking / whooping
+    'character',        
     'duration',
     'onset',
-    'associatedSymptoms', // Haemoptysis, fever, breathlessness, wheeze, weight loss
-    'aggravatingFactors', // Cold air, lying down, eating
+    'associatedSymptoms', 
+    'aggravatingFactors', 
     'relievingFactors',
     'severity',
     'location',
     'radiation',
   ],
   dizziness: [
-    'character',        // Vertigo (room spinning) vs presyncope (lightheaded)
+    'character',        
     'onset',
-    'duration',         // Seconds / minutes / constant
-    'associatedSymptoms', // Tinnitus, hearing loss, nausea, palpitations, vision changes
-    'aggravatingFactors', // Head movements, standing up, turning
+    'duration',         
+    'associatedSymptoms', 
+    'aggravatingFactors', 
     'relievingFactors',
     'severity',
     'location',
     'radiation',
   ],
   joint_pain: [
-    'location',         // Which joint(s)
+    'location',         
     'onset',
-    'character',        // Hot / swollen / stiff / clicking
+    'character',        
     'severity',
     'duration',
-    'associatedSymptoms', // Rash, fever, eye changes, skin changes
-    'aggravatingFactors', // Movement, morning stiffness
+    'associatedSymptoms', 
+    'aggravatingFactors', 
     'relievingFactors',
     'radiation',
   ],
   hypoglycemia: [
-    'associatedSymptoms', // Sweating, shaking, confusion, palpitations (CRITICAL)
-    'onset',            // How fast did it happen?
-    'severity',         // Loss of consciousness?
-    'relievingFactors', // Did eating sugar help?
-    'duration',         // How long did the episode last?
-    'aggravatingFactors', // Missed meal, extra insulin, exercise
+    'associatedSymptoms', 
+    'onset',            
+    'severity',         
+    'relievingFactors', 
+    'duration',         
+    'aggravatingFactors', 
   ],
   hyperglycemia: [
-    'associatedSymptoms', // Thirst (polydipsia), frequent urination (polyuria), blurred vision
-    'onset',            // Gradual vs sudden
-    'severity',         // Current glucose reading if known
+    'associatedSymptoms', 
+    'onset',            
+    'severity',         
     'duration',
-    'aggravatingFactors', // Missed medication, illness/infection
+    'aggravatingFactors', 
     'relievingFactors',
   ],
   diabetic_neuropathy: [
-    'location',         // Feet, hands, bilateral vs unilateral
-    'character',        // Tingling, burning, numbness, sharp pain
+    'location',         
+    'character',        
     'duration',
-    'onset',            // Gradual
+    'onset',            
     'severity',
-    'associatedSymptoms', // Foot ulcers, skin changes, weakness
-    'aggravatingFactors', // Nighttime, touch
+    'associatedSymptoms', 
+    'aggravatingFactors', 
     'relievingFactors',
   ],
   default: [
@@ -154,7 +139,6 @@ const SYMPTOM_PRIORITY_TABLE = {
   ],
 };
 
-// Maps symptom keywords to priority table keys
 const SYMPTOM_KEYWORD_MAP = [
   { key: 'chest_pain',     patterns: ['chest pain', 'chest ache', 'chest tight', 'chest pressure', 'heart', 'cardiac'] },
   { key: 'headache',       patterns: ['headache', 'head pain', 'migraine', 'head ache', 'head hurts', 'skull'] },
@@ -170,7 +154,6 @@ const SYMPTOM_KEYWORD_MAP = [
   { key: 'diabetic_neuropathy', patterns: ['tingling', 'numb', 'numbness', 'burning feet', 'foot pain', 'pins and needles'] },
 ];
 
-// Human-readable labels for each field (used in LLM prompt instructions)
 export const FIELD_LABELS = {
   primarySymptom:     'the main symptom the patient is experiencing',
   severity:           'how severe the symptom is (0 = none, 10 = worst imaginable)',
@@ -184,7 +167,6 @@ export const FIELD_LABELS = {
   associatedSymptoms: 'any other symptoms occurring alongside the main one',
 };
 
-// Natural question templates per field (LLM can use or rephrase naturally)
 export const FIELD_QUESTION_TEMPLATES = {
   primarySymptom:     'What is the main symptom you are experiencing today?',
   severity:           'On a scale from 0 to 10, where 0 is no discomfort and 10 is the worst you have felt, how severe is it right now?',
@@ -198,7 +180,6 @@ export const FIELD_QUESTION_TEMPLATES = {
   associatedSymptoms: 'Are you experiencing any other symptoms alongside this — such as nausea, fever, dizziness, or shortness of breath?',
 };
 
-// Interactive quick response options for mobile UI chips
 export const FIELD_QUICK_OPTIONS = {
   primarySymptom: [
     'Headache / Migraine',
@@ -264,20 +245,15 @@ export const FIELD_QUICK_OPTIONS = {
   ],
 };
 
-// Minimum fields required for completeness gate
 const REQUIRED_FIELDS = new Set(['severity', 'duration', 'onset', 'character']);
 
 export class SymptomPriorityService {
-  /**
-   * Intelligently extract symptom fields from user response text.
-   * Works across user typing, interactive chip clicks, and LLM failure states.
-   */
+
   extractSymptomFromText(text = '', pendingField = null, existingState = {}) {
     if (!text || typeof text !== 'string') return {};
     const lower = text.toLowerCase().trim();
     const extracted = {};
 
-    // 1. Primary symptom extraction
     if (!existingState.primarySymptom || pendingField === 'primarySymptom') {
       for (const { key, patterns } of SYMPTOM_KEYWORD_MAP) {
         if (patterns.some((p) => lower.includes(p))) {
@@ -287,7 +263,6 @@ export class SymptomPriorityService {
       }
     }
 
-    // 2. Severity extraction
     const numMatch = lower.match(/\b([0-9]|10)\s*(?:\/10|out of 10)?\b/);
     if (lower.includes('mild') || lower.includes('1 - 3') || lower.includes('1-3')) {
       extracted.severity = 2;
@@ -303,7 +278,6 @@ export class SymptomPriorityService {
       extracted.severity = parseInt(numMatch[1], 10);
     }
 
-    // 3. Duration extraction
     const durMatch = lower.match(/\b(\d+)\s*(days?|weeks?|months?|hours?|minutes?|years?)\b/);
     if (durMatch) {
       extracted.duration = `${durMatch[1]} ${durMatch[2]}`;
@@ -321,7 +295,6 @@ export class SymptomPriorityService {
       extracted.duration = text.trim();
     }
 
-    // 4. Onset extraction
     if (lower.includes('sudden') || lower.includes('abrupt') || lower.includes('all of a sudden') || lower.includes('fast')) {
       extracted.onset = 'sudden';
     } else if (lower.includes('gradual') || lower.includes('slowly') || lower.includes('over time')) {
@@ -330,7 +303,6 @@ export class SymptomPriorityService {
       extracted.onset = text.trim();
     }
 
-    // 5. Character extraction
     if (lower.includes('throb') || lower.includes('pound')) {
       extracted.character = 'throbbing';
     } else if (lower.includes('sharp') || lower.includes('stab')) {
@@ -345,7 +317,6 @@ export class SymptomPriorityService {
       extracted.character = text.trim();
     }
 
-    // 6. Location extraction
     if (pendingField === 'location' && text.length > 1 && text.length < 80) {
       extracted.location = text.trim();
     } else {
@@ -358,7 +329,6 @@ export class SymptomPriorityService {
       }
     }
 
-    // 7. Radiation extraction
     if (lower.includes('nowhere') || lower.includes('stays') || lower.includes('no radiation') || lower === 'no' || lower.startsWith('no,')) {
       extracted.radiation = 'none';
     } else if (lower.includes('arm') || lower.includes('jaw') || lower.includes('neck') || lower.includes('back') || lower.includes('leg') || lower.includes('shoulder')) {
@@ -368,7 +338,6 @@ export class SymptomPriorityService {
       extracted.radiation = text.trim();
     }
 
-    // 8. Aggravating & Relieving factors
     if (pendingField === 'aggravatingFactors' && text.length > 1 && text.length < 100) {
       extracted.aggravatingFactors = text.trim();
     }
@@ -376,16 +345,13 @@ export class SymptomPriorityService {
       extracted.relievingFactors = text.trim();
     }
 
-    // 9. If pendingField is set and no specific field was extracted yet, map direct answer if reasonable length
     if (pendingField && Object.keys(extracted).length === 0 && text.length > 1 && text.length < 90) {
       extracted[pendingField] = text.trim();
     }
 
     return extracted;
   }
-  /**
-   * Normalise the reported symptom name to a priority table key.
-   */
+
   normaliseSymptom(symptomName = '') {
     if (!symptomName) return 'default';
     const lower = symptomName.toLowerCase().trim();
@@ -395,20 +361,13 @@ export class SymptomPriorityService {
     return 'default';
   }
 
-  /**
-   * Get the ordered priority list for a symptom.
-   */
   getPriorityList(symptomName) {
     const key = this.normaliseSymptom(symptomName);
     return SYMPTOM_PRIORITY_TABLE[key] || SYMPTOM_PRIORITY_TABLE.default;
   }
 
-  /**
-   * Determine the next highest-priority uncollected field.
-   * Returns null when all high-priority fields have been collected (assessment complete).
-   */
   getNextField(symptomState = {}) {
-    // If we don't even know the primary symptom yet, that's the first question
+
     if (!symptomState.primarySymptom) return 'primarySymptom';
 
     const priorityList = this.getPriorityList(symptomState.primarySymptom);
@@ -420,13 +379,9 @@ export class SymptomPriorityService {
       if (isEmpty) return field;
     }
 
-    return null; // All fields collected — assessment complete
+    return null; 
   }
 
-  /**
-   * Check whether the required minimum fields have been collected
-   * (even if not all optional fields are done).
-   */
   isMinimumComplete(symptomState = {}) {
     if (!symptomState.primarySymptom) return false;
     return [...REQUIRED_FIELDS].every((f) => {
@@ -435,17 +390,10 @@ export class SymptomPriorityService {
     });
   }
 
-  /**
-   * Check whether all priority fields for this symptom have been collected.
-   */
   isFullyComplete(symptomState = {}) {
     return this.getNextField(symptomState) === null;
   }
 
-  /**
-   * Build the adaptive questioning instruction block for the system prompt.
-   * Tells the LLM exactly what to ask about in this turn.
-   */
   buildSymptomAssessmentBlock(symptomState = {}) {
     if (!symptomState || Object.keys(symptomState).length === 0) return '';
 
@@ -506,10 +454,6 @@ export class SymptomPriorityService {
     return lines.join('\n');
   }
 
-  /**
-   * Determine whether the current message is likely a symptom report
-   * (so we know whether to activate the symptom assessment flow).
-   */
   isSymptomReport(text = '') {
     const lower = text.toLowerCase();
     const symptomKeywords = [
@@ -521,10 +465,6 @@ export class SymptomPriorityService {
     return symptomKeywords.some((kw) => lower.includes(kw));
   }
 
-  /**
-   * Perform the final risk assessment once the symptom state is complete.
-   * Returns { riskLevel, triggeredRules, summary }
-   */
   assessRisk(symptomState = {}, patientContext = {}) {
     const rules = [];
     let riskLevel = 'low';
@@ -533,7 +473,6 @@ export class SymptomPriorityService {
     const conditions = (patientContext.activeConditions || []).map((c) => (c.name || '').toLowerCase());
     const meds = (patientContext.activeMedications || []).map((m) => (m.name || '').toLowerCase());
 
-    // Cardiac red flags
     if ((s.primarySymptom || '').toLowerCase().includes('chest')) {
       if (s.radiation && /arm|jaw|shoulder|back/i.test(String(s.radiation))) {
         riskLevel = 'high';
@@ -546,7 +485,6 @@ export class SymptomPriorityService {
       }
     }
 
-    // Neurological red flags
     if ((s.primarySymptom || '').toLowerCase().includes('head')) {
       if (s.onset && /sudden|thunder|worst.*life/i.test(String(s.onset))) {
         riskLevel = 'high';
@@ -559,14 +497,12 @@ export class SymptomPriorityService {
       }
     }
 
-    // Severity-based escalation
     const sev = Number(s.severity);
     if (sev >= 9) {
       if (riskLevel !== 'high') riskLevel = 'medium';
       rules.push(`very_high_severity_${sev} — clinical evaluation warranted`);
     }
 
-    // Chronic condition context
     if (conditions.some((c) => /diabet/i.test(c))) {
       if ((s.primarySymptom || '').toLowerCase().includes('chest')) {
         rules.push('diabetic_patient_with_chest_pain — atypical presentation possible');
@@ -574,7 +510,6 @@ export class SymptomPriorityService {
       }
     }
 
-    // Hypoglycemia check
     if (this.normaliseSymptom(s.primarySymptom) === 'hypoglycemia') {
       if (s.associatedSymptoms && Array.isArray(s.associatedSymptoms) && s.associatedSymptoms.some((sym) => /confus|faint|pass/i.test(sym))) {
         riskLevel = 'high';
@@ -585,7 +520,6 @@ export class SymptomPriorityService {
       }
     }
 
-    // Neuropathy check
     if (this.normaliseSymptom(s.primarySymptom) === 'diabetic_neuropathy') {
       if (s.associatedSymptoms && Array.isArray(s.associatedSymptoms) && s.associatedSymptoms.some((sym) => /ulcer|wound|black|color/i.test(sym))) {
         riskLevel = 'high';
@@ -609,3 +543,4 @@ export class SymptomPriorityService {
 }
 
 export default SymptomPriorityService;
+

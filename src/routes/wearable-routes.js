@@ -76,9 +76,6 @@ export function createWearableRouter(controller, jwtSecret) {
   router.get('/sync-logs', asyncHandler((request, response) =>
     controller.getSyncLogs(request, response)));
 
-  // Apple Health XML import: accepts raw binary XML bodies (application/xml or
-  // application/octet-stream). For large exports the service delegates to the
-  // Open Wearables S3 multipart API automatically.
   router.post(
     '/import/apple/xml',
     express.raw({ type: '*/*', limit: '500mb' }),

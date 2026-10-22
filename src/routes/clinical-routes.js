@@ -1,17 +1,7 @@
 import { Router } from 'express';
 import { requireAuthentication } from '../middleware/authentication.js';
 import { globalCache } from '../cache/cache-manager.js';
-import { logger } from '../logger.js';
-
-function tagLogger(tag) {
-  return (req, _res, next) => {
-    logger.info(`[${tag}] ${req.method} ${req.baseUrl || ''}${req.path}`, {
-      memberId: req.memberId,
-      params: req.params,
-    });
-    next();
-  };
-}
+import { tagLogger } from '../middleware/tag-logger.js';
 
 export function createClinicalRouter({
   jwtSecret,
@@ -22,7 +12,7 @@ export function createClinicalRouter({
 }) {
   const router = Router();
   const auth = authMiddleware || requireAuthentication(jwtSecret, memberRepo);
-  const consent = consentMiddleware || ((req, res, next) => next());
+  const consent = consentMiddleware || ((_req, _res, next) => next());
 
   router.get(
     '/patients/:patientId',
@@ -40,13 +30,7 @@ export function createClinicalRouter({
     clinicalController.updateProfile
   );
   router.get(
-    '/patients/:patientId/summary-pdf',
-    auth,
-    tagLogger('TAG: SUMMARY_PDF'),
-    clinicalController.getSummaryPdf
-  );
-  router.get(
-    '/summary/pdf',
+    ['/patients/:patientId/summary-pdf', '/summary/pdf'],
     auth,
     tagLogger('TAG: SUMMARY_PDF'),
     clinicalController.getSummaryPdf
@@ -140,13 +124,7 @@ export function createClinicalRouter({
   );
 
   router.post(
-    '/consents',
-    auth,
-    tagLogger('TAG: CONSENTS'),
-    clinicalController.setConsent
-  );
-  router.post(
-    '/consents/:scope',
+    ['/consents', '/consents/:scope'],
     auth,
     tagLogger('TAG: CONSENTS'),
     clinicalController.setConsent

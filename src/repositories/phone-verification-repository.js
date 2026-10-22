@@ -101,7 +101,7 @@ export class PhoneVerificationRepository {
     return newSession;
   }
 
-  async findPendingSession(phoneE164, forUpdate = false) {
+  async findPendingSession(phoneE164) {
     if (this.pool?.query) {
       const res = await this.pool.query(
         `SELECT id, member_id AS "memberId", phone_e164 AS "phoneE164", status, verify_attempts AS "verifyAttempts", max_verify_attempts AS "maxVerifyAttempts", expires_at AS "expiresAt", created_at AS "createdAt" FROM phone_verification_sessions WHERE phone_e164 = $1 AND status = 'pending'`,
@@ -117,21 +117,13 @@ export class PhoneVerificationRepository {
 
   async recordFailedAttempt(sessionId, newStatus = null) {
     if (this.pool?.query) {
-      if (newStatus) {
-        await this.pool.query(
-          `UPDATE phone_verification_sessions
-           SET verify_attempts = verify_attempts + 1, status = $2
-           WHERE id = $1`,
-          [sessionId, newStatus],
-        );
-      } else {
-        await this.pool.query(
-          `UPDATE phone_verification_sessions
-           SET verify_attempts = verify_attempts + 1
-           WHERE id = $1`,
-          [sessionId],
-        );
-      }
+      await this.pool.query(
+        `UPDATE phone_verification_sessions
+         SET verify_attempts = verify_attempts + 1,
+             status = COALESCE($2, status)
+         WHERE id = $1`,
+        [sessionId, newStatus],
+      );
     }
     for (const [, s] of this._sessions) {
       if (s.id === sessionId) {
@@ -143,7 +135,7 @@ export class PhoneVerificationRepository {
     return null;
   }
 
-  async completeVerification(sessionId, phoneE164, memberId = null) {
+  async completeVerification(sessionId, phoneE164) {
     return withTransaction(this.pool, async (client) => {
       if (client?.query) {
         await client.query(
@@ -167,8 +159,8 @@ export class PhoneVerificationRepository {
            phone_verified    = true,
            phone_verified_at = now(),
            status            = 'active',
-            deletion_at       = NULL,
-            deletion_reason   = NULL,
+           deletion_at       = NULL,
+           deletion_reason   = NULL,
            health_consent_at = COALESCE(members.health_consent_at, now()),
            health_consent_version = COALESCE(members.health_consent_version, '1.0'),
            updated_at = now()

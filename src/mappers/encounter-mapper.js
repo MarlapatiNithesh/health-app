@@ -41,7 +41,6 @@ export class EncounterMapper {
     const parsed = typeof state === 'string' ? JSON.parse(state) : state;
     if (!parsed || typeof parsed !== 'object') return null;
 
-    // Preserve ALL fields from the stored symptom state — the ChatService needs them all
     const dto = {
       primarySymptom: parsed.primarySymptom || parsed.primary_symptom ||
         (Array.isArray(parsed.symptoms) && parsed.symptoms[0]?.name ? parsed.symptoms[0].name : null),
@@ -56,13 +55,12 @@ export class EncounterMapper {
       associatedSymptoms: Array.isArray(parsed.associatedSymptoms)
         ? parsed.associatedSymptoms
         : (Array.isArray(parsed.symptoms) && parsed.symptoms.length > 0 ? parsed.symptoms : null),
-      // Risk assessment tracking fields
+
       riskAssessed: parsed.riskAssessed || false,
       riskLevel: parsed.riskLevel || null,
       triggeredRules: Array.isArray(parsed.triggeredRules) ? parsed.triggeredRules : [],
     };
 
-    // Return only non-null, non-undefined fields (except riskAssessed which can be false)
     const clean = {};
     for (const [k, v] of Object.entries(dto)) {
       if (k === 'riskAssessed') { clean[k] = Boolean(v); continue; }
@@ -100,3 +98,4 @@ export class EncounterMapper {
     };
   }
 }
+

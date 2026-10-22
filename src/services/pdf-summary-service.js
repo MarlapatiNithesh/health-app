@@ -10,11 +10,6 @@ export class PdfSummaryService {
     this.documentRepo = documentRepo;
   }
 
-  /**
-   * Generates a comprehensive Health Summary PDF buffer for a patient.
-   * @param {string} patientId - Patient / Member UUID
-   * @returns {Promise<{ buffer: Buffer, filename: string, patientName: string }>}
-   */
   async generateSummaryPdf(patientId) {
     const [patient, member, conditions, medications, allergies, labs, encounters, documents, recentSamples] =
       await Promise.all([
@@ -38,7 +33,6 @@ export class PdfSummaryService {
     const lifestyle = patient?.lifestyle || {};
     const goals = Array.isArray(patient?.goals) ? patient.goals : [];
 
-    // Aggregate latest biometric telemetry vitals from health sensors / timeseries
     const latestVitals = {};
     if (Array.isArray(recentSamples)) {
       for (const sample of recentSamples) {
@@ -91,10 +85,8 @@ export class PdfSummaryService {
         });
         doc.on('error', (err) => reject(err));
 
-        // 1. TOP HEADER BANNER
         this.#drawHeader(doc, reportDate);
 
-        // 2. PATIENT DEMOGRAPHICS BOX
         this.#drawDemographics(doc, {
           patientName,
           patientId,
@@ -106,31 +98,22 @@ export class PdfSummaryService {
           healthScore,
         });
 
-        // 3. EXECUTIVE HEALTH & LIFESTYLE SUMMARY (Dynamic Non-overlapping)
         this.#drawExecutiveSummary(doc, { lifestyle, goals });
 
-        // 4. ACTIVE DIAGNOSES & CHRONIC CONDITIONS
         this.#drawConditionsSection(doc, conditions);
 
-        // 5. CURRENT MEDICATIONS
         this.#drawMedicationsSection(doc, medications);
 
-        // 6. DOCUMENTED ALLERGIES
         this.#drawAllergiesSection(doc, allergies);
 
-        // 7. HIGHLIGHTS FROM LAB PANELS & TESTS
         this.#drawLabsSection(doc, labs);
 
-        // 8. VITAL SIGNS & WEARABLES TELEMETRY
         this.#drawVitalsSection(doc, latestVitals);
 
-        // 9. MEDICAL RECORDS & VAULT DOCUMENTS
         this.#drawDocumentsSection(doc, documents);
 
-        // 10. RECENT CONSULTATIONS & ENCOUNTERS
         this.#drawEncountersSection(doc, encounters);
 
-        // Apply footers to all buffered pages BEFORE finalizing
         const range = doc.bufferedPageRange();
         for (let i = range.start; i < range.start + range.count; i++) {
           doc.switchToPage(i);
@@ -177,7 +160,6 @@ export class PdfSummaryService {
     doc.font('Helvetica-Bold').fillColor('#334155').text('Phone:', 220, y + 52, { lineBreak: false });
     doc.font('Helvetica').fillColor('#0f172a').text(data.phone, 285, y + 52, { lineBreak: false });
 
-    // Health Score Badge
     doc.roundedRect(415, y + 10, 125, 52, 6).fillAndStroke('#ecfdf5', '#a7f3d0');
     doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#065f46').text('WELLNESS HEALTH SCORE', 418, y + 16, { align: 'center', width: 119, lineBreak: false });
     doc.font('Helvetica-Bold').fontSize(16).fillColor('#047857').text(`${data.healthScore} / 100`, 418, y + 26, { align: 'center', width: 119, lineBreak: false });
@@ -592,3 +574,4 @@ export class PdfSummaryService {
     doc.text(`Page ${pageNum} of ${totalPages}`, 470, 792, { align: 'right', width: 85, lineBreak: false });
   }
 }
+

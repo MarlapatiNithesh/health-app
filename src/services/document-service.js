@@ -107,7 +107,7 @@ export class DocumentService {
     const lowerText = (text || '').toLowerCase();
     const lowerName = (filename || '').toLowerCase();
 
-    // 1. Imaging / Radiology / Scans
+
     const imagingKeywords = [
       'x-ray', 'xray', 'mri', 'ct scan', 'computed tomography', 'magnetic resonance',
       'ultrasound', 'sonography', 'radiology', 'radiologist', 'mammogram',
@@ -118,7 +118,7 @@ export class DocumentService {
       return 'imaging';
     }
 
-    // 2. Discharge Summary / Inpatient Admission
+
     const dischargeKeywords = [
       'discharge summary', 'discharge card', 'discharge advice', 'date of admission',
       'date of discharge', 'hospital course', 'condition on discharge', 'inpatient summary',
@@ -128,7 +128,7 @@ export class DocumentService {
       return 'discharge_summary';
     }
 
-    // 3. Laboratory / Blood Reports
+
     const labKeywords = [
       'lab report', 'laboratory', 'pathology', 'biochemistry', 'hematology',
       'lipid profile', 'complete blood count', 'cbc', 'urine analysis',
@@ -141,7 +141,7 @@ export class DocumentService {
       return 'lab_report';
     }
 
-    // 4. Doctor Prescription (default medical consultation)
+
     const rxKeywords = [
       'prescription', 'rx', 'prescribed', 'take once daily', 'dosage',
       'doctor', 'clinic', 'tablet', 'capsule', 'syrup', 'opd', 'dispense'
@@ -407,66 +407,12 @@ export class DocumentService {
       await this.documentRepo.saveExtractedFields(documentId, patientId, fields, provenance?.id);
     }
 
-    // Auto-commit all extracted fields directly to permanent Patient 360 chart
+
     for (const f of fields) {
       await this.#commitFieldToClinicalRecords(patientId, documentId, f, provenance?.id, fields).catch(() => {});
     }
 
-    // Record clinical encounter for this document
-    try {
-      const doctorField = fields.find((f) => f.fieldName === 'doctor_name');
-      const hospitalField = fields.find((f) => f.fieldName === 'hospital_name');
-      const dateField = fields.find((f) => f.fieldName === 'date');
-      const findingFields = fields
-        .filter((f) => (f.fieldName === 'diagnosis' || f.fieldName === 'clinical_finding') && !/(?:bpm|spo2|temp|weight)/i.test(f.normalizedValue || f.rawValue || ''))
-        .map((f) => f.normalizedValue || f.rawValue);
-
-      const doctorName = doctorField?.normalizedValue || doctorField?.rawValue;
-      const hospitalName = hospitalField?.normalizedValue || hospitalField?.rawValue;
-      const docDate = dateField?.normalizedValue || dateField?.rawValue;
-
-      const summary = doctorName && hospitalName
-        ? `${doctorName} • ${hospitalName}`
-        : doctorName
-        ? `${doctorName} Consultation`
-        : hospitalName
-        ? `${hospitalName} Visit`
-        : `Clinical Prescription • ${filename || 'Document'}`;
-
-      const primarySymptom = findingFields.length > 0 ? findingFields.join(', ') : 'Clinical consultation & prescription review';
-
-      const pool = this.clinicalRepo?.pool || this.documentRepo?.pool;
-      if (pool) {
-        const existing = await pool.query(
-          "SELECT id FROM chat_sessions WHERE symptom_state->>'documentId' = $1",
-          [documentId]
-        );
-        if (existing.rows.length === 0) {
-          const parsedDate = docDate && !isNaN(Date.parse(docDate)) ? new Date(docDate) : new Date();
-          await pool.query(
-            `INSERT INTO chat_sessions (
-              patient_id, intent, risk_level, status, summary, symptom_state, started_at
-            ) VALUES ($1, 'record_query', 'low', 'complete', $2, $3, $4)`,
-            [
-              patientId,
-              summary,
-              JSON.stringify({
-                documentId,
-                doctorName,
-                facility: hospitalName,
-                date: docDate,
-                primarySymptom,
-                diagnoses: findingFields,
-                source: 'Prescription document upload',
-              }),
-              parsedDate,
-            ]
-          );
-        }
-      }
-    } catch (encErr) {
-      logger.warn('Failed to record document clinical encounter', { error: encErr?.message });
-    }
+    await this.#recordDocumentEncounter(patientId, documentId, fields, filename);
 
     if (this.documentRepo?.updateExtractionStatus) {
       await this.documentRepo.updateExtractionStatus(documentId, 'done').catch(() => {});
@@ -521,7 +467,7 @@ export class DocumentService {
   async #extractEntities(text) {
     if (!text || typeof text !== 'string') return [];
 
-    // 1. Multimodal / Generative clinical extraction via Gemini
+
     if (this.geminiClient?.apiKey) {
       try {
         const prompt = [
@@ -600,7 +546,7 @@ ${text}`
 
     const entities = [];
 
-    // Parse markdown table rows for lab reports: | Test | Value | Unit | Reference |
+
     const tableRowRegex = /\|\s*([^|\r\n]+?)\s*\|\s*(\d+(?:\.\d+)?)\s*\|\s*([^|\r\n]*?)\s*\|\s*([^|\r\n]*?)\s*\|/g;
     let tableMatch;
     while ((tableMatch = tableRowRegex.exec(text)) !== null) {
@@ -744,7 +690,7 @@ ${text}`
       }
     }
 
-    // Allergy entity extraction via regex and clinical allergen catalog
+
     const ALLERGY_REGEX = /\b(?:allerg(?:y|ies)|allergic\s+to|known\s+allerg(?:y|ies))[:\s]+([A-Za-z0-9\s,\/\-]+?)(?:\.|\n|$|;)/gi;
     let algMatch;
     while ((algMatch = ALLERGY_REGEX.exec(text)) !== null) {
@@ -945,7 +891,7 @@ ${text}`
         });
       }
     } catch {
-      // Fallback if provenance creation encounters a non-fatal constraint
+
     }
 
     const allExtractions = doc.extractions || [];
@@ -960,13 +906,30 @@ ${text}`
       await this.#commitFieldToClinicalRecords(patientId, documentId, f, provenance?.id, allExtractions);
     }
 
-    // Automatically record clinical document encounter if not already recorded
+    await this.#recordDocumentEncounter(patientId, documentId, allExtractions, doc.originalFilename);
+
+    if (this.documentRepo?.updateExtractionStatus) {
+      await this.documentRepo.updateExtractionStatus(documentId, 'done').catch(() => {});
+    }
+
+    return {
+      committed: fieldsToCommit.length,
+      documentId,
+      status: 'done',
+      message: fieldsToCommit.length > 0
+        ? `Successfully committed ${fieldsToCommit.length} extracted field(s) to patient chart.`
+        : 'Document confirmed and marked completed.',
+    };
+  }
+
+
+  async #recordDocumentEncounter(patientId, documentId, fields, filename) {
     try {
-      const doctorField = allExtractions.find((f) => f.fieldName === 'doctor_name');
-      const hospitalField = allExtractions.find((f) => f.fieldName === 'hospital_name');
-      const dateField = allExtractions.find((f) => f.fieldName === 'date');
-      const findingFields = allExtractions
-        .filter((f) => f.fieldName === 'clinical_finding' && !/(?:bpm|spo2|temp|weight)/i.test(f.normalizedValue || f.rawValue || ''))
+      const doctorField = fields.find((f) => f.fieldName === 'doctor_name');
+      const hospitalField = fields.find((f) => f.fieldName === 'hospital_name');
+      const dateField = fields.find((f) => f.fieldName === 'date');
+      const findingFields = fields
+        .filter((f) => (f.fieldName === 'diagnosis' || f.fieldName === 'clinical_finding') && !/(?:bpm|spo2|temp|weight)/i.test(f.normalizedValue || f.rawValue || ''))
         .map((f) => f.normalizedValue || f.rawValue);
 
       const doctorName = doctorField?.normalizedValue || doctorField?.rawValue;
@@ -979,7 +942,7 @@ ${text}`
         ? `${doctorName} Consultation`
         : hospitalName
         ? `${hospitalName} Visit`
-        : `Clinical Prescription • ${doc.originalFilename || 'Document'}`;
+        : `Clinical Prescription • ${filename || 'Document'}`;
 
       const primarySymptom = findingFields.length > 0 ? findingFields.join(', ') : 'Clinical consultation & prescription review';
 
@@ -1015,21 +978,5 @@ ${text}`
     } catch (encErr) {
       logger.warn('Failed to record document clinical encounter', { error: encErr?.message });
     }
-
-    if (this.documentRepo?.updateExtractionStatus) {
-      await this.documentRepo.updateExtractionStatus(documentId, 'done').catch(() => {});
-    }
-
-    return {
-      committed: fieldsToCommit.length,
-      documentId,
-      status: 'done',
-      message: fieldsToCommit.length > 0
-        ? `Successfully committed ${fieldsToCommit.length} extracted field(s) to patient chart.`
-        : 'Document confirmed and marked completed.',
-    };
   }
 }
-
-export const DocumentProcessorService = DocumentService;
-export default DocumentService;

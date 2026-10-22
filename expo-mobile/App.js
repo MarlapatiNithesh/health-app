@@ -28,27 +28,31 @@ import {
 import { uploadHealth } from './health/uploader';
 import * as ble from './health/bleService';
 
-// ─── Config ──────────────────────────────────────────────────────────────────
-// Resolve the Metro development host IP dynamically so physical devices and emulators
-// connect directly to the dev server without falling back or throwing ERR_CONNECTION_REFUSED.
-const CURRENT_LAN_IP = '192.168.1.36';
-
-const sanitizeDevUrl = (url) => {
-  if (!url) return null;
-  return url
-    .replace('10.234.64.242', CURRENT_LAN_IP)
-    .replace('10.234.64.112', CURRENT_LAN_IP)
-    .replace('192.168.1.41', CURRENT_LAN_IP)
-    .replace('192.168.1.38', CURRENT_LAN_IP);
+const extractHost = (val) => {
+  if (!val || typeof val !== 'string') return null;
+  const match = val.match(/^https?:\/\/([^:/]+)/) || val.match(/^([^:/]+)/);
+  const host = match ? match[1] : null;
+  return host && host !== 'localhost' && host !== '127.0.0.1' && host !== '0.0.0.0' ? host : null;
 };
 
 const getDevServerHost = () => {
   try {
-    const scriptURL = NativeModules?.SourceCode?.scriptURL;
-    if (!scriptURL) return null;
-    const match = scriptURL.match(/^https?:\/\/([^:/]+)/);
-    const host = match ? match[1] : null;
-    return host && host !== 'localhost' && host !== '127.0.0.1' ? host : null;
+    const fromPlatform = extractHost(Platform?.constants?.ServerHost) ||
+                         extractHost(NativeModules?.PlatformConstants?.ServerHost);
+    if (fromPlatform) return fromPlatform;
+
+    const fromScript = extractHost(NativeModules?.SourceCode?.scriptURL);
+    if (fromScript) return fromScript;
+
+    const fromDev = extractHost(NativeModules?.DevSettings?.reloadWithLauncherUrl);
+    if (fromDev) return fromDev;
+
+    const expoConstants = NativeModules?.ExponentConstants;
+    const manifest = expoConstants?.manifest || expoConstants?.manifest2;
+    const fromManifest = extractHost(manifest?.debuggerHost || manifest?.extra?.expoClient?.hostUri || manifest?.extra?.expoGo?.debuggerHost);
+    if (fromManifest) return fromManifest;
+
+    return null;
   } catch {
     return null;
   }
@@ -73,28 +77,23 @@ const ALL_HEALTH_METRICS = [
 
 const buildCandidates = () => {
   const devHost = getDevServerHost();
-  const envWebUrl = sanitizeDevUrl(process.env.EXPO_PUBLIC_WEB_URL);
-  const envApiUrl = sanitizeDevUrl(process.env.EXPO_PUBLIC_API_URL);
+  const devMachineIp = process.env.EXPO_PUBLIC_DEV_MACHINE_IP;
+  const envWebUrl = process.env.EXPO_PUBLIC_WEB_URL;
+  const envApiUrl = process.env.EXPO_PUBLIC_API_URL;
   const envApiWebUrl = envApiUrl ? `${envApiUrl.replace(/\/+$/, '')}/app/` : null;
 
   const list = [
-    // 1. Dynamic Metro dev host if detected from scriptURL
     devHost ? `http://${devHost}:4000/app/` : null,
-    // 2. USB cable with adb reverse tcp:4000 tcp:4000
+    devMachineIp && devMachineIp !== devHost && devMachineIp !== 'localhost' && devMachineIp !== '127.0.0.1'
+      ? `http://${devMachineIp}:4000/app/`
+      : null,
     isAndroid ? 'http://127.0.0.1:4000/app/' : null,
-    // 3. Active Wi-Fi LAN IP
-    `http://${CURRENT_LAN_IP}:4000/app/`,
-    // 4. Environment URLs (sanitized)
+    isAndroid ? 'http://10.0.2.2:4000/app/' : null,
+    'http://127.0.0.1:4000/app/',
+    'http://localhost:4000/app/',
     envWebUrl,
     envApiWebUrl,
   ];
-
-  if (isAndroid) {
-    list.push('http://10.0.2.2:4000/app/');
-    list.push('http://localhost:4000/app/');
-  } else {
-    list.push('http://127.0.0.1:4000/app/', 'http://localhost:4000/app/');
-  }
 
   return Array.from(new Set(list.filter(Boolean)));
 };
@@ -102,10 +101,13 @@ const buildCandidates = () => {
 const URL_CANDIDATES = buildCandidates();
 const WEB_URL = URL_CANDIDATES[0];
 const initialDevHost = getDevServerHost();
-const rawApiUrl = sanitizeDevUrl(process.env.EXPO_PUBLIC_API_URL);
+const devMachineIp = process.env.EXPO_PUBLIC_DEV_MACHINE_IP;
+const rawApiUrl = process.env.EXPO_PUBLIC_API_URL ? process.env.EXPO_PUBLIC_API_URL.replace(/\/+$/, '') : null;
 const DEFAULT_API_HOST = initialDevHost
   ? `http://${initialDevHost}:4000`
-  : `http://${CURRENT_LAN_IP}:4000`;
+  : (devMachineIp && devMachineIp !== 'localhost' && devMachineIp !== '127.0.0.1'
+    ? `http://${devMachineIp}:4000`
+    : (isAndroid ? 'http://127.0.0.1:4000' : 'http://localhost:4000'));
 const API_URL = rawApiUrl || DEFAULT_API_HOST;
 const SYNC_EVERY_MS = 5 * 60 * 1000; // foreground refresh; native OS SDK schedules background work
 const memberStorageKey = (name, memberId) => {
@@ -742,8 +744,8 @@ function Shell() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
-      {/* Light status bar to match the web app's #F8FAFC background */}
-      <StatusBar style="dark" backgroundColor="#F8FAFC" />
+      {/* Dark status bar to match Fitsure dark obsidian theme (#050811) */}
+      <StatusBar style="light" backgroundColor="#050811" />
       <View style={styles.flex}>
         <WebView
           key={webKey}
@@ -840,15 +842,15 @@ function Shell() {
 
         {loading && !failed && (
           <View style={styles.overlay}>
-            <ActivityIndicator size="large" color="#00A8D0" />
-            <Text style={styles.overlayTitle}>Loading GOQii Health…</Text>
+            <ActivityIndicator size="large" color="#06B6D4" />
+            <Text style={styles.overlayTitle}>Loading Fitsure…</Text>
           </View>
         )}
 
         {failed && (
           <View style={styles.overlay}>
-            <ActivityIndicator size="large" color="#00A8D0" />
-            <Text style={styles.overlayTitle}>Connecting to GOQii Health…</Text>
+            <ActivityIndicator size="large" color="#06B6D4" />
+            <Text style={styles.overlayTitle}>Connecting to Fitsure…</Text>
             <TouchableOpacity style={styles.retryBtn} onPress={() => { setFailed(false); setUrlIndex(0); setWebKey((k) => k + 1); }}>
               <Text style={styles.retryBtnText}>Retry Connection</Text>
             </TouchableOpacity>
@@ -870,43 +872,43 @@ export default function App() {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#F8FAFC' },
+  root: { flex: 1, backgroundColor: '#050811' },
   flex: { flex: 1 },
-  web: { flex: 1, backgroundColor: '#F8FAFC' },
+  web: { flex: 1, backgroundColor: '#050811' },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#050811',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
   },
   overlayTitle: {
-    color: '#0B1220',
+    color: '#F1F5F9',
     fontSize: 18,
     fontWeight: '700',
     marginTop: 16,
     textAlign: 'center',
   },
   overlaySub: {
-    color: '#6B7A90',
+    color: '#94A3B8',
     fontSize: 12,
     marginTop: 6,
     textAlign: 'center',
   },
   retryBtn: {
-    backgroundColor: '#00A8D0',
+    backgroundColor: '#06B6D4',
     borderRadius: 14,
     paddingHorizontal: 32,
     paddingVertical: 14,
     marginTop: 20,
-    shadowColor: '#00A8D0',
+    shadowColor: '#06B6D4',
     shadowOpacity: 0.3,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
   retryBtnText: {
-    color: '#fff',
+    color: '#050811',
     fontWeight: '800',
     fontSize: 15,
   },

@@ -58,7 +58,6 @@ export class TimeseriesRepository {
       return { inserted: 0, updated: 0, accepted: 0, duplicates: rawRows.length };
     }
 
-    // 1. Intra-batch deduplication
     const dedupedMap = new Map();
     for (const row of mapped) {
       let key;
@@ -101,7 +100,6 @@ export class TimeseriesRepository {
       const chunkDailyMetrics = Array.from(new Set(chunk.filter((r) => r.aggregation === 'daily_total').map((r) => r.metricType)));
       const chunkDailyDates = Array.from(new Set(chunk.filter((r) => r.aggregation === 'daily_total').map((r) => r.recordedAt.split('T')[0])));
 
-      // Query database for existing rows that could match candidate rows
       const existingBySourceId = new Map();
       const existingByDailyKey = new Map();
 
@@ -157,17 +155,10 @@ export class TimeseriesRepository {
         if (matchedExisting) {
           const isSameValue = Math.abs(Number(matchedExisting.value) - Number(row.value)) < 0.0001;
           if (isSameValue) {
-            // STOP! Incoming data is identical to existing/previous sync data
             skippedDuplicates++;
             continue;
           }
 
-          // Cumulative daily metrics (steps, calories, distance, active energy burned):
-          // If the incoming sample is from the SAME provider or matches source_record_id,
-          // it is an authoritative refresh of today's total from that device/provider.
-          // ALWAYS update the existing record with the fresh reading.
-          // Only skip if a DIFFERENT provider attempts to overwrite a higher reading.
-          const isCumulative = row.aggregation === 'daily_total' || ['steps', 'calories', 'distance', 'active_energy_burned'].includes(row.metricType);
           const isSameProvider = matchedExisting.provider === row.provider;
           const isSameSourceRecord = Boolean(row.sourceRecordId && matchedExisting.source_record_id === row.sourceRecordId);
           const isCrossProviderDowngrade = !isSameProvider && !isSameSourceRecord && (Number(row.value) <= Number(matchedExisting.value));
@@ -176,7 +167,6 @@ export class TimeseriesRepository {
             continue;
           }
 
-          // Value has improved: Update existing record in-place
           await client.query(
             `UPDATE timeseries
              SET value = $1,
@@ -212,7 +202,6 @@ export class TimeseriesRepository {
         continue;
       }
 
-      // Insert new rows with savepoint protection against race conditions
       for (const row of rowsToInsert) {
         let savepointActive = false;
         try {
@@ -273,7 +262,6 @@ export class TimeseriesRepository {
             await client.query('ROLLBACK TO SAVEPOINT ts_ins_savepoint').catch(() => {});
           }
           if (err.code === '23505') {
-            // Concurrent race duplicate caught by database unique index
             skippedDuplicates++;
           } else {
             throw err;

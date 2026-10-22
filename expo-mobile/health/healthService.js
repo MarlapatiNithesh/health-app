@@ -469,8 +469,11 @@ export async function readToday(requested = []) {
     return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
   };
   const latestExternalId = (samples, metric) => {
-    const uuid = samples?.[0]?.uuid;
-    return uuid ? `${SOURCE}-${metric}-${uuid}` : null;
+    const s = samples?.[0];
+    if (!s) return null;
+    const recAt = latestRecordedAt(samples);
+    const id = s.uuid || s.id || s.metadata?.id || (recAt ? recAt.replace(/[:.]/g, '-') : null);
+    return id ? `${SOURCE}-${metric}-${id}` : null;
   };
   const sameSampleTime = (left, right) => {
     const leftTime = left?.[0]?.startDate ? new Date(left[0].startDate).getTime() : (left?.[0]?.endDate ? new Date(left[0].endDate).getTime() : NaN);
@@ -518,25 +521,40 @@ export async function readToday(requested = []) {
     weightRecordedAt: latestRecordedAt(weightSamples),
     weightExternalId: latestExternalId(weightSamples, 'weight'),
     sleepMinutes: calcSleepMinutes(sleepSamples),
-    // Full intraday timeline of all heart rate readings for today
-    heartRateSamples: (hrSamplesToday && hrSamplesToday.length > 0 ? hrSamplesToday : hrSamples).map((s) => ({
-      value: Math.round(Number(s.value)),
-      recordedAt: latestRecordedAt([s]),
-      externalId: s.uuid ? `${SOURCE}-heart_rate-${s.uuid}` : null,
-    })).filter((s) => Number.isFinite(s.value) && s.value > 0),
+    // Full intraday timeline of all heart rate readings for today with unique timestamped IDs
+    heartRateSamples: (hrSamplesToday && hrSamplesToday.length > 0 ? hrSamplesToday : hrSamples).map((s) => {
+      const recAt = latestRecordedAt([s]);
+      const sampleId = s.uuid || s.id || s.metadata?.id || 'hr';
+      const timeKey = recAt ? recAt.replace(/[:.]/g, '-') : Math.random().toString(36).slice(2, 8);
+      return {
+        value: Math.round(Number(s.value)),
+        recordedAt: recAt,
+        externalId: `${SOURCE}-heart_rate-${sampleId}-${timeKey}`,
+      };
+    }).filter((s) => Number.isFinite(s.value) && s.value > 0 && s.recordedAt),
     // Full intraday timeline of all SpO2 readings for today
-    spo2Samples: (spo2SamplesToday && spo2SamplesToday.length > 0 ? spo2SamplesToday : spo2Samples).map((s) => ({
-      value: Math.round(Number(s.value) <= 1 ? Number(s.value) * 100 : Number(s.value)),
-      recordedAt: latestRecordedAt([s]),
-      externalId: s.uuid ? `${SOURCE}-spo2-${s.uuid}` : null,
-    })).filter((s) => Number.isFinite(s.value) && s.value > 0),
+    spo2Samples: (spo2SamplesToday && spo2SamplesToday.length > 0 ? spo2SamplesToday : spo2Samples).map((s) => {
+      const recAt = latestRecordedAt([s]);
+      const sampleId = s.uuid || s.id || s.metadata?.id || 'spo2';
+      const timeKey = recAt ? recAt.replace(/[:.]/g, '-') : Math.random().toString(36).slice(2, 8);
+      return {
+        value: Math.round(Number(s.value) <= 1 ? Number(s.value) * 100 : Number(s.value)),
+        recordedAt: recAt,
+        externalId: `${SOURCE}-spo2-${sampleId}-${timeKey}`,
+      };
+    }).filter((s) => Number.isFinite(s.value) && s.value > 0 && s.recordedAt),
     // Full intraday timeline of all blood pressure readings for today
-    bloodPressureSamples: (systolicSamplesToday && systolicSamplesToday.length > 0 ? systolicSamplesToday : systolicSamples).map((sys, idx) => ({
-      systolic: Number(sys.value),
-      diastolic: diastolicSamples?.[idx]?.value ? Number(diastolicSamples[idx].value) : null,
-      recordedAt: latestRecordedAt([sys]),
-      externalId: sys.uuid ? `${SOURCE}-bp-${sys.uuid}` : null,
-    })).filter((s) => Number.isFinite(s.systolic) && s.systolic > 0),
+    bloodPressureSamples: (systolicSamplesToday && systolicSamplesToday.length > 0 ? systolicSamplesToday : systolicSamples).map((sys, idx) => {
+      const recAt = latestRecordedAt([sys]);
+      const sampleId = sys.uuid || sys.id || sys.metadata?.id || 'bp';
+      const timeKey = recAt ? recAt.replace(/[:.]/g, '-') : Math.random().toString(36).slice(2, 8);
+      return {
+        systolic: Number(sys.value),
+        diastolic: diastolicSamples?.[idx]?.value ? Number(diastolicSamples[idx].value) : null,
+        recordedAt: recAt,
+        externalId: `${SOURCE}-bp-${sampleId}-${timeKey}`,
+      };
+    }).filter((s) => Number.isFinite(s.systolic) && s.systolic > 0 && s.recordedAt),
   };
 }
 
@@ -757,32 +775,41 @@ export function buildSamples(today, history, { stepProvider = SOURCE, stepDevice
         ...(stepDeviceId ? { deviceId: stepDeviceId } : {}),
       });
     }
-    return out;
   }
 
   const add = (metric, value, unit, sample = null) => {
     if (value == null || value <= 0) return;
     const isCumulative = ['calories', 'distance', 'sleep'].includes(metric);
+    const recAt = sample?.recordedAt || (isCumulative ? `${dayKey}T00:00:00.000Z` : now);
+    const defaultExtId = isCumulative
+      ? `${SOURCE}-${metric}-today-${dayKey}`
+      : `${SOURCE}-${metric}-${recAt.replace(/[:.]/g, '-')}`;
     out.push({
       provider: SOURCE,
       metric,
-      externalId: sample?.externalId || `${SOURCE}-${metric}-today-${dayKey}`,
+      externalId: sample?.externalId || defaultExtId,
       value: Number(value),
       unit,
       aggregation: isCumulative ? 'daily_total' : 'instant',
-      recordedAt: sample?.recordedAt || (isCumulative ? `${dayKey}T00:00:00.000Z` : now),
+      recordedAt: recAt,
     });
   };
-  add('calories', effectiveCalories, 'kcal');
-  add('distance', effectiveDistance, 'm');
+
+  if (stepProvider !== 'phone_pedometer') {
+    add('calories', effectiveCalories, 'kcal');
+    add('distance', effectiveDistance, 'm');
+  }
+
   // Upload full intraday timeline of heart rate readings
   if (Array.isArray(today.heartRateSamples) && today.heartRateSamples.length > 0) {
+    const seenHrTimes = new Set();
     for (const hr of today.heartRateSamples) {
-      if (hr.value > 0 && hr.recordedAt) {
+      if (hr.value > 0 && hr.recordedAt && !seenHrTimes.has(hr.recordedAt)) {
+        seenHrTimes.add(hr.recordedAt);
         out.push({
           provider: SOURCE,
           metric: 'heart_rate',
-          externalId: hr.externalId || `${SOURCE}-heart_rate-${hr.recordedAt}`,
+          externalId: hr.externalId || `${SOURCE}-heart_rate-${hr.recordedAt.replace(/[:.]/g, '-')}`,
           value: Number(hr.value),
           unit: 'bpm',
           aggregation: 'instant',
@@ -798,12 +825,14 @@ export function buildSamples(today, history, { stepProvider = SOURCE, stepDevice
 
   // Upload full intraday timeline of SpO2 readings
   if (Array.isArray(today.spo2Samples) && today.spo2Samples.length > 0) {
+    const seenSpo2Times = new Set();
     for (const sp of today.spo2Samples) {
-      if (sp.value > 0 && sp.recordedAt) {
+      if (sp.value > 0 && sp.recordedAt && !seenSpo2Times.has(sp.recordedAt)) {
+        seenSpo2Times.add(sp.recordedAt);
         out.push({
           provider: SOURCE,
           metric: 'spo2',
-          externalId: sp.externalId || `${SOURCE}-spo2-${sp.recordedAt}`,
+          externalId: sp.externalId || `${SOURCE}-spo2-${sp.recordedAt.replace(/[:.]/g, '-')}`,
           value: Number(sp.value),
           unit: '%',
           aggregation: 'instant',
@@ -820,12 +849,15 @@ export function buildSamples(today, history, { stepProvider = SOURCE, stepDevice
 
   // Upload full blood pressure readings
   if (Array.isArray(today.bloodPressureSamples) && today.bloodPressureSamples.length > 0) {
+    const seenBpTimes = new Set();
     for (const bp of today.bloodPressureSamples) {
-      if (bp.systolic > 0 && bp.recordedAt) {
+      if (bp.systolic > 0 && bp.recordedAt && !seenBpTimes.has(bp.recordedAt)) {
+        seenBpTimes.add(bp.recordedAt);
+        const timeKey = bp.recordedAt.replace(/[:.]/g, '-');
         out.push({
           provider: SOURCE,
           metric: 'blood_pressure_systolic',
-          externalId: bp.externalId ? `${bp.externalId}-sys` : `${SOURCE}-sys-${bp.recordedAt}`,
+          externalId: bp.externalId ? `${bp.externalId}-sys` : `${SOURCE}-sys-${timeKey}`,
           value: Number(bp.systolic),
           unit: 'mmHg',
           aggregation: 'instant',
@@ -835,7 +867,7 @@ export function buildSamples(today, history, { stepProvider = SOURCE, stepDevice
           out.push({
             provider: SOURCE,
             metric: 'blood_pressure_diastolic',
-            externalId: bp.externalId ? `${bp.externalId}-dia` : `${SOURCE}-dia-${bp.recordedAt}`,
+            externalId: bp.externalId ? `${bp.externalId}-dia` : `${SOURCE}-dia-${timeKey}`,
             value: Number(bp.diastolic),
             unit: 'mmHg',
             aggregation: 'instant',

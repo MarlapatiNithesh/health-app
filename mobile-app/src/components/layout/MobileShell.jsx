@@ -37,6 +37,13 @@ export function MobileShell({
 
   const firstName = member?.firstName || member?.fullName?.split(' ')[0] || 'Member';
 
+  const expoDevUrl = typeof window !== 'undefined'
+    ? `exp://${window.location.hostname || 'localhost'}:8081`
+    : 'exp://localhost:8081';
+  const directBrowserUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/`
+    : 'http://localhost:5173/';
+
   const copyUrl = (text) => {
     navigator.clipboard?.writeText(text);
     setCopied(true);
@@ -114,8 +121,8 @@ export function MobileShell({
                 <p className="text-[11px] text-slate-400 ml-3.5">
                   Scan QR with <b>Expo Go</b> on Android or Camera app on iPhone.
                 </p>
-                <div className="ml-3.5 mt-1 font-mono text-[10px] text-cyan-200 bg-slate-950/60 p-1 rounded border border-white/10">
-                  exp://192.168.1.43:8081
+                <div className="ml-3.5 mt-1 font-mono text-[10px] text-cyan-200 bg-slate-950/60 p-1 rounded border border-white/10 break-all select-all">
+                  {expoDevUrl}
                 </div>
               </div>
 
@@ -128,10 +135,10 @@ export function MobileShell({
                   Open Chrome / Safari on your phone (same Wi-Fi):
                 </p>
                 <div className="ml-3.5 mt-1 flex items-center justify-between font-mono text-[10px] text-slate-300 bg-slate-950/60 p-1.5 rounded border border-white/10">
-                  <span>http://10.81.228.214:5173/</span>
+                  <span className="truncate mr-1">{directBrowserUrl}</span>
                   <button 
-                    onClick={() => copyUrl('http://10.81.228.214:5173/')}
-                    className="text-cyan-400 hover:text-cyan-300 font-sans font-bold text-[10px] ml-2"
+                    onClick={() => copyUrl(directBrowserUrl)}
+                    className="text-cyan-400 hover:text-cyan-300 font-sans font-bold text-[10px] ml-2 shrink-0"
                   >
                     {copied ? 'Copied!' : 'Copy'}
                   </button>

@@ -1,13 +1,5 @@
 import { logger } from '../logger.js';
-import { ClinicalOrchestratorService } from './chat-service.js';
 
-/**
- * ProactiveMonitoringService
- * 
- * This service runs in the background (via cron or worker).
- * It scans patient context and deterministic rules to decide if a "Pro" 
- * proactive health ping should be generated for the patient.
- */
 export class ProactiveMonitoringService {
   constructor({ clinicalRepo, encounterRepo, llmService }) {
     this.clinicalRepo = clinicalRepo;
@@ -15,12 +7,9 @@ export class ProactiveMonitoringService {
     this.llmService = llmService;
   }
 
-  /**
-   * Run the nightly or hourly scan across a batch of patients.
-   */
   async runHealthScanForPatients(patientIds) {
     logger.info(`Starting Proactive Health Scan for ${patientIds.length} patients.`);
-    
+
     for (const patientId of patientIds) {
       try {
         await this.evaluatePatient(patientId);
@@ -30,13 +19,9 @@ export class ProactiveMonitoringService {
     }
   }
 
-  /**
-   * Evaluate a single patient against deterministic rules.
-   */
   async evaluatePatient(patientId) {
     const context = await this.clinicalRepo.getPatientContext(patientId);
-    
-    // Check patient conditions and profile
+
     const conditions = context.activeConditions || [];
     const meds = context.activeMedications || [];
     const labs = context.recentLabs || [];
@@ -46,7 +31,6 @@ export class ProactiveMonitoringService {
 
     const rulesTriggered = [];
 
-    // Rule 1: High HbA1c or Glucose Follow-up
     const recentHbA1c = labs.find((l) => /hba1c/i.test(l.name || l.testName));
     if (recentHbA1c) {
       const val = parseFloat(recentHbA1c.value);
@@ -58,7 +42,6 @@ export class ProactiveMonitoringService {
       }
     }
 
-    // Rule 2: Medication Adherence / Check-in
     const takesMetformin = meds.some((m) => /metformin/i.test(m.name));
     if (takesMetformin) {
       rulesTriggered.push({
@@ -75,7 +58,6 @@ export class ProactiveMonitoringService {
       });
     }
 
-    // Rule 3: General Chronic Care Wellness Follow-up
     if (rulesTriggered.length === 0 && (isDiabetic || isHypertensive || conditions.length > 0)) {
       const conditionName = conditions[0]?.name || 'active health management';
       rulesTriggered.push({
@@ -84,16 +66,12 @@ export class ProactiveMonitoringService {
       });
     }
 
-    // If rules triggered, generate a proactive ping using the LLM
     if (rulesTriggered.length > 0) {
       return await this.#generateAndDispatchPing(patientId, context, rulesTriggered);
     }
     return null;
   }
 
-  /**
-   * Retrieves latest recent ping from health_events, or evaluates immediately if none exists.
-   */
   async getLatestPingOrEvaluate(patientId) {
     if (typeof this.clinicalRepo.getRecentHealthEvents === 'function') {
       const recent = await this.clinicalRepo.getRecentHealthEvents(patientId, 'proactive_ping', 1);
@@ -110,9 +88,6 @@ export class ProactiveMonitoringService {
     return await this.evaluatePatient(patientId);
   }
 
-  /**
-   * Use the Medical LLM to draft a highly personalized, caring message.
-   */
   async #generateAndDispatchPing(patientId, context, rulesTriggered) {
     logger.info(`Generating proactive ping for ${patientId}`, { rules: rulesTriggered.map(r => r.type) });
     const patientName = context.patient?.fullName || 'there';
@@ -136,7 +111,7 @@ INSTRUCTIONS:
         messages,
         systemPrompt,
         tools: [],
-        requestedModel: 'medgamma' // Using HF MedGemma or Gemini router
+        requestedModel: 'medgamma' 
       });
       pingMessage = result.content;
     } catch (err) {
@@ -149,7 +124,6 @@ INSTRUCTIONS:
       pingMessage = `Hello ${patientName}! Dr. MediBot here with your proactive clinical check-in. How are you feeling with your health routines and energy today?`;
     }
 
-    // Persist this ping to the database as a Health Event
     const cleanSummary = pingMessage.trim().slice(0, 495);
     const event = await this.clinicalRepo.createHealthEvent(patientId, {
       eventType: 'proactive_ping',
@@ -169,3 +143,4 @@ INSTRUCTIONS:
     };
   }
 }
+

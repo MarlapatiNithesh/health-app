@@ -5,35 +5,91 @@
 //   Backend POST /v1/me/phone-health/sync expects: { samples: [...] }
 import { NativeModules, Platform } from 'react-native';
 
+const extractHost = (val) => {
+  if (!val || typeof val !== 'string') return null;
+  const match = val.match(/^https?:\/\/([^:/]+)/) || val.match(/^([^:/]+)/);
+  const host = match ? match[1] : null;
+  return host && host !== 'localhost' && host !== '127.0.0.1' && host !== '0.0.0.0' ? host : null;
+};
+
 const getDevServerHost = () => {
   try {
-    const scriptURL = NativeModules?.SourceCode?.scriptURL;
-    if (!scriptURL) return null;
-    const match = scriptURL.match(/^https?:\/\/([^:/]+)/);
-    return match ? match[1] : null;
+    const fromPlatform = extractHost(Platform?.constants?.ServerHost) ||
+                         extractHost(NativeModules?.PlatformConstants?.ServerHost);
+    if (fromPlatform) return fromPlatform;
+
+    const fromScript = extractHost(NativeModules?.SourceCode?.scriptURL);
+    if (fromScript) return fromScript;
+
+    const fromDev = extractHost(NativeModules?.DevSettings?.reloadWithLauncherUrl);
+    if (fromDev) return fromDev;
+
+    const expoConstants = NativeModules?.ExponentConstants;
+    const manifest = expoConstants?.manifest || expoConstants?.manifest2;
+    const fromManifest = extractHost(manifest?.debuggerHost || manifest?.extra?.expoClient?.hostUri || manifest?.extra?.expoGo?.debuggerHost);
+    if (fromManifest) return fromManifest;
+
+    return null;
   } catch {
     return null;
   }
 };
+
+// Cache the verified working backend host across sync calls so subsequent uploads connect instantly
+let cachedWorkingBase = null;
 
 async function call(apiBase, token, method, path, body, extraHeaders = {}) {
   const isAndroid = Platform.OS === 'android';
   const devHost = getDevServerHost();
   const validDevHost = devHost && devHost !== 'localhost' && devHost !== '127.0.0.1';
 
-  const CURRENT_LAN_IP = '192.168.1.36';
-  const candidates = Array.from(new Set([
-    validDevHost ? `http://${devHost}:4000` : null,
-    'http://127.0.0.1:4000',
-    `http://${CURRENT_LAN_IP}:4000`,
-    apiBase ? apiBase.replace('10.234.64.242', CURRENT_LAN_IP).replace('10.234.64.112', CURRENT_LAN_IP).replace('192.168.1.41', CURRENT_LAN_IP).replace('192.168.1.38', CURRENT_LAN_IP) : null,
-    'http://localhost:4000',
-    isAndroid ? 'http://10.0.2.2:4000' : null,
-  ].filter(Boolean)));
+  // Build host candidate list dynamically — NO HARDCODED LAN IPs
+  const candidateSet = new Set();
+
+  // 1. If we previously found a working base in this session, prioritize it
+  if (cachedWorkingBase) {
+    candidateSet.add(cachedWorkingBase);
+  }
+
+  // 2. Dynamic host where Metro served this app bundle (matches current Wi-Fi / hotspot automatically)
+  if (validDevHost) {
+    candidateSet.add(`http://${devHost}:4000`);
+  }
+
+  // 3. Auto-detected computer LAN IP (from sync-dev-ip.js, zero manual configuration)
+  const devMachineIp = process.env.EXPO_PUBLIC_DEV_MACHINE_IP;
+  if (devMachineIp && devMachineIp !== 'localhost' && devMachineIp !== '127.0.0.1') {
+    candidateSet.add(`http://${devMachineIp}:4000`);
+  }
+
+  // 4. Android USB reverse / direct ADB connection (1ms latency when USB is plugged in)
+  if (isAndroid) {
+    candidateSet.add('http://127.0.0.1:4000');
+  }
+
+  // 4. Clean caller-supplied apiBase (e.g. from environment or remote deployment)
+  if (apiBase && typeof apiBase === 'string') {
+    const clean = apiBase.trim().replace(/\/+$/, '');
+    if (clean) candidateSet.add(clean);
+  }
+
+  // 5. Android emulator loopback & standard local loopbacks
+  if (isAndroid) {
+    candidateSet.add('http://10.0.2.2:4000');
+  }
+  candidateSet.add('http://127.0.0.1:4000');
+  candidateSet.add('http://localhost:4000');
+
+  const candidates = Array.from(candidateSet);
 
   let lastErr = null;
   for (const base of candidates) {
+    let timerId = null;
     try {
+      const controller = new AbortController();
+      // Fast 4.5s timeout per candidate so unreachable IPs fail fast
+      timerId = setTimeout(() => controller.abort(), 4500);
+
       const res = await fetch(`${base}${path}`, {
         method,
         headers: {
@@ -42,15 +98,29 @@ async function call(apiBase, token, method, path, body, extraHeaders = {}) {
           ...extraHeaders,
         },
         body: JSON.stringify(body),
+        signal: controller.signal,
       });
+      if (timerId) clearTimeout(timerId);
+
       if (!res.ok) {
         const text = await res.text().catch(() => '');
         throw new Error(`${method} ${path} → ${res.status} ${text.slice(0, 300)}`);
       }
+
+      // Successfully connected! Cache this host for all subsequent requests
+      cachedWorkingBase = base;
       return await res.json().catch(() => ({}));
     } catch (err) {
+      if (timerId) clearTimeout(timerId);
       lastErr = err;
-      // If it returned an HTTP response status from the backend, don't try other hosts
+
+      // Invalidate cached base if it stopped working (e.g. network switch)
+      if (cachedWorkingBase === base) {
+        cachedWorkingBase = null;
+      }
+
+      // If the backend returned an explicit HTTP error status code (e.g. 400, 401, 404),
+      // the server is reachable and responded, so do NOT try other candidate hosts.
       if (err.message && err.message.includes('→')) {
         throw err;
       }

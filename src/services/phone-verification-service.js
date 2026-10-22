@@ -102,7 +102,7 @@ export class PhoneVerificationService {
           existingProfile = existing.profile || existing;
         }
       } catch (e) {
-        // ignore
+
       }
     }
 

@@ -1,13 +1,12 @@
 import { withTransaction } from '../database/pool.js';
 import { globalCache } from '../cache/cache-manager.js';
 import { PatientMapper, ClinicalRecordMapper, HealthEventMapper } from '../mappers/index.js';
+import { ensurePatientAndConsent } from './helpers.js';
 
 export class ClinicalRecordRepository {
   constructor(pool) {
     this.pool = pool;
   }
-
-  // ── Patients ──────────────────────────────────────────────────────────────
 
   async findPatientById(patientId, client = this.pool) {
     const res = await client.query(
@@ -28,14 +27,7 @@ export class ClinicalRecordRepository {
 
   async ensurePatient(memberId, initialData = {}) {
     return withTransaction(this.pool, async (client) => {
-      await client.query(
-        `UPDATE members
-            SET health_consent_at = COALESCE(health_consent_at, now()),
-                health_consent_version = COALESCE(health_consent_version, '1.0'),
-                updated_at = now()
-          WHERE id = $1`,
-        [memberId]
-      );
+      await ensurePatientAndConsent(client, memberId);
       const res = await client.query(
         `INSERT INTO patients (
           id, abha_id, mrn, sex_at_birth, blood_group, preferred_language,
@@ -59,8 +51,7 @@ export class ClinicalRecordRepository {
           JSON.stringify(initialData.goals ?? []),
         ]
       );
-      globalCache.invalidatePrefix(`patient:${memberId}`);
-      return res.rows[0]?.id;
+      return res.rows[0];
     });
   }
 
@@ -106,32 +97,20 @@ export class ClinicalRecordRepository {
     });
   }
 
-  // ── Provenance ────────────────────────────────────────────────────────────
-
-  async createProvenance({
-    sourceType,
-    documentId = null,
-    pageNumber = null,
-    extractionModel = null,
-    modelVersion = null,
-    confidence = null,
-  }) {
+  async createProvenance({ sourceType = 'document', documentId = null, pageNumber = null, extractionModel = null, modelVersion = null, confidence = null }) {
     return withTransaction(this.pool, async (client) => {
       const res = await client.query(
-        `INSERT INTO provenance (
-          source_type, document_id, page_number, extraction_model, model_version, confidence
-        ) VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING id, source_type AS "sourceType", source_date AS "sourceDate",
-                  document_id AS "documentId", page_number AS "pageNumber",
-                  extraction_model AS "extractionModel", model_version AS "modelVersion",
-                  confidence, created_at AS "createdAt"`,
+        `INSERT INTO provenance (source_type, document_id, page_number, extraction_model, model_version, confidence)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING id, source_type AS "sourceType",
+                   document_id AS "documentId", page_number AS "pageNumber",
+                   extraction_model AS "extractionModel", model_version AS "modelVersion",
+                   confidence, created_at AS "createdAt"`,
         [sourceType, documentId, pageNumber, extractionModel, modelVersion, confidence]
       );
       return res.rows[0];
     });
   }
-
-  // ── Consents ──────────────────────────────────────────────────────────────
 
   async getConsent(memberId, scope) {
     const res = await this.pool.query(
@@ -147,37 +126,26 @@ export class ClinicalRecordRepository {
   async setConsent(memberId, scope, granted) {
     return withTransaction(this.pool, async (client) => {
       if (granted) {
-        await client.query(
-          `UPDATE members
-              SET health_consent_at = COALESCE(health_consent_at, now()),
-                  health_consent_version = COALESCE(health_consent_version, '1.0'),
-                  updated_at = now()
-            WHERE id = $1`,
-          [memberId]
-        );
-        await client.query(
-          `INSERT INTO patients (id, preferred_language, units_system, privacy_level)
-           VALUES ($1, 'en-IN', 'metric', 'standard')
-           ON CONFLICT (id) DO NOTHING`,
-          [memberId]
-        );
+        await ensurePatientAndConsent(client, memberId);
       }
+
+      const upsertConsent = (s) => client.query(
+        `INSERT INTO member_consents (member_id, scope, granted, granted_at, revoked_at)
+         VALUES ($1, $2, $3, CASE WHEN $3 THEN now() ELSE NULL END, CASE WHEN NOT $3 THEN now() ELSE NULL END)
+         ON CONFLICT (member_id, scope) DO UPDATE SET
+           granted = EXCLUDED.granted,
+           granted_at = CASE WHEN EXCLUDED.granted THEN now() ELSE member_consents.granted_at END,
+           revoked_at = CASE WHEN NOT EXCLUDED.granted THEN now() ELSE NULL END
+         RETURNING id, member_id AS "memberId", scope, granted,
+                   granted_at AS "grantedAt", revoked_at AS "revokedAt"`,
+        [memberId, s, Boolean(granted)]
+      );
 
       if (scope === 'global' || scope === 'all') {
         const scopes = ['data_access', 'ai_processing', 'document_upload', 'wearable_sync'];
         const results = [];
         for (const s of scopes) {
-          const r = await client.query(
-            `INSERT INTO member_consents (member_id, scope, granted, granted_at, revoked_at)
-             VALUES ($1, $2, $3, CASE WHEN $3 THEN now() ELSE NULL END, CASE WHEN NOT $3 THEN now() ELSE NULL END)
-             ON CONFLICT (member_id, scope) DO UPDATE SET
-               granted = EXCLUDED.granted,
-               granted_at = CASE WHEN EXCLUDED.granted THEN now() ELSE member_consents.granted_at END,
-               revoked_at = CASE WHEN NOT EXCLUDED.granted THEN now() ELSE NULL END
-             RETURNING id, member_id AS "memberId", scope, granted,
-                       granted_at AS "grantedAt", revoked_at AS "revokedAt"`,
-            [memberId, s, Boolean(granted)]
-          );
+          const r = await upsertConsent(s);
           results.push(r.rows[0]);
         }
         globalCache.invalidatePrefix(`patient:${memberId}`);
@@ -190,23 +158,11 @@ export class ClinicalRecordRepository {
         };
       }
 
-      const res = await client.query(
-        `INSERT INTO member_consents (member_id, scope, granted, granted_at, revoked_at)
-         VALUES ($1, $2, $3, CASE WHEN $3 THEN now() ELSE NULL END, CASE WHEN NOT $3 THEN now() ELSE NULL END)
-         ON CONFLICT (member_id, scope) DO UPDATE SET
-           granted = EXCLUDED.granted,
-           granted_at = CASE WHEN EXCLUDED.granted THEN now() ELSE member_consents.granted_at END,
-           revoked_at = CASE WHEN NOT EXCLUDED.granted THEN now() ELSE NULL END
-         RETURNING id, member_id AS "memberId", scope, granted,
-                   granted_at AS "grantedAt", revoked_at AS "revokedAt"`,
-        [memberId, scope, Boolean(granted)]
-      );
+      const res = await upsertConsent(scope);
       globalCache.invalidatePrefix(`patient:${memberId}`);
       return res.rows[0];
     });
   }
-
-  // ── Clinical Records CRUD (Conditions, Allergies, Meds, Labs) ──────────────
 
   async findClinicalRecords(patientId, recordType, { status = null, limit = 50 } = {}) {
     let sql = `
@@ -263,7 +219,6 @@ export class ClinicalRecordRepository {
 
   async createClinicalRecord(patientId, record) {
     return withTransaction(this.pool, async (client) => {
-      // Check if active record with same record_type and name already exists for this patient
       const existing = await client.query(
         `SELECT id, name, status, dose, frequency, route
            FROM clinical_records
@@ -412,8 +367,6 @@ export class ClinicalRecordRepository {
     });
   }
 
-  // ── Timeline & Health Events ──────────────────────────────────────────────
-
   async getTimeline(patientId, limit = 50) {
     const res = await this.pool.query(
       `SELECT patient_id AS "patientId", event_time AS "eventTime",
@@ -459,8 +412,6 @@ export class ClinicalRecordRepository {
     const res = await this.pool.query(query, params);
     return res.rows.map(HealthEventMapper.toDto);
   }
-
-  // ── Context Aggregation for AI LLM (Singleflight Request Coalescing) ────────
 
   async getPatientContext(patientId) {
     const cacheKey = `patient:context:${patientId}`;

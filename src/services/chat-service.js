@@ -4,7 +4,6 @@ import { globalGeminiClient } from '../integrations/gemini-client.js';
 import { SymptomPriorityService } from './symptom-priority-service.js';
 import { ResponseSafetyValidator } from './response-safety-validator.js';
 
-// ── Emergency red-flag patterns ────────────────────────────────────────────────
 const RED_FLAG_ITEMS = [
   { trigger: 'chest pain', message: 'Severe chest pain or pressure requires immediate emergency attention.', regex: /\b(?:severe\s+)?chest\s+pain\b/i },
   { trigger: 'shortness of breath', message: 'Difficulty breathing or sudden shortness of breath is a critical symptom.', regex: /\b(?:shortness\s+of\s+breath|difficulty\s+breathing|can't\s+breathe|cannot\s+breathe)\b/i },
@@ -16,7 +15,6 @@ const RED_FLAG_ITEMS = [
   { trigger: 'severe bleeding', message: 'Severe or uncontrolled bleeding requires immediate emergency care.', regex: /\b(?:severe\s+bleeding|uncontrolled\s+bleeding|bleeding\s+heavily|haemorrhage|hemorrhage)\b/i },
 ];
 
-// ── Intent classification ──────────────────────────────────────────────────────
 const INTENT_MAP = [
   { intent: 'symptom_report', regex: /\b(?:pain|fever|cough|symptom|ache|sore|dizzy|nausea|hurt|feel\s+(?:sick|bad|ill|unwell)|breathless|swelling|rash|bleed|vomit|diarrhoea|diarrhea|fatigue|tired|weak)\b/i },
   { intent: 'medication_question', regex: /\b(?:medicine|drug|pill|prescription|dose|dosage|medication|tablet|capsule|take|refill|pharmacy|side effect|interaction)\b/i },
@@ -28,9 +26,8 @@ const INTENT_MAP = [
 
 const PLACEHOLDER_VECTOR = new Float32Array(768).fill(0.01);
 
-// Maximum prior encounters to show in session memory
 const MAX_PRIOR_ENCOUNTERS = 4;
-// How many messages to keep in LLM context (prevents token overflow)
+
 const MAX_CONTEXT_MESSAGES = 30;
 
 export class ChatService {
@@ -53,12 +50,9 @@ export class ChatService {
     this.llmService = llmService;
     this.geminiClient = geminiClient;
 
-    // Use injected or create defaults
     this.symptomPriorityService = symptomPriorityService || new SymptomPriorityService();
     this.responseSafetyValidator = responseSafetyValidator || new ResponseSafetyValidator();
   }
-
-  // ── Main chat handler ───────────────────────────────────────────────────────
 
   async handleChatMessage({
     patientId,
@@ -70,7 +64,6 @@ export class ChatService {
   }) {
     const startTime = Date.now();
 
-    // ── Step 1: Resume or create encounter ─────────────────────────────────────
     const isUuid = encounterId && typeof encounterId === 'string' &&
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(encounterId);
 
@@ -87,13 +80,11 @@ export class ChatService {
       encounterId = encounter.id;
     }
 
-    // ── Step 2: Persist user message ───────────────────────────────────────────
     await this.encounterRepo.appendMessage(encounterId, patientId, {
       role: 'user',
       content: message,
     });
 
-    // ── Step 3: Emergency red-flag screen (runs BEFORE anything else) ──────────
     const redFlagMatch = this.#screenRedFlags(message);
     if (redFlagMatch) {
       const alertResponse = `🚨 **EMERGENCY WARNING**: ${redFlagMatch.message} Please seek immediate emergency medical care (call 112 / 911 / 999) or go to the nearest emergency department right now.`;
@@ -126,7 +117,6 @@ export class ChatService {
       });
     }
 
-    // ── Step 4: Parallel data fetch — patient context, prior encounters, RAG ────
     onProgress?.('Fetching Patient 360 profile, lab results, and medical history...');
     const healthReadingsPromise = this.healthService && typeof this.clinicalRepo?.getConsent === 'function'
       ? this.clinicalRepo.getConsent(patientId, 'health_data')
@@ -150,7 +140,6 @@ export class ChatService {
       this.llmService.detectEmotion ? this.llmService.detectEmotion(message) : null,
     ]);
 
-    // ── Step 5: Structured symptom extraction ──────────────────────────────────
     onProgress?.('Running clinical triage and symptom classification...');
     const currentSymptomState = refreshedEncounter?.symptomState || {};
     const lastAssistantMsg = (refreshedEncounter?.messages || [])
@@ -161,7 +150,6 @@ export class ChatService {
     const isNonSymptomQuery = ['medication_question', 'factual_record_query', 'health_trend_question', 'document_question', 'general_health_question'].includes(detectedIntent);
     const isExplicitSymptomReport = detectedIntent === 'symptom_report' || this.symptomPriorityService.isSymptomReport(message);
 
-    // Only stay in symptom triage loop if it's an explicit symptom report or directly answering a pending question WITHOUT switching topics
     const isSymptomIntent = isExplicitSymptomReport || (!isNonSymptomQuery && !!pendingNextField);
 
     let updatedSymptomState = currentSymptomState;
@@ -172,7 +160,6 @@ export class ChatService {
       );
     }
 
-    // ── Step 6: Determine next assessment field ────────────────────────────────
     const nextField = isSymptomIntent
       ? this.symptomPriorityService.getNextField(updatedSymptomState)
       : null;
@@ -180,7 +167,6 @@ export class ChatService {
     const assessmentComplete = isSymptomIntent &&
       this.symptomPriorityService.isMinimumComplete(updatedSymptomState);
 
-    // ── Step 7: Final risk assessment if assessment just completed ─────────────
     let riskAssessment = null;
     if (isSymptomIntent && assessmentComplete && !currentSymptomState?.riskAssessed) {
       riskAssessment = this.symptomPriorityService.assessRisk(updatedSymptomState, patientContext);
@@ -189,7 +175,6 @@ export class ChatService {
         rules: riskAssessment.triggeredRules,
       });
 
-      // Update encounter risk level based on assessment
       if (riskAssessment.riskLevel === 'high') {
         await this.encounterRepo.updateEncounterStatus(encounterId, {
           riskLevel: 'high',
@@ -199,7 +184,6 @@ export class ChatService {
         await this.encounterRepo.updateEncounterStatus(encounterId, { riskLevel: 'medium' }).catch(() => {});
       }
 
-      // Mark symptom state as risk-assessed so we don't re-assess next turn
       await this.encounterRepo.upsertSymptomState(encounterId, patientId, {
         ...updatedSymptomState,
         riskAssessed: true,
@@ -208,7 +192,6 @@ export class ChatService {
       }).catch(() => {});
     }
 
-    // ── Step 8: Escalate HIGH risk encounters immediately ──────────────────────
     if (riskAssessment?.riskLevel === 'high') {
       const escalationResponse = `⚠️ **Based on your symptom assessment**, your reported symptoms — particularly ${updatedSymptomState.primarySymptom || 'the symptoms described'} — warrant **urgent medical attention**.
 
@@ -249,9 +232,8 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
       });
     }
 
-    // ── Step 9: Build system prompt ────────────────────────────────────────────
     const priorEncounterList = (priorEncounters || [])
-      .filter((e) => e.id !== encounterId); // exclude current session
+      .filter((e) => e.id !== encounterId); 
 
     const systemPrompt = this.#buildSystemPrompt(
       patientContext,
@@ -266,16 +248,13 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
       emotionState,
     );
 
-    // ── Step 10: Build message history (windowed) ──────────────────────────────
     const allMessages = (refreshedEncounter?.messages || [])
       .map((m) => ({ role: m.role, content: m.content }));
 
-    // Keep last N messages to avoid token overflow, always keep the first (if system)
     const windowedMessages = allMessages.length > MAX_CONTEXT_MESSAGES
       ? allMessages.slice(-MAX_CONTEXT_MESSAGES)
       : allMessages;
 
-    // ── Step 11: LLM call (with tool-calling loop) ─────────────────────────────
     let modelSystemPrompt = systemPrompt;
     if (model === 'medgamma' || model === 'medgemma') {
       onProgress?.('Consulting MedGemma 2B specialized clinical model for differential diagnosis...');
@@ -289,7 +268,7 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
 
     const toolHandlers = this.#buildToolHandlers(patientId, encounterId);
     let llmResult;
-    
+
     if (this.llmService.generateWithToolCalling) {
       llmResult = await this.llmService.generateWithToolCalling({
         messages: windowedMessages,
@@ -310,7 +289,6 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
 
     let finalContent = llmResult.content;
 
-    // ── Step 11.5: The Clinical Critic (Multi-Agent Review) ─────────────────
     if (this.llmService.clinicalReviewAgent) {
       onProgress?.('Attending Physician Agent is reviewing the draft against your allergy list...');
       const allergiesText = (patientContext.allergies || []).map((a) => a.substance || a.name).join(', ') || 'None';
@@ -327,7 +305,6 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
       }
     }
 
-    // ── Step 12: Response safety validation ───────────────────────────────────
     const validationResult = this.responseSafetyValidator.validate(finalContent, {
       patientContext,
       symptomState: updatedSymptomState,
@@ -351,7 +328,6 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
         : 'Gemini 2.5 Flash'
     );
 
-    // ── Step 13: Persist assistant message + model run ─────────────────────────
     const [, assistantMsg] = await Promise.all([
       this.encounterRepo.logModelRun(encounterId, patientId, {
         modelName: resolvedModelName,
@@ -374,7 +350,6 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
       }),
     ]);
 
-    // ── Step 14: Auto-summarise if assessment just completed ───────────────────
     if (assessmentComplete && !currentSymptomState?.riskAssessed) {
       this.#summariseAndPersistEncounter(encounterId, patientId, refreshedEncounter?.messages || [])
         .catch((err) => logger.warn('ChatService: background summarisation failed', { error: err.message }));
@@ -394,8 +369,6 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
       modelName: resolvedModelName,
     });
   }
-
-  // ── RAG query endpoint ──────────────────────────────────────────────────────
 
   async queryRAG(patientId, queryText) {
     try {
@@ -431,16 +404,12 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
     }
   }
 
-  // ── RLHF Feedback Submission ───────────────────────────────────────────────
-
   async submitFeedback(patientId, feedbackData) {
     if (typeof this.encounterRepo?.saveChatFeedback === 'function') {
       return await this.encounterRepo.saveChatFeedback(patientId, feedbackData);
     }
     return { status: 'recorded', ...feedbackData };
   }
-
-  // ── Private: Tool Calling ───────────────────────────────────────────────────
 
   #buildToolHandlers(patientId, encounterId) {
     return {
@@ -468,16 +437,13 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
     }
   }
 
-  // ── Private: structured symptom extraction ──────────────────────────────────
-
   async #extractAndMergeSymptoms(encounterId, patientId, text, existingState, pendingNextField = null) {
     try {
-      // 1. Rule-based & pattern extraction (handles user typing and interactive options chips)
+
       const ruleExtracted = this.symptomPriorityService?.extractSymptomFromText
         ? this.symptomPriorityService.extractSymptomFromText(text, pendingNextField, existingState)
         : {};
 
-      // 2. LLM JSON extraction if available
       let llmExtracted = {};
       if (this.llmService?.generateJsonExtraction) {
         try {
@@ -487,15 +453,12 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
         }
       }
 
-      // Combine extractions (LLM extractions take precedence, supplemented by rule extractions)
       const combined = { ...ruleExtracted, ...llmExtracted };
 
-      // 3. Fallback: if pendingNextField was actively asked and not captured yet, map direct answer
       if (pendingNextField && !combined[pendingNextField] && text.length > 1 && text.length < 90) {
         combined[pendingNextField] = text.trim();
       }
 
-      // Merge new extractions over existing state
       const merged = { ...existingState };
       for (const [key, val] of Object.entries(combined)) {
         if (val !== null && val !== undefined && val !== '') {
@@ -518,8 +481,6 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
       return existingState;
     }
   }
-
-  // ── Private: dual vector + document RAG ────────────────────────────────────
 
   async #retrieveDualSearchEvidence(patientId, queryText) {
     let vectorChunks = [];
@@ -547,16 +508,12 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
     return { vectorChunks: vectorChunks || [], documents: documents || [] };
   }
 
-  // ── Private: intent classification ─────────────────────────────────────────
-
   #classifyIntent(text = '') {
     for (const item of INTENT_MAP) {
       if (item.regex.test(text)) return item.intent;
     }
     return 'out_of_scope';
   }
-
-  // ── Private: red-flag screening ────────────────────────────────────────────
 
   #screenRedFlags(text = '') {
     for (const item of RED_FLAG_ITEMS) {
@@ -565,7 +522,6 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
     return null;
   }
 
-  // ── Public Encounter Summarization into Patient Memory ───────────────────────
   async summarizeEncounter(patientId, encounterId) {
     const encounter = await this.encounterRepo.findEncounterById(encounterId);
     if (!encounter) {
@@ -578,8 +534,6 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
     await this.#summariseAndPersistEncounter(encounterId, patientId, messages);
     return { status: 'summarized', encounterId };
   }
-
-  // ── Private: background encounter summarisation ─────────────────────────────
 
   async #summariseAndPersistEncounter(encounterId, patientId, messages) {
     try {
@@ -612,8 +566,6 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
     }
   }
 
-  // ── Private: Long-Term Semantic Memory ────────────────────────────────────
-
   async #retrieveSemanticMemory(patientId, queryText) {
     if (!this.llmService?.embedTextHuggingFace || !queryText) return [];
     try {
@@ -640,8 +592,6 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
     }
   }
 
-  // ── Private: full system prompt assembly ────────────────────────────────────
-
   #buildSystemPrompt(
     context = {},
     symptomState = null,
@@ -654,7 +604,7 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
     semanticMemory = [],
     emotionState = null,
   ) {
-    // ── Patient 360 clinical context ────────────────────────────────────────────
+
     const conditions = (context.activeConditions || [])
       .map((c) => `${c.name}${c.code ? ` (${c.code})` : ''}`)
       .join(', ') || 'None recorded';
@@ -686,7 +636,6 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
       ? context.patient.goals.join(', ')
       : 'None recorded';
 
-    // ── Prior encounter session memory ──────────────────────────────────────────
     const priorSessionSummaries = (priorEncounters || [])
       .filter((e) => e.summary || e.symptomState?.primarySymptom)
       .slice(0, MAX_PRIOR_ENCOUNTERS)
@@ -698,12 +647,10 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
       })
       .join('\n') || '  • No prior consultations recorded';
 
-    // ── Long-Term Semantic Memory (Vector Search) ───────────────────────────────
     const longTermMemoryText = (semanticMemory || [])
       .map((m) => `  • [Past Memory Match]: ${m.summary_text}`)
       .join('\n') || '  • No relevant long-term memories triggered.';
 
-    // ── RAG evidence ────────────────────────────────────────────────────────────
     const docSummaries = (ragEvidence?.documents || [])
       .map((d) => `  - [Doc ID: ${d.id}, File: ${d.originalFilename}, Type: ${d.docType}]: ${d.summary || 'Uploaded document'}`)
       .join('\n') || '  None uploaded';
@@ -712,12 +659,10 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
       .map((c) => `  - [Relevance: ${Number(c.similarity || 0).toFixed(2)}]: ${c.contentText}`)
       .join('\n') || '  None';
 
-    // ── Symptom assessment block (adaptive questioning) ─────────────────────────
     const symptomBlock = (isSymptomIntent && symptomState)
       ? this.symptomPriorityService.buildSymptomAssessmentBlock(symptomState)
       : '';
 
-    // ── Compose full system prompt ──────────────────────────────────────────────
     return `You are MediBot, a personalised, evidence-based clinical AI assistant for ${context.patient?.fullName || 'the patient'}.
 You are a health information assistant, not a clinician. Be warm, clear, and focused on the patient's wellbeing without claiming to diagnose or replace professional care.
 ${emotionState === 'HIGH_ANXIETY' ? "🚨 [SYSTEM ALERT]: The patient's message indicates HIGH ANXIETY, FEAR, or PANIC. You MUST adjust your tone to be highly empathetic, calming, and reassuring before asking any clinical questions.\n" : ''}
@@ -804,3 +749,4 @@ ${isSymptomIntent && !assessmentComplete
 
 export const ClinicalOrchestratorService = ChatService;
 export default ChatService;
+

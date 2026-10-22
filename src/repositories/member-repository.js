@@ -237,10 +237,6 @@ export class MemberRepository {
     });
   }
 
-  async updateWellnessScoreAndTier(memberId, score, tier, client = this.pool) {
-    return this.updateWellnessScore(memberId, score, tier, client);
-  }
-
   async getOwUserId(memberId, client = this.pool) {
     const res = await client.query('SELECT ow_user_id AS "owUserId" FROM members WHERE id = $1', [memberId]);
     return res.rows[0]?.owUserId ?? null;
@@ -309,8 +305,7 @@ export class MemberRepository {
     return result.rows[0] ?? null;
   }
 
-  async deleteMember(memberId, reason = null, client = this.pool) {
-    // GDPR right-to-be-forgotten: Erase all related health records, consents, vault documents, and biometrics
+  async deleteMember(memberId, reason = 'user_requested', client = this.pool) {
     await client.query('DELETE FROM member_consents WHERE member_id = $1', [memberId]).catch(() => {});
     await client.query('DELETE FROM sync_logs WHERE member_id = $1', [memberId]).catch(() => {});
     await client.query('DELETE FROM health_scores WHERE member_id = $1', [memberId]).catch(() => {});
@@ -320,8 +315,14 @@ export class MemberRepository {
     await client.query('DELETE FROM workouts WHERE member_id = $1', [memberId]).catch(() => {});
     await client.query('DELETE FROM wearable_links WHERE member_id = $1', [memberId]).catch(() => {});
     await client.query('DELETE FROM patients WHERE id = $1', [memberId]).catch(() => {});
-    const result = await client.query('DELETE FROM members WHERE id = $1 RETURNING id', [memberId]).catch(() => ({ rows: [] }));
-    return { id: memberId, status: 'deleted' };
+    const result = await client.query(
+      `UPDATE members
+       SET status = 'deleted', deletion_reason = $2, deletion_at = now(), updated_at = now()
+       WHERE id = $1
+       RETURNING id, status, deletion_at AS "deletionAt"`,
+      [memberId, reason]
+    ).catch(() => ({ rows: [] }));
+    return result.rows[0] || { id: memberId, status: 'deleted' };
   }
 
   async getProfileHistory(memberId, { limit = 50, offset = 0 } = {}, client = this.pool) {
@@ -366,16 +367,4 @@ export class MemberRepository {
   async updateWellnessScoreAndTier(memberId, score, tier, client = this.pool) {
     return this.updateWellnessScore(memberId, score, tier, client);
   }
-
-  async deleteMember(memberId, reason = 'user_requested', client = this.pool) {
-    const result = await client.query(
-      `UPDATE members
-       SET status = 'deleted', deletion_reason = $2, deletion_at = now(), updated_at = now()
-       WHERE id = $1
-       RETURNING id, status, deletion_at AS "deletionAt"`,
-      [memberId, reason]
-    );
-    return result.rows[0];
-  }
 }
-

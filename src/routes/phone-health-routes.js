@@ -1,4 +1,1 @@
-import { createHealthRouter, createPhoneHealthRouter } from './health-routes.js';
-
-export { createHealthRouter, createPhoneHealthRouter };
-export default createPhoneHealthRouter;
+export { createHealthRouter, createPhoneHealthRouter, default } from './health-routes.js';

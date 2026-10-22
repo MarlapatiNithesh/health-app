@@ -1,5 +1,5 @@
 export const DEVICE_TIERS = {
-  // Official OpenWearables providers (14 total) + Bluetooth BLE:
+
   whoop: 1,
   oura: 1,
   garmin: 1,
@@ -16,7 +16,6 @@ export const DEVICE_TIERS = {
   apple_health: 2,
   health_connect: 2,
 
-  // Universal Nearby Bluetooth BLE Method (for any nearby watch/ring: boAt, Fire-Boltt, Noise, etc.)
   bluetooth_ble: 1,
   ble_direct: 1,
 
@@ -180,8 +179,7 @@ function aggregateProviderSamples(metric, provider, samples) {
   let value;
 
   if (CUMULATIVE_METRICS.has(metric) || metric === 'steps' || metric === 'calories' || metric === 'distance' || metric === 'active_energy_burned') {
-    // For cumulative metrics, the most recent daily_total sample represents the provider's current state.
-    // If daily_total samples exist, pick the latest one; otherwise use the latest recorded sample.
+
     const sortedDaily = dailyTotals.sort((a, b) => Date.parse(b.recordedAt) - Date.parse(a.recordedAt));
     if (sortedDaily.length > 0) {
       value = Number(sortedDaily[0].value) || 0;
@@ -204,27 +202,23 @@ function aggregateProviderSamples(metric, provider, samples) {
 function choosePrimary(metric, aggregates, priority) {
   if (!Array.isArray(aggregates) || aggregates.length === 0) return null;
 
-  // Filter for valid non-zero values first so active readings aren't suppressed by zero aggregates
   const nonZero = aggregates.filter((a) => Number(a.value) > 0);
   const candidatePool = nonZero.length > 0 ? nonZero : aggregates;
 
   return [...candidatePool].sort((a, b) => {
-    // For steps & cumulative activity metrics: ALWAYS select whichever device recorded MORE steps/activity!
+
     if (metric === 'steps' || metric === 'step_count' || metric === 'distance' || metric === 'calories' || metric === 'active_energy_burned') {
       const valDiff = (Number(b.value) || 0) - (Number(a.value) || 0);
       if (valDiff !== 0) return valDiff;
     }
 
-    // 1. Strictly respect provider priority ranking (wearables take precedence over phone sensors)
     const rankDiff = providerRank(metric, a.provider, priority)
                    - providerRank(metric, b.provider, priority);
     if (rankDiff !== 0) return rankDiff;
 
-    // 2. If both providers share the same priority rank, select the higher valid value
     const valDiff = (Number(b.value) || 0) - (Number(a.value) || 0);
     if (valDiff !== 0) return valDiff;
 
-    // 3. Finally, pick the most recent data
     const timeDiff = (Date.parse(b.latestAt) || 0) - (Date.parse(a.latestAt) || 0);
     return timeDiff;
   })[0];
@@ -292,7 +286,7 @@ export function reconcileWorkouts(workouts, priority = DEFAULT_PRIORITY) {
       if (curRank < prevRank) {
         reconciled[reconciled.length - 1] = current;
       } else if (curRank === prevRank) {
-        // If equal rank, select the workout with the richer telemetry data
+
         const prevScore = (Number(prev.distanceM || prev.distance_m || 0) > 0 ? 1 : 0) +
                           (Number(prev.energyBurnedKcal || prev.energy_burned_kcal || 0) > 0 ? 1 : 0) +
                           (Number(prev.heartRateAvg || prev.heart_rate_avg || 0) > 0 ? 1 : 0);
@@ -348,7 +342,7 @@ export function reconcileSleepSessions(sessions, priority = DEFAULT_PRIORITY) {
       if (curRank < prevRank) {
         reconciled[reconciled.length - 1] = current;
       } else if (curRank === prevRank) {
-        // If equal rank, select the more complete session (more duration or stage breakdown)
+
         const prevDuration = Number(prev.sleepTotalDurationMins || prev.sleep_total_duration_mins || 0);
         const curDuration = Number(current.sleepTotalDurationMins || current.sleep_total_duration_mins || 0);
         const curHasStages = Array.isArray(current.sleepStages || current.sleep_stages) && (current.sleepStages || current.sleep_stages).length > 0;
@@ -420,3 +414,4 @@ export function reconcileHealthScores(scores, priority = DEFAULT_PRIORITY) {
 }
 
 export { DEFAULT_PRIORITY, CUMULATIVE_METRICS, AVERAGE_METRICS, providerRank };
+

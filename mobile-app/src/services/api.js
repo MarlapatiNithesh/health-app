@@ -105,6 +105,12 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
+  updateMemberProfile: (data) =>
+    request('/v1/me/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
   getDailySummary: () => request('/v1/me/daily-summary'),
 
   getProfileHistory: () => request('/v1/me/profile/history'),
@@ -259,6 +265,35 @@ export const api = {
     }),
 
   getScopedConsent: (scope) => request(`/medibot/consents/${scope}`),
+
+  getScopedConsents: async () => {
+    try {
+      const [ai, doc, health] = await Promise.all([
+        request('/medibot/consents/ai_processing').catch(() => ({ consent: { granted: true } })),
+        request('/medibot/consents/document_upload').catch(() => ({ consent: { granted: true } })),
+        request('/v1/me/consents/health_data').catch(() => ({ consent: { granted: false } })),
+      ]);
+      return {
+        consents: {
+          ai_processing: ai?.consent?.granted ?? true,
+          document_upload: doc?.consent?.granted ?? true,
+          health_data: health?.consent?.granted ?? false,
+          global: true,
+          data_access: true,
+        },
+      };
+    } catch {
+      return {
+        consents: {
+          ai_processing: true,
+          document_upload: true,
+          health_data: false,
+          global: true,
+          data_access: true,
+        },
+      };
+    }
+  },
 
   // ── 4. Clinical Documents & OCR Vault ──
   uploadDocument: (file, docType = 'prescription') => {

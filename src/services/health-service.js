@@ -87,7 +87,7 @@ export class HealthService {
 
     const intraBatchDuplicates = samples.length - uniqueSamples.length;
 
-    // Auto-expand connection permissions for any supported health metrics being synced
+
     const activePerms = new Set(Array.isArray(connection.permissions) ? connection.permissions : []);
     let permsUpdated = false;
     for (const sample of uniqueSamples) {
@@ -168,19 +168,19 @@ export class HealthService {
           client,
         );
 
-        // Link sleep samples into sleep_sessions table with deduplication
+
         const sleepSamples = uniqueSamples.filter((s) => (s.metric === 'sleep' || s.metricType === 'sleep') && Number(s.value) > 0);
         if (sleepSamples.length > 0) {
           await this.syncSleepSessions(client, memberId, sleepSamples, connection.provider || 'phone');
         }
 
-        // Link workout samples into workouts table with multi-device deduplication
+
         const workoutSamples = uniqueSamples.filter((s) => (s.metric === 'workout' || s.metricType === 'workout') && Number(s.value) > 0);
         if (workoutSamples.length > 0) {
           await this.syncWorkouts(client, memberId, workoutSamples, connection.provider || 'phone');
         }
 
-        // Update member biometrics and biometric history if weight or height is provided
+
         const weightSample = uniqueSamples.find((s) => (s.metric === 'weight' || s.metricType === 'weight') && Number(s.value) > 0);
         const heightSample = uniqueSamples.find((s) => (s.metric === 'height' || s.metricType === 'height') && Number(s.value) > 0);
         if ((weightSample || heightSample) && this.memberRepo?.updateProfile) {
@@ -238,8 +238,8 @@ export class HealthService {
 
     await this.triggerDebouncedWellness(memberId);
 
-    // Phone sync data is stored with history in our wellness_db database only.
-    // OpenWearables is reserved strictly for external cloud wearable providers (Whoop, Garmin, Fitbit, Google OAuth, etc.).
+
+
 
     return HealthSampleMapper.toSyncResponseDto(response);
   }
@@ -265,7 +265,7 @@ export class HealthService {
         await this.memberRepo.updateWellnessScoreAndTier(memberId, score, tier);
       }
 
-      // Save score entry into health_scores table
+
       if (pool?.query) {
         const qualifier = tier ? (tier.charAt(0).toUpperCase() + tier.slice(1)) : 'Good';
         await pool.query(
@@ -297,7 +297,7 @@ export class HealthService {
         const provider = (s.provider || defaultProvider || 'phone').toLowerCase();
         const sourceRecordId = s.externalId || s.source_record_id || `sleep-${memberId}-${dateStr}`;
 
-        // Check if session for this member exists (by source_record_id, same date & provider, or overlapping start/end window)
+
         const existingRes = await client.query(
           `SELECT id, source_record_id, started_at, ended_at, sleep_total_duration_mins
            FROM sleep_sessions
@@ -314,11 +314,11 @@ export class HealthService {
 
         const existing = existingRes.rows[0];
         if (existing) {
-          // If data is identical or existing session is already longer/more complete, keep best reading!
+
           if (Number(existing.sleep_total_duration_mins) >= durationMins) {
             continue;
           }
-          // Value improved: update existing session in-place
+
           await client.query(
             `UPDATE sleep_sessions
              SET started_at = $1,
@@ -360,7 +360,7 @@ export class HealthService {
         const activityType = (w.metadata?.activityType || w.label || 'workout').toLowerCase();
         const sourceRecordId = w.externalId || w.source_record_id || `workout-${memberId}-${startedAt.getTime()}`;
 
-        // Check if an overlapping workout already exists for this member
+
         const existingRes = await client.query(
           `SELECT id, source_record_id, started_at, ended_at, duration_secs, energy_burned_kcal, provider
            FROM workouts
@@ -485,8 +485,8 @@ export class HealthService {
       const isDailyCumulative = sample.aggregation === 'daily_total' ||
         ['steps', 'calories', 'active_energy_burned', 'distance', 'hydration'].includes(m);
 
-      // For daily cumulative totals, anchor the recorded timestamp to midnight UTC (YYYY-MM-DDT00:00:00.000Z)
-      // so OpenWearables ON CONFLICT updates the single row for that date instead of duplicating and summing.
+
+
       const startTime = isDailyCumulative
         ? `${sampleDate}T00:00:00.000Z`
         : (sample.endedAt || sample.ended_at ? recTime : new Date(new Date(recTime).getTime() - 60000).toISOString());
@@ -637,19 +637,19 @@ export class HealthService {
           }
         }
 
-        // Link sleep samples into sleep_sessions table with deduplication
+
         const sleepSamples = uniqueSamples.filter((s) => (s.metric === 'sleep' || s.metricType === 'sleep') && Number(s.value) > 0);
         if (sleepSamples.length > 0) {
           await this.syncSleepSessions(client, memberId, sleepSamples, provider || 'wearable');
         }
 
-        // Link workout samples into workouts table with multi-device deduplication
+
         const workoutSamples = uniqueSamples.filter((s) => (s.metric === 'workout' || s.metricType === 'workout') && Number(s.value) > 0);
         if (workoutSamples.length > 0) {
           await this.syncWorkouts(client, memberId, workoutSamples, provider || 'wearable');
         }
 
-        // If weight or height samples exist, update member biometrics and biometric history
+
         const weightSample = uniqueSamples.find((s) => (s.metric === 'weight' || s.metricType === 'weight') && Number(s.value) > 0);
         const heightSample = uniqueSamples.find((s) => (s.metric === 'height' || s.metricType === 'height') && Number(s.value) > 0);
         if ((weightSample || heightSample) && this.memberRepo?.updateProfile) {
@@ -688,7 +688,7 @@ export class HealthService {
     await this.requireMember(memberId);
     validateDateRange(from, to);
 
-    // Fetch 30 days of samples to construct history DTO for multi-device clients
+
     let toDate;
     if (to) {
       toDate = new Date(to);
@@ -702,7 +702,7 @@ export class HealthService {
 
     const samples = await this.healthSampleRepo.listSamples(memberId, fromDate.toISOString(), toDate.toISOString());
 
-    // Robust local & UTC date key matching for today's samples
+
     const nowD = new Date();
     const padN = (n) => String(n).padStart(2, '0');
     const utcTodayKey = nowD.toISOString().split('T')[0];
@@ -711,14 +711,17 @@ export class HealthService {
     const todaySamples = samples.filter((s) => {
       const rec = s.recordedAt || s.recorded_at;
       if (!rec) return false;
-      const recDate = new Date(rec).toISOString().split('T')[0];
-      return recDate === utcTodayKey || recDate === localTodayKey;
+      const d = new Date(rec);
+      const recUtc = d.toISOString().split('T')[0];
+      const recLocal = `${d.getFullYear()}-${padN(d.getMonth() + 1)}-${padN(d.getDate())}`;
+      const recStoredLocal = s.localDate ? String(s.localDate).split('T')[0] : '';
+      return recUtc === utcTodayKey || recUtc === localTodayKey || recLocal === localTodayKey || recStoredLocal === localTodayKey;
     });
 
-    // Reconcile ONLY today's samples for today's summary. NEVER pass 30-day historical samples.
+
     const reconciledToday = reconcileDailyMetrics(todaySamples);
 
-    // Build daily history grouped by date (steps, calories, distance, heartRate, sleep)
+
     const historyMap = new Map();
     for (const sample of samples) {
       const metric = sample.metric || sample.metricType;
@@ -761,7 +764,7 @@ export class HealthService {
     const history = Array.from(historyMap.values())
       .sort((a, b) => b.date.localeCompare(a.date));
 
-    // ── Accurate Step Streak & Weekly Progress Computation ──
+
     const dailyStepTarget = 10000;
     const todayStepsVal = Number(reconciledToday.steps?.value) || historyMap.get(localTodayKey)?.steps || historyMap.get(utcTodayKey)?.steps || 0;
     const todayCompleted = todayStepsVal >= dailyStepTarget;
@@ -771,7 +774,7 @@ export class HealthService {
       streakDays = 1;
     }
 
-    // Check backwards from yesterday to count consecutive days meeting target
+
     let dayOffset = 1;
     let streakBroken = false;
     while (dayOffset <= 30 && !streakBroken) {
@@ -788,8 +791,8 @@ export class HealthService {
       }
     }
 
-    // Weekly progress (Monday to Sunday)
-    const dayOfWeek = nowD.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+
+    const dayOfWeek = nowD.getDay();
     const distToMonday = (dayOfWeek + 6) % 7;
     const monday = new Date(nowD);
     monday.setDate(nowD.getDate() - distToMonday);
@@ -831,22 +834,17 @@ export class HealthService {
     const pool = this.memberRepo?.pool || this.healthSampleRepo?.pool;
     if (pool?.query) {
       try {
-        let scoreRes = await pool.query(
+        const fetchScore = () => pool.query(
           `SELECT score, qualifier, score_type AS "scoreType", calculated_at AS "calculatedAt"
            FROM health_scores
            WHERE member_id = $1
            ORDER BY calculated_at DESC LIMIT 1`,
           [memberId]
         );
+        let scoreRes = await fetchScore();
         if (!scoreRes.rows[0]) {
           await this.triggerDebouncedWellness(memberId);
-          scoreRes = await pool.query(
-            `SELECT score, qualifier, score_type AS "scoreType", calculated_at AS "calculatedAt"
-             FROM health_scores
-             WHERE member_id = $1
-             ORDER BY calculated_at DESC LIMIT 1`,
-            [memberId]
-          );
+          scoreRes = await fetchScore();
         }
         if (scoreRes.rows[0]) {
           healthScore = {
@@ -922,13 +920,13 @@ async function seedBaselineSamples(memberId, healthSampleRepo) {
   const samples = [];
   const sleepSessionsToInsert = [];
 
-  // Seed 30 days of longitudinal history for ALL metrics:
+
   for (let i = 29; i >= 0; i--) {
     const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
     const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const isToday = i === 0;
 
-    // 1. Steps (daily_total)
+
     const baseSteps = isToday ? 7420 : 6500 + ((i * 317) % 2750);
     samples.push({
       provider: 'health_connect',
@@ -940,8 +938,8 @@ async function seedBaselineSamples(memberId, healthSampleRepo) {
       recordedAt: `${dateStr}T12:00:00.000Z`,
     });
 
-    // 2. Heart Rate (resting/avg bpm for each of the 30 days)
-    const hrVal = isToday ? 72 : 68 + ((i * 3) % 11); // 68 - 78 bpm
+
+    const hrVal = isToday ? 72 : 68 + ((i * 3) % 11);
     samples.push({
       provider: 'health_connect',
       metric: 'heart_rate',
@@ -952,8 +950,8 @@ async function seedBaselineSamples(memberId, healthSampleRepo) {
       recordedAt: `${dateStr}T08:30:00.000Z`,
     });
 
-    // 3. Sleep (minutes for each of the 30 nights)
-    const sleepMins = isToday ? 450 : 420 + ((i * 17) % 75); // 420 - 485 mins (~7.0 - 8.1 hrs)
+
+    const sleepMins = isToday ? 450 : 420 + ((i * 17) % 75);
     samples.push({
       provider: 'health_connect',
       metric: 'sleep',
@@ -973,8 +971,8 @@ async function seedBaselineSamples(memberId, healthSampleRepo) {
       durationMins: sleepMins,
     });
 
-    // 4. Blood Glucose (fasting mg/dL for each of the 30 days)
-    const glucoseVal = isToday ? 95 : 92 + ((i * 5) % 15); // 92 - 106 mg/dL
+
+    const glucoseVal = isToday ? 95 : 92 + ((i * 5) % 15);
     samples.push({
       provider: 'health_connect',
       metric: 'blood_glucose',
@@ -985,8 +983,8 @@ async function seedBaselineSamples(memberId, healthSampleRepo) {
       recordedAt: `${dateStr}T08:00:00.000Z`,
     });
 
-    // 5. Blood Oxygen / SpO2 (% for each of the 30 days)
-    const spo2Val = isToday ? 98 : 97 + ((i * 2) % 3); // 97 - 99%
+
+    const spo2Val = isToday ? 98 : 97 + ((i * 2) % 3);
     samples.push({
       provider: 'health_connect',
       metric: 'spo2',
@@ -997,9 +995,9 @@ async function seedBaselineSamples(memberId, healthSampleRepo) {
       recordedAt: `${dateStr}T08:15:00.000Z`,
     });
 
-    // 6. Blood Pressure (systolic & diastolic for each of the 30 days)
-    const sysVal = isToday ? 118 : 115 + ((i * 4) % 9); // 115 - 123 mmHg
-    const diaVal = isToday ? 76 : 74 + ((i * 2) % 6);   // 74 - 79 mmHg
+
+    const sysVal = isToday ? 118 : 115 + ((i * 4) % 9);
+    const diaVal = isToday ? 76 : 74 + ((i * 2) % 6);
     samples.push({
       provider: 'health_connect',
       metric: 'blood_pressure_systolic',
@@ -1019,7 +1017,7 @@ async function seedBaselineSamples(memberId, healthSampleRepo) {
       recordedAt: `${dateStr}T08:20:00.000Z`,
     });
 
-    // 7. Active Calories & Distance
+
     const calVal = isToday ? 520 : Math.round(baseSteps * 0.04);
     const distVal = isToday ? 5400 : Math.round(baseSteps * 0.75);
     samples.push({
@@ -1042,7 +1040,7 @@ async function seedBaselineSamples(memberId, healthSampleRepo) {
     });
   }
 
-  // Weight
+
   samples.push({
     provider: 'health_connect',
     metric: 'weight',
@@ -1055,11 +1053,11 @@ async function seedBaselineSamples(memberId, healthSampleRepo) {
 
   const pool = healthSampleRepo.pool;
   try {
-    // 1. Batch upsert into timeseries table with full deduplication
+
     await healthSampleRepo.insertBatch(memberId, samples);
 
     if (pool?.query) {
-      // 2. Populate 30 days of sleep sessions into sleep_sessions table
+
       for (const ss of sleepSessionsToInsert) {
         try {
           await pool.query(
@@ -1075,7 +1073,7 @@ async function seedBaselineSamples(memberId, healthSampleRepo) {
         } catch {}
       }
 
-      // 3. Populate audit sync log into sync_logs table so it is NEVER empty
+
       const syncKey = `baseline_sync_${memberId.slice(0, 8)}_${Date.now()}`;
       await pool.query(
         `INSERT INTO sync_logs (

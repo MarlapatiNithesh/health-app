@@ -780,6 +780,40 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
     return () => { mounted = false; };
   }, [refreshKey, token, member?.id]);
 
+  // Live periodic refresh & tab focus synchronization for Web client
+  useEffect(() => {
+    if (!token) return;
+    const fetchLatest = () => {
+      api.getDailySummary()
+        .then((res) => {
+          if (res?.data) setDailyData(res.data);
+        })
+        .catch(() => {});
+    };
+
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchLatest();
+      }
+    }, 15000);
+
+    const onFocus = () => fetchLatest();
+    const onVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchLatest();
+      }
+    };
+
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [token]);
+
   // Live Phone Hardware Sensor Telemetry
   const [liveSteps, setLiveSteps] = useState(() => nativeTelemetry?.liveSteps ?? 0);
 

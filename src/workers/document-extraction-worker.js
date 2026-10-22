@@ -4,40 +4,32 @@ import { logger } from '../logger.js';
 import { DocumentRepository } from '../repositories/document-repository.js';
 import { ClinicalRecordRepository } from '../repositories/clinical-record-repository.js';
 
-// Setup Redis Connection
 const connection = new IORedis({
   host: process.env.REDIS_HOST || '127.0.0.1',
   port: parseInt(process.env.REDIS_PORT || '6379', 10),
   maxRetriesPerRequest: null,
 });
 
-// Initialize Repositories (In production, these can be injected or instantiated)
 const documentRepo = new DocumentRepository();
 const clinicalRepo = new ClinicalRecordRepository();
 
 const PYTHON_NER_URL = process.env.PYTHON_NER_URL || 'http://localhost:8000/extract';
 
-/**
- * BullMQ Worker: Document Intelligence & Lab Parsing
- * This worker processes uploaded medical PDFs, calls Gemini Vision / Medical NLP,
- * and extracts critical values (like HbA1c) directly into the Patient 360 database.
- */
 export const documentExtractionWorker = new Worker(
   'document-extraction',
   async (job) => {
     const { documentId, patientId, fileUrl, docType } = job.data;
-    
+
     logger.info(`[Worker] Started processing document ${documentId} for patient ${patientId}`);
 
     try {
-      // 1. Update Document Status to 'processing'
+
       if (typeof documentRepo.updateExtractionStatus === 'function') {
         await documentRepo.updateExtractionStatus(documentId, 'processing');
       }
 
-      // 2. Multimodal Vision OCR Step (Gemini Pro Vision)
       logger.info(`[Worker] Analyzing medical document ${fileUrl} using Gemini Vision...`);
-      
+
       const visionPrompt = `You are an expert clinical pharmacist and medical OCR extraction AI.
 Analyze this medical document (handwritten doctor prescription, lab report, or clinical note).
 Decipher doctor cursive handwriting, medical abbreviations (OD, BD, TDS, QID, SOS, HS), and list every medicine and lab result.
@@ -61,7 +53,6 @@ Respond ONLY with the JSON array.`;
 
         const parts = [{ text: visionPrompt }];
 
-        // Attempt to load document bytes if fileUrl is available
         if (fileUrl) {
           try {
             let buffer = null;
@@ -92,7 +83,7 @@ Respond ONLY with the JSON array.`;
             logger.warn(`[Worker] Could not read fileUrl bytes: ${fileErr.message}`);
           }
         }
-        
+
         const response = await fetch(geminiUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -115,7 +106,7 @@ Respond ONLY with the JSON array.`;
         }
       } catch (err) {
         logger.warn(`[Worker] Vision extraction failed, using fallback mock extraction. Error: ${err.message}`);
-        // Fallback demo data
+
         extractedEntities = [
           { name: 'Amoxicillin', recordType: 'medication', value: '500mg TDS', dose: '500mg', frequency: 'TDS', unit: 'mg', confidence: 0.95 },
           { name: 'Paracetamol', recordType: 'medication', value: '650mg SOS', dose: '650mg', frequency: 'SOS', unit: 'mg', confidence: 0.94 },
@@ -123,9 +114,8 @@ Respond ONLY with the JSON array.`;
         ];
       }
 
-      // 4. Save Extracted Data directly to Patient 360 (clinical_records)
       logger.info(`[Worker] Extracted ${extractedEntities.length} entities. Saving to Patient 360...`);
-      
+
       for (const entity of extractedEntities) {
         if (entity.confidence >= 0.85) {
           const isMed = entity.recordType === 'medication' || /^(?:tab|cap|syrup|inj|tablet|capsule|amoxicillin|paracetamol|metformin|atorvastatin|pantoprazole|aspirin)/i.test(entity.name);
@@ -144,12 +134,11 @@ Respond ONLY with the JSON array.`;
         }
       }
 
-      // 5. Mark Document as 'complete'
       if (typeof documentRepo.updateExtractionStatus === 'function') {
         await documentRepo.updateExtractionStatus(documentId, 'complete');
       }
       logger.info(`[Worker] Successfully finished processing document ${documentId}`);
-      
+
       return { status: 'success', entitiesFound: extractedEntities.length };
 
     } catch (error) {
@@ -170,3 +159,4 @@ documentExtractionWorker.on('completed', (job, returnvalue) => {
 documentExtractionWorker.on('failed', (job, error) => {
   logger.error(`[BullMQ] Job ${job.id} failed with error ${error.message}`);
 });
+

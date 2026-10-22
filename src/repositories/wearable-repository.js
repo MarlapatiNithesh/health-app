@@ -483,35 +483,6 @@ export class WearableRepository {
     return result.rows[0] ?? null;
   }
 
-  async listWearableLinks(memberId, client = this.pool) {
-    const result = await client.query(
-      `SELECT
-         id,
-         member_id        AS "memberId",
-         provider,
-         connection_type  AS "connectionType",
-         status,
-         model,
-         battery_pct      AS "batteryPct",
-         metrics_provided AS "metricsProvided",
-         metadata,
-         sync_cursor      AS "syncCursor",
-         connected_at     AS "connectedAt",
-         disconnected_at  AS "disconnectedAt",
-         last_sync_at     AS "lastSyncAt",
-         last_data_at     AS "lastDataAt",
-         error_detail     AS "errorDetail",
-         created_at       AS "createdAt",
-         updated_at       AS "updatedAt"
-       FROM wearable_links
-       WHERE member_id = $1
-         AND provider NOT IN ('apple_health','health_connect','phone_pedometer','phone')
-       ORDER BY created_at`,
-      [memberId],
-    );
-    return result.rows;
-  }
-
   async touchLastData(memberId, provider, client = this.pool) {
     if (!memberId || !provider) return;
     await client.query(
@@ -629,12 +600,7 @@ export class WearableRepository {
     );
 
     if (result.rowCount > 0) {
-      await client.query(
-        `UPDATE wearable_links
-         SET last_data_at = now()
-         WHERE member_id = $1 AND provider = $2 AND status != 'disconnected'`,
-        [memberId, provider],
-      ).catch(() => {});
+      await this.touchLastData(memberId, provider, client);
     }
 
     return result.rowCount;
@@ -688,12 +654,7 @@ export class WearableRepository {
     );
 
     if (result.rowCount > 0) {
-      await client.query(
-        `UPDATE wearable_links
-         SET last_data_at = now()
-         WHERE member_id = $1 AND provider = $2 AND status != 'disconnected'`,
-        [memberId, provider],
-      ).catch(() => {});
+      await this.touchLastData(memberId, provider, client);
     }
 
     return result.rowCount;
@@ -760,12 +721,7 @@ export class WearableRepository {
     );
 
     if (result.rowCount > 0) {
-      await client.query(
-        `UPDATE wearable_links
-         SET last_data_at = now()
-         WHERE member_id = $1 AND provider = $2 AND status != 'disconnected'`,
-        [memberId, provider],
-      ).catch(() => {});
+      await this.touchLastData(memberId, provider, client);
     }
 
     return result.rowCount;
@@ -801,12 +757,7 @@ export class WearableRepository {
     );
 
     if (result.rowCount > 0) {
-      await client.query(
-        `UPDATE wearable_links
-         SET last_data_at = now()
-         WHERE member_id = $1 AND provider = $2 AND status != 'disconnected'`,
-        [memberId, provider],
-      ).catch(() => {});
+      await this.touchLastData(memberId, provider, client);
     }
 
     return result.rowCount;

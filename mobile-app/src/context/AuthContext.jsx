@@ -296,12 +296,27 @@ export function AuthProvider({ children }) {
   const updateMemberProfile = async (updates) => {
     try {
       const updated = await api.updateProfile(updates);
+      const memberData = updated?.member || updated;
       setMember(prev => {
-        const next = { ...prev, ...updated };
+        const fullName = memberData?.fullName || prev?.fullName || `${updates.firstName || ''} ${updates.lastName || ''}`.trim();
+        const parts = fullName.split(/\s+/).filter(Boolean);
+        const firstName = memberData?.firstName || updates?.firstName || parts[0] || prev?.firstName || '';
+        const lastName = memberData?.lastName || updates?.lastName || parts.slice(1).join(' ') || prev?.lastName || '';
+        const next = {
+          ...prev,
+          ...memberData,
+          fullName,
+          firstName,
+          lastName,
+          gender: memberData?.gender || updates?.gender || prev?.gender,
+          biologicalSex: memberData?.gender || updates?.gender || prev?.gender,
+          heightCm: memberData?.heightCm ?? updates?.heightCm ?? prev?.heightCm,
+          weightKg: memberData?.weightKg ?? updates?.weightKg ?? prev?.weightKg,
+        };
         localStorage.setItem('wellness_member', JSON.stringify(next));
         return next;
       });
-      return updated;
+      return memberData;
     } catch (err) {
       throw err;
     }

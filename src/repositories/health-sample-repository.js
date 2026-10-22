@@ -17,26 +17,7 @@ export class HealthSampleRepository {
 
 
   async listSamples(memberId, from, to, client = this.pool) {
-    const result = await client.query(
-      `SELECT
-         metric_type      AS metric,
-         recorded_at      AS "recordedAt",
-         ended_at         AS "endedAt",
-         local_date::text AS "localDate",
-         value,
-         unit,
-         provider,
-         device_key       AS "deviceKey",
-         aggregation,
-         source_record_id AS "externalId"
-       FROM timeseries
-       WHERE member_id = $1
-         AND ($2::timestamptz IS NULL OR recorded_at >= $2)
-         AND ($3::timestamptz IS NULL OR recorded_at <= $3)
-       ORDER BY recorded_at DESC`,
-      [memberId, from ?? null, to ?? null],
-    );
-    return result.rows;
+    return this.timeseriesRepo.listSamples(memberId, from, to, client);
   }
 
   async calculateWellnessMetrics(memberId, client = this.pool) {

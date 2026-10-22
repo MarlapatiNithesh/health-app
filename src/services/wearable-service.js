@@ -124,10 +124,10 @@ export class WearableService {
       try {
         await client.query('BEGIN');
         await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [memberId]);
-        const check = await client.query('SELECT ow_user_id AS "owUserId" FROM members WHERE id = $1', [memberId]);
-        if (check.rows[0]?.owUserId) {
+        const existing = await this.memberRepo?.getOwUserId?.(memberId, client);
+        if (existing) {
           await client.query('COMMIT');
-          return check.rows[0].owUserId;
+          return existing;
         }
 
         const owUser = await this.openWearables.findOrCreateUser({
@@ -137,22 +137,16 @@ export class WearableService {
         });
 
         if (owUser?.id) {
-          const updateRes = await client.query(
-            `UPDATE members
-             SET ow_user_id = $2, updated_at = now()
-             WHERE id = $1 AND (ow_user_id IS NULL OR ow_user_id = $2)
-             RETURNING ow_user_id AS "owUserId"`,
-            [memberId, owUser.id],
-          );
-          if (updateRes.rows.length === 0) {
+          const updated = await this.memberRepo?.setOwUserId?.(memberId, owUser.id, client);
+          if (!updated) {
             try {
               await this.openWearables.deleteUser(owUser.id);
             } catch (err) {
               logger.warn('Failed to clean up orphaned remote Open Wearables user', { err: err.message, owUserId: owUser.id });
             }
-            const latest = await client.query('SELECT ow_user_id AS "owUserId" FROM members WHERE id = $1', [memberId]);
+            const latest = await this.memberRepo?.getOwUserId?.(memberId, client);
             await client.query('COMMIT');
-            return latest.rows[0]?.owUserId || owUser.id;
+            return latest || owUser.id;
           }
           await client.query('COMMIT');
           return owUser.id;
@@ -468,15 +462,11 @@ export class WearableService {
 
     try {
       let providerSync;
-      // Garmin is webhook-only: it has no REST polling path.
-      // Only trigger a historical backfill (e.g. on first connect).
-      // For subsequent syncs, data arrives automatically via webhook push.
       const isGarmin = provider.toLowerCase() === 'garmin';
       if (isGarmin) {
         if (options?.firstConnect || options?.historical) {
           providerSync = await this.openWearables.syncHistoricalData(owUserId, 'garmin');
         } else {
-          // Garmin data arrives via webhook — skip the REST trigger.
           providerSync = { status: 'skipped', message: 'Garmin syncs via webhook push; use historical=true to request a backfill.' };
         }
       } else {
@@ -540,9 +530,6 @@ export class WearableService {
 
   async listConnections(memberId) {
     await this.requireMember(memberId);
-    // OAuth completes at OpenWearables. Refresh its authoritative connection
-    // state before returning local rows so an account becomes visible after
-    // the browser/app returns from provider authorization.
     let reconciliation = { reconciled: false };
     try {
       reconciliation = await this.reconcileRemoteConnections(memberId);
@@ -785,7 +772,6 @@ export class WearableService {
       }
     }
 
-    // `connections` is already the flat array extracted by responseItems above.
     const connList = connections;
     const connectedProviders = [];
 
@@ -854,8 +840,6 @@ export class WearableService {
     if (earliestLastSync) {
       startDate = new Date(earliestLastSync - 3 * 86400000).toISOString().split('T')[0];
     } else {
-      // Default to 30 days ago (not a hard-coded year) so first-time syncs
-      // get a reasonable rolling window instead of all data since 2024.
       startDate = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
     }
     const endDate = new Date(Date.now() + 86400000).toISOString().split('T')[0];
@@ -1074,7 +1058,6 @@ export class WearableService {
 
     if (typeof this.openWearables.getTimeseries === 'function') {
       try {
-        // Timeseries uses cursor pagination — we must page through all results.
         const allTsItems = await fetchAllPages(({ cursor }) =>
           this.openWearables.getTimeseries(
             owUserId,
@@ -1265,8 +1248,6 @@ export class WearableService {
     await this.requireMember(memberId);
     const brand = (input.brand || input.provider || 'bluetooth_ble').toLowerCase();
     const config = getProviderConfig(brand);
-    // Saving a device profile only records its model. It does not prove that an
-    // OAuth account or phone health permission has been connected.
     const connectionType = 'manual';
 
     let batteryPct = 90;
@@ -1429,7 +1410,6 @@ export class WearableService {
     const MIN_MULTIPART = 5 * 1024 * 1024; // 5 MiB
 
     if (fileSize < MIN_MULTIPART) {
-      // Small file (< 5 MiB): use direct upload endpoint
       try {
         const directResult = await this.openWearables.uploadAppleXmlDirect(owUserId, fileBuffer, filename);
         return {
@@ -1448,7 +1428,6 @@ export class WearableService {
       }
     }
 
-    // Large file: use multipart upload
     const PART_SIZE = 100 * 1024 * 1024; // 100 MiB default
     const created = await this.openWearables.createAppleXmlMultipart(owUserId, {
       filename,

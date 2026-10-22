@@ -1,5 +1,5 @@
 export const PROVIDER_CAPABILITIES = {
-  // Official OpenWearables providers (14 total):
+
   apple_health: {
     name: 'Apple Health',
     type: 'phone_sdk',
@@ -103,3 +103,4 @@ export function listSupportedProviders() {
       instructions: val.instructions || null,
     }));
 }
+

@@ -3,7 +3,7 @@ import multer from 'multer';
 import { requireAuthentication } from '../middleware/authentication.js';
 import { requireConsent } from '../middleware/consent-gate.js';
 import { globalCache } from '../cache/cache-manager.js';
-import { logger } from '../logger.js';
+import { tagLogger } from '../middleware/tag-logger.js';
 import { createChatRouter } from './chat-routes.js';
 import { createDocumentRouter } from './document-routes.js';
 import { createEncounterRouter } from './encounter-routes.js';
@@ -13,16 +13,6 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 20 * 1024 * 1024 },
 });
-
-function tagLogger(tag) {
-  return (req, _res, next) => {
-    logger.info(`[${tag}] ${req.method} ${req.baseUrl || ''}${req.path}`, {
-      memberId: req.memberId,
-      params: req.params,
-    });
-    next();
-  };
-}
 
 export function createMedibotRouter({
   jwtSecret,

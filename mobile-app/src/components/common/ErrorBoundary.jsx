@@ -42,21 +42,21 @@ export class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-6 text-center">
-          <div className="w-16 h-16 rounded-3xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-500 mb-4 shadow-sm">
+        <div className="min-h-screen bg-[#050811] text-slate-100 flex flex-col items-center justify-center p-6 text-center">
+          <div className="w-16 h-16 rounded-3xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 mb-4 shadow-lg shadow-rose-500/10">
             <AlertTriangle size={32} />
           </div>
           
-          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight mb-1">
+          <h2 className="text-xl font-black text-white tracking-tight mb-1">
             Something went wrong
           </h2>
-          <p className="text-xs text-slate-500 font-medium max-w-xs mb-4">
+          <p className="text-xs text-slate-400 font-medium max-w-xs mb-4">
             An unexpected error occurred while rendering the interface.
           </p>
 
           {this.state.error?.message && (
-            <div className="w-full max-w-sm bg-rose-50/80 border border-rose-200/80 rounded-2xl p-3 mb-6 text-left">
-              <p className="text-[11px] font-mono font-semibold text-rose-700 break-words">
+            <div className="w-full max-w-sm glass-subcard bg-rose-950/30 border border-rose-500/30 rounded-2xl p-3.5 mb-6 text-left">
+              <p className="text-[11px] font-mono font-semibold text-rose-300 break-words">
                 {this.state.error.message}
               </p>
             </div>
@@ -65,7 +65,7 @@ export class ErrorBoundary extends React.Component {
           <div className="flex flex-col gap-2.5 w-full max-w-xs">
             <button
               onClick={this.handleReload}
-              className="w-full py-3 px-4 bg-[#00A8D0] hover:bg-[#0096ba] active:scale-[0.98] text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition"
+              className="w-full py-3 px-4 bg-gradient-to-r from-cyan-500 to-teal-400 hover:opacity-95 text-slate-950 rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20 transition cursor-pointer"
             >
               <RefreshCw size={14} />
               <span>Reload App</span>
@@ -73,7 +73,7 @@ export class ErrorBoundary extends React.Component {
 
             <button
               onClick={this.handleResetState}
-              className="w-full py-2.5 px-4 bg-white border border-slate-200 hover:bg-slate-50 active:scale-[0.98] text-slate-700 rounded-xl font-semibold text-xs flex items-center justify-center gap-2 transition"
+              className="w-full py-2.5 px-4 glass-subcard bg-slate-900/80 border border-white/10 hover:bg-slate-800 text-slate-300 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
             >
               <RotateCcw size={14} />
               <span>Reset State & Reload</span>
