@@ -13,11 +13,8 @@ export function createHealthRouter(controller, jwtSecret) {
   router.get('/phone-health/connection', asyncHandler((request, response) =>
     controller.getPhoneConnection(request, response)));
 
-  router.post(['/phone-health/sync', '/samples', '/health/samples'], asyncHandler((request, response) =>
+  router.post('/phone-health/sync', asyncHandler((request, response) =>
     controller.ingestHealthData(request, response)));
-
-  router.post(['/manual', '/health/manual'], asyncHandler((request, response) =>
-    controller.ingestManualHealthData(request, response)));
 
   router.get('/daily-summary', asyncHandler((request, response) =>
     controller.getDailySummary(request, response)));

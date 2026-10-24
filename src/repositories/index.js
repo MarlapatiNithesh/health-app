@@ -8,6 +8,7 @@ import { SyncLogRepository } from './sync-log-repository.js';
 import { ClinicalRecordRepository } from './clinical-record-repository.js';
 import { EncounterRepository } from './encounter-repository.js';
 import { DocumentRepository } from './document-repository.js';
+import { NotificationRepository } from './notification-repository.js';
 
 export function createRepositories(pool) {
   const timeseriesRepo = new TimeseriesRepository(pool);
@@ -31,6 +32,7 @@ export function createRepositories(pool) {
     clinicalRepo,
     encounterRepo,
     documentRepo,
+    notificationRepo: new NotificationRepository(pool),
   };
 }
 
@@ -47,4 +49,5 @@ export {
   ClinicalRecordRepository,
   EncounterRepository,
   DocumentRepository,
+  NotificationRepository,
 };

@@ -1,5 +1,4 @@
-import { config } from 'dotenv';
-config();
+try { process.loadEnvFile(); } catch {}
 
 import { ProactiveMonitoringService } from './src/services/proactive-monitoring-service.js';
 import { LLMService } from './src/services/llm-service.js';

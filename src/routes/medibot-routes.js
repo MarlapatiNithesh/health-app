@@ -3,7 +3,7 @@ import multer from 'multer';
 import { requireAuthentication } from '../middleware/authentication.js';
 import { requireConsent } from '../middleware/consent-gate.js';
 import { globalCache } from '../cache/cache-manager.js';
-import { tagLogger } from '../middleware/tag-logger.js';
+import { logger } from '../logger.js';
 import { createChatRouter } from './chat-routes.js';
 import { createDocumentRouter } from './document-routes.js';
 import { createEncounterRouter } from './encounter-routes.js';
@@ -14,6 +14,16 @@ const upload = multer({
   limits: { fileSize: 20 * 1024 * 1024 },
 });
 
+function tagLogger(tag) {
+  return (req, _res, next) => {
+    logger.info(`[${tag}] ${req.method} ${req.baseUrl || ''}${req.path}`, {
+      memberId: req.memberId,
+      params: req.params,
+    });
+    next();
+  };
+}
+
 export function createMedibotRouter({
   jwtSecret,
   memberRepo,
@@ -21,11 +31,13 @@ export function createMedibotRouter({
   clinicalController,
   encounterController,
   documentController,
+  chatController,
   orchestratorController,
 }) {
   const router = Router();
   const auth = requireAuthentication(jwtSecret, memberRepo);
   const consentGate = requireConsent(clinicalRepo);
+  const activeChatCtrl = chatController || orchestratorController;
 
   router.get(
     '/status',
@@ -57,7 +69,7 @@ export function createMedibotRouter({
   router.use(createClinicalRouter({ authMiddleware: auth, consentMiddleware: consentGate, clinicalController }));
   router.use(createEncounterRouter({ authMiddleware: auth, consentMiddleware: consentGate, encounterController }));
   router.use(createDocumentRouter({ authMiddleware: auth, consentMiddleware: consentGate, documentController, upload }));
-  router.use(createChatRouter({ authMiddleware: auth, consentMiddleware: consentGate, orchestratorController }));
+  router.use(createChatRouter({ authMiddleware: auth, consentMiddleware: consentGate, orchestratorController: activeChatCtrl, chatController: activeChatCtrl }));
 
   return router;
 }

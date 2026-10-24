@@ -29,11 +29,6 @@ export class MemberService {
     return MemberMapper.toConsentDto(recorded);
   }
 
-  async getConsent(memberId, scope) {
-    await this.requireMember(memberId);
-    return this.memberRepo.getConsent(memberId, scope);
-  }
-
   async getProfileHistory(memberId, options = {}) {
     await this.requireMember(memberId);
     return this.memberRepo.getProfileHistory(memberId, options);
@@ -63,12 +58,7 @@ export class MemberService {
   }
 
   async deleteAccount(memberId) {
-    let member = null;
-    try {
-      member = await this.memberRepo.findMemberById(memberId);
-    } catch {
-
-    }
+    const member = await this.requireMember(memberId);
     if (member?.owUserId && this.openWearables?.deleteUser) {
       try {
         await this.openWearables.deleteUser(member.owUserId);
@@ -76,7 +66,7 @@ export class MemberService {
         logger.warn('Failed to delete remote Open Wearables user', { err: err.message, owUserId: member.owUserId });
       }
     }
-    if (this.memberRepo?.deleteMember) {
+    if (this.memberRepo.deleteMember) {
       await this.memberRepo.deleteMember(memberId);
     }
     return { status: 'deleted', memberId };
@@ -91,4 +81,3 @@ export class MemberService {
     return member;
   }
 }
-

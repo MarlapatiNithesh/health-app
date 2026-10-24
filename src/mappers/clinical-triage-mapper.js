@@ -7,14 +7,13 @@ export class ClinicalTriageMapper {
     status = 'in_progress',
     messageId,
     latencyMs = 0,
-
+    // ── Symptom assessment fields ─────────────────────────────────────────────
     symptomState = null,
     nextField = null,
     assessmentComplete = false,
     emergencyFlag = false,
     trigger = null,
     riskAssessment = null,
-    modelName = null,
   }) {
     const dto = {
       encounterId,
@@ -24,9 +23,9 @@ export class ClinicalTriageMapper {
       status,
       messageId,
       latencyMs,
-      ...(modelName ? { modelName } : {}),
     };
 
+    // Only include symptom assessment metadata if an assessment is active
     if (symptomState && symptomState.primarySymptom) {
       dto.symptomAssessment = {
         primarySymptom: symptomState.primarySymptom,
@@ -70,12 +69,9 @@ export class ClinicalTriageMapper {
   static toSafetyCheckDto({ status = 'SAFE', reasons = [], sources = [], timestamp = null }) {
     return {
       status,
-      isSafe: status === 'SAFE',
       reasons,
-      contraindications: reasons,
       sources,
       timestamp: timestamp || new Date().toISOString(),
     };
   }
 }
-

@@ -2,44 +2,26 @@ import { ApplicationError } from '../errors/application-error.js';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-const PHONE_PROVIDERS = new Set([
-  'apple_health',
-  'apple',
-  'health_connect',
-  'phone_pedometer',
-  'samsung_health',
-  'samsung',
-  'google_health',
-  'bluetooth_ble',
-  'ble_live',
-  'live_ble',
-  'ble'
-]);
+const PHONE_PROVIDERS = new Set(['apple_health', 'health_connect']);
 
 const ALL_PROVIDERS = new Set([
-  'manual',
-  'manual_entry',
   'apple_health',
   'health_connect',
-  'phone_pedometer',
-  'garmin',
-  'samsung_health',
-  'google_health',
-  'withings',
-  'oura',
-  'suunto',
-  'polar',
-  'sensorbio',
   'whoop',
-  'strava',
-  'ultrahuman',
+  'garmin',
+  'oura',
   'fitbit',
-  'bluetooth_ble',
-  'ble_live',
-  'live_ble',
-  'ble',
+  'apple_watch',
+  'samsung_health',
+  'polar',
+  'suunto',
+  'coros',
+  'ringconn',
+  'withings',
+  'ultrahuman',
+  'inbody',
+  'glucobase_cgm',
 ]);
-
 
 const HEALTH_METRICS = new Map([
   ['steps',                    { units: ['count'],             minimum: 0,   maximum: 1_000_000 }],
@@ -54,25 +36,16 @@ const HEALTH_METRICS = new Map([
   ['respiratory_rate',         { units: ['count/min', 'br/min'], minimum: 1, maximum: 120 }],
   ['temperature',              { units: ['°C', 'degC'],        minimum: -10, maximum: 50 }],
   ['blood_glucose',            { units: ['mg/dL', 'mmol/L'],   minimum: 20,  maximum: 1_000 }],
-  ['glucose',                  { units: ['mg/dL', 'mmol/L'],   minimum: 20,  maximum: 1_000 }],
   ['blood_pressure_systolic',  { units: ['mmHg'],              minimum: 40,  maximum: 300 }],
   ['blood_pressure_diastolic', { units: ['mmHg'],              minimum: 30,  maximum: 200 }],
   ['vo2_max',                  { units: ['mL/kg/min'],         minimum: 10,  maximum: 100 }],
   ['calories',                 { units: ['kcal', 'calories'],  minimum: 0,   maximum: 50_000 }],
   ['distance',                 { units: ['m', 'km'],           minimum: 0,   maximum: 500_000 }],
-  ['hydration',                { units: ['mL', 'L', 'ml', 'l'], minimum: 0,   maximum: 50_000 }],
+  ['hydration',                { units: ['mL', 'L'],           minimum: 0,   maximum: 50_000 }],
 ]);
 
 
-const CONSENT_TYPES = new Set([
-  'tos',
-  'privacy_policy',
-  'health_data',
-  'data_access',
-  'document_upload',
-  'wearable_sync',
-  'ai_processing',
-]);
+const CONSENT_TYPES = new Set(['tos', 'privacy_policy', 'health_data']);
 const GENDERS = new Set(['male', 'female', 'other', 'prefer_not_to_say']);
 
 const FUTURE_TOLERANCE_MS = 5 * 60_000;
@@ -189,8 +162,8 @@ export function validatePhoneConnection(connection = {}) {
   const provider = requireText(connection.provider, 'provider', { maxLength: 50 }).toLowerCase();
 
   if (!PHONE_PROVIDERS.has(provider)) {
-    validationError('provider must be apple_health, health_connect, or phone_pedometer',
-      [{ field: 'provider', message: 'Only local phone health sources are supported.' }]);
+    validationError('provider must be apple_health or health_connect',
+      [{ field: 'provider', message: 'Only local phone health stores are supported.' }]);
   }
   if (!Array.isArray(connection.permissions)) {
     validationError('permissions must be an array',
@@ -250,35 +223,11 @@ export function validateHealthSample(sample = {}, index = 0) {
     validationError('Each sample must be an object', [{ field: fieldPrefix, message: 'Expected an object.' }]);
   }
 
-  let rawProvider = sample.provider !== undefined && sample.provider !== null
-    ? String(sample.provider).trim().toLowerCase()
-    : (sample.source ? String(sample.source).trim().toLowerCase() : 'manual');
-  if (rawProvider === 'manual_entry') rawProvider = 'manual';
-  const provider = requireText(rawProvider, `${fieldPrefix}.provider`, { maxLength: 50 });
-  
-  let rawMetric = sample.metric !== undefined && sample.metric !== null ? String(sample.metric).trim().toLowerCase() : '';
-  const metric = requireText(rawMetric, `${fieldPrefix}.metric`, { maxLength: 50 });
-  
-  const idValue = sample.externalId || sample.id;
-  const externalId = idValue
-    ? requireText(String(idValue), `${fieldPrefix}.externalId`, { maxLength: 255 })
-    : `${provider}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    
-  const recordedAtValue = sample.recordedAt || sample.end || sample.start;
-  const recordedAt = recordedAtValue
-    ? requireText(String(recordedAtValue), `${fieldPrefix}.recordedAt`, { maxLength: 64 })
-    : new Date().toISOString();
-
-  let rawUnit = sample.unit !== undefined && sample.unit !== null ? String(sample.unit).trim() : '';
-  if (!rawUnit) {
-    if (metric === 'steps') rawUnit = 'count';
-    else if (metric === 'heart_rate') rawUnit = 'bpm';
-    else if (metric === 'sleep') rawUnit = 'min';
-    else if (metric === 'spo2') rawUnit = '%';
-    else if (metric === 'calories') rawUnit = 'kcal';
-    else if (metric === 'blood_glucose' || metric === 'glucose') rawUnit = 'mg/dL';
-  }
-  const unit = requireText(rawUnit, `${fieldPrefix}.unit`, { maxLength: 30 });
+  const provider   = requireText(sample.provider,   `${fieldPrefix}.provider`,   { maxLength: 50 }).toLowerCase();
+  const metric     = requireText(sample.metric,     `${fieldPrefix}.metric`,     { maxLength: 50 });
+  const externalId = requireText(sample.externalId, `${fieldPrefix}.externalId`, { maxLength: 255 });
+  const recordedAt = requireText(sample.recordedAt, `${fieldPrefix}.recordedAt`, { maxLength: 64 });
+  const unit       = requireText(sample.unit,       `${fieldPrefix}.unit`,       { maxLength: 30 });
 
   const rule = HEALTH_METRICS.get(metric);
   if (!ALL_PROVIDERS.has(provider) || !rule) {

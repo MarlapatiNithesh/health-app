@@ -1,5 +1,10 @@
 import swaggerUi from 'swagger-ui-express';
 
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * SWAGGER BASE SPECIFICATION & DOMAIN SCHEMAS
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
 export const baseSwaggerSpec = {
   openapi: '3.0.3',
   info: {
@@ -741,9 +746,21 @@ High-performance REST API powering member authentication, demographic & biometri
   },
 };
 
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * SWAGGER CONFIGURATION ENGINE (SpringDoc Style)
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
 export class SwaggerConfig {
   static #endpointRegistry = new Map();
 
+  /**
+   * Register a controller group declaratively (equivalent to @RestController + @RequestMapping)
+   *
+   * @param {string} controllerName - Identifier for the controller
+   * @param {string} basePath - Base URI prefix (e.g. '/v1/me', '/medibot')
+   * @param {Array<Object>} endpoints - Endpoint specifications
+   */
   static registerController(controllerName, basePath, endpoints) {
     if (!this.#endpointRegistry.has(controllerName)) {
       this.#endpointRegistry.set(controllerName, { basePath, endpoints: [] });
@@ -754,6 +771,11 @@ export class SwaggerConfig {
     }
   }
 
+  /**
+   * Introspect direct routes mounted on the Express application
+   *
+   * @param {import('express').Application} app
+   */
   static autoDiscoverExpressRoutes(app) {
     if (!app || !app.router || !Array.isArray(app.router.stack)) return;
 
@@ -807,13 +829,16 @@ export class SwaggerConfig {
     return 'System';
   }
 
+  /**
+   * Build complete OpenAPI paths object
+   */
   static buildPaths() {
     const paths = {};
 
     for (const [, { basePath, endpoints }] of this.#endpointRegistry.entries()) {
       for (const ep of endpoints) {
         let fullPath = (basePath ? `${basePath}${ep.path.startsWith('/') ? '' : '/'}${ep.path}` : ep.path) || '/';
-
+        // Normalize Express route params (:param) to OpenAPI ({param})
         fullPath = fullPath.replace(/:([a-zA-Z0-9_]+)/g, '{$1}');
         if (fullPath.length > 1 && fullPath.endsWith('/')) {
           fullPath = fullPath.slice(0, -1);
@@ -830,12 +855,14 @@ export class SwaggerConfig {
           tags: ep.tags || [this.#inferTagFromPath(fullPath)],
         };
 
+        // Auto-configure security
         if (ep.auth === 'BearerAuth' || ep.auth === true) {
           operation.security = [{ BearerAuth: [] }];
         } else if (ep.auth === 'WebhookSecret') {
           operation.security = [{ WebhookSecret: [] }, { WebhookSignature: [] }];
         }
 
+        // Auto-discover path parameters
         const pathParams = [];
         const matches = fullPath.match(/\{([a-zA-Z0-9_]+)\}/g);
         if (matches) {
@@ -876,6 +903,7 @@ export class SwaggerConfig {
           operation.parameters = pathParams;
         }
 
+        // Auto-configure requestBody
         if (ep.requestBody) {
           if (ep.requestBody === 'multipart') {
             operation.requestBody = {
@@ -908,6 +936,7 @@ export class SwaggerConfig {
           }
         }
 
+        // Auto-configure responses
         operation.responses = {};
         const successCode = ep.statusCode || (method === 'post' ? 201 : 200);
 
@@ -937,6 +966,7 @@ export class SwaggerConfig {
           };
         }
 
+        // Standard error responses
         if (!operation.responses[400]) {
           operation.responses[400] = {
             description: 'Validation Error / Bad Request',
@@ -963,6 +993,9 @@ export class SwaggerConfig {
     return paths;
   }
 
+  /**
+   * Build complete Swagger/OpenAPI document
+   */
   static buildSpec(baseSpec = baseSwaggerSpec) {
     const paths = this.buildPaths();
     return {
@@ -975,6 +1008,11 @@ export class SwaggerConfig {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SPRINGDOC-STYLE DECLARATIVE CONTROLLER REGISTRATIONS (All 43 API Endpoints)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// 1. System Controller
 SwaggerConfig.registerController('SystemController', '', [
   {
     method: 'get',
@@ -987,6 +1025,7 @@ SwaggerConfig.registerController('SystemController', '', [
   },
 ]);
 
+// 2. Phone Authentication Controller (@RequestMapping("/phone"))
 SwaggerConfig.registerController('PhoneController', '/phone', [
   {
     method: 'post',
@@ -1012,6 +1051,7 @@ SwaggerConfig.registerController('PhoneController', '/phone', [
   },
 ]);
 
+// 3. Member Profile Controller (@RequestMapping("/v1/me"))
 SwaggerConfig.registerController('MemberController', '/v1/me', [
   {
     method: 'get',
@@ -1073,6 +1113,7 @@ SwaggerConfig.registerController('MemberController', '/v1/me', [
   },
 ]);
 
+// 4. Phone Health Controller (@RequestMapping("/v1/me"))
 SwaggerConfig.registerController('PhoneHealthController', '/v1/me', [
   {
     method: 'put',
@@ -1113,6 +1154,7 @@ SwaggerConfig.registerController('PhoneHealthController', '/v1/me', [
   },
 ]);
 
+// 5. Wearables & Devices Controller (@RequestMapping("/wearables"))
 SwaggerConfig.registerController('WearableController', '/wearables', [
   {
     method: 'get',
@@ -1272,6 +1314,7 @@ SwaggerConfig.registerController('WearableController', '/wearables', [
   },
 ]);
 
+// 6. Webhooks Controller (@RequestMapping("/api/webhooks"))
 SwaggerConfig.registerController('WebhookController', '/api/webhooks', [
   {
     method: 'post',
@@ -1311,6 +1354,7 @@ SwaggerConfig.registerController('WebhookController', '/api/webhooks', [
   },
 ]);
 
+// 7. MediBot AI Clinical Services Controller (@RequestMapping("/medibot"))
 SwaggerConfig.registerController('ChatController', '/medibot', [
   {
     method: 'get',
@@ -1356,6 +1400,7 @@ SwaggerConfig.registerController('ChatController', '/medibot', [
   },
 ]);
 
+// 8. Patient 360 & Clinical Records Controller (@RequestMapping("/medibot/patients"))
 SwaggerConfig.registerController('ClinicalController', '/medibot/patients', [
   {
     method: 'get',
@@ -1474,6 +1519,7 @@ SwaggerConfig.registerController('ClinicalController', '/medibot/patients', [
   },
 ]);
 
+// 9. Clinical Consents Controller (@RequestMapping("/medibot/consents"))
 SwaggerConfig.registerController('ConsentsController', '/medibot/consents', [
   {
     method: 'post',
@@ -1535,6 +1581,7 @@ SwaggerConfig.registerController('ConsentsController', '/medibot/consents', [
   },
 ]);
 
+// 10. Clinical Documents & OCR Controller (@RequestMapping("/medibot/documents"))
 SwaggerConfig.registerController('DocumentController', '/medibot/documents', [
   {
     method: 'post',
@@ -1589,6 +1636,7 @@ SwaggerConfig.registerController('DocumentController', '/medibot/documents', [
   },
 ]);
 
+// 11. Clinical Encounters Controller (@RequestMapping("/medibot/encounters"))
 SwaggerConfig.registerController('EncounterController', '/medibot/encounters', [
   {
     method: 'post',
@@ -1665,8 +1713,20 @@ SwaggerConfig.registerController('EncounterController', '/medibot/encounters', [
   },
 ]);
 
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * COMPILED SWAGGER SPECIFICATION & EXPRESS MOUNT HELPER
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
 export const swaggerSpec = SwaggerConfig.buildSpec(baseSwaggerSpec);
 
+/**
+ * Mounts interactive Swagger UI and raw JSON documentation endpoints
+ *
+ * @param {import('express').Application} app
+ * @returns {Object} Compiled OpenAPI 3.0.3 specification
+ */
 export function setupSwaggerDocs(app) {
   SwaggerConfig.autoDiscoverExpressRoutes(app);
   const spec = SwaggerConfig.buildSpec(baseSwaggerSpec);
@@ -1710,4 +1770,3 @@ export function setupSwaggerDocs(app) {
 }
 
 export default swaggerSpec;
-

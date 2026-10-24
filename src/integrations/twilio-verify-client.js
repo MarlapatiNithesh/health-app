@@ -16,8 +16,8 @@ export class TwilioVerifyClient {
     if (!this.isConfigured()) {
       throw new Error('TwilioVerifyClient is not configured. Missing accountSid, authToken, or serviceSid.');
     }
-    const allowedChannels = ['sms', 'whatsapp', 'call'];
-    const normalizedChannel = allowedChannels.includes(channel) ? channel : 'sms';
+
+    const normalizedChannel = channel === 'whatsapp' ? 'whatsapp' : 'sms';
     const url = `https://verify.twilio.com/v2/Services/${encodeURIComponent(this.serviceSid)}/Verifications`;
     const authHeader = 'Basic ' + Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64');
 

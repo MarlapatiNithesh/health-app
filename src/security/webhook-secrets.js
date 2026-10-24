@@ -17,11 +17,12 @@ export function matchesSecret(provided, expected) {
 }
 
 export function verifyWebhookSignature(headers = {}, rawBody, secret, { toleranceSeconds = 300 } = {}) {
-
+  // Fail closed if secret is missing or empty
   if (!secret || typeof secret !== 'string' || secret.trim() === '') {
     return false;
   }
 
+  // 1. Direct shared-secret headers (Bearer token or raw secret)
   const candidateSecret = headers['x-webhook-secret']
     || headers['webhook-secret']
     || headers['authorization'];
@@ -35,6 +36,7 @@ export function verifyWebhookSignature(headers = {}, rawBody, secret, { toleranc
     }
   }
 
+  // 2. Svix HMAC-SHA256 signature verification
   const msgSignature = headers['svix-signature'] || headers['webhook-signature'];
   if (msgSignature && rawBody) {
     const msgTimestamp = headers['svix-timestamp'] || headers['webhook-timestamp'];
@@ -63,4 +65,3 @@ export function verifyWebhookSignature(headers = {}, rawBody, secret, { toleranc
 export function verifySvixSignature(rawBody, headers, secret, options) {
   return verifyWebhookSignature(headers, rawBody, secret, options);
 }
-

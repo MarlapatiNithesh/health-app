@@ -1,7 +1,17 @@
 import { Router } from 'express';
 import { requireAuthentication } from '../middleware/authentication.js';
 import { globalCache } from '../cache/cache-manager.js';
-import { tagLogger } from '../middleware/tag-logger.js';
+import { logger } from '../logger.js';
+
+function tagLogger(tag) {
+  return (req, _res, next) => {
+    logger.info(`[${tag}] ${req.method} ${req.baseUrl || ''}${req.path}`, {
+      memberId: req.memberId,
+      params: req.params,
+    });
+    next();
+  };
+}
 
 export function createClinicalRouter({
   jwtSecret,
@@ -12,7 +22,7 @@ export function createClinicalRouter({
 }) {
   const router = Router();
   const auth = authMiddleware || requireAuthentication(jwtSecret, memberRepo);
-  const consent = consentMiddleware || ((_req, _res, next) => next());
+  const consent = consentMiddleware || ((req, res, next) => next());
 
   router.get(
     '/patients/:patientId',
@@ -30,12 +40,6 @@ export function createClinicalRouter({
     clinicalController.updateProfile
   );
   router.get(
-    ['/patients/:patientId/summary-pdf', '/summary/pdf'],
-    auth,
-    tagLogger('TAG: SUMMARY_PDF'),
-    clinicalController.getSummaryPdf
-  );
-  router.get(
     '/patients/:patientId/context',
     auth,
     consent,
@@ -50,13 +54,6 @@ export function createClinicalRouter({
     tagLogger('TAG: PATIENT_360'),
     globalCache.routeCache(15_000),
     clinicalController.getTimeline
-  );
-  router.get(
-    '/patients/:patientId/proactive-insights',
-    auth,
-    consent,
-    tagLogger('TAG: PROACTIVE_INSIGHTS'),
-    clinicalController.getProactiveInsights
   );
 
   router.get(
@@ -124,7 +121,13 @@ export function createClinicalRouter({
   );
 
   router.post(
-    ['/consents', '/consents/:scope'],
+    '/consents',
+    auth,
+    tagLogger('TAG: CONSENTS'),
+    clinicalController.setConsent
+  );
+  router.post(
+    '/consents/:scope',
     auth,
     tagLogger('TAG: CONSENTS'),
     clinicalController.setConsent

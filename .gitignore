@@ -1,52 +1,25 @@
 # Dependencies
 node_modules/
-*/node_modules/
+package-lock.json
 
-# Secrets and local environment files
+# Environment and Secrets
 .env
 .env*.local
-.env.production
-.env.staging
-!.env.example
+*.pem
 
-# Build and temporary files
-tmp/
+# Uploads & User generated data
+uploads/
+scratch/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Logs
+logs/
 *.log
 npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
-# Uploads directory contents (mock S3, patient uploads)
-uploads/*
-!uploads/.gitkeep
-
-# IDEs and OS metadata
-.idea/
-.vscode/
+# OS Files
 .DS_Store
 Thumbs.db
-
-# Mobile App & Web build artifacts
-mobile-app/dist/
-.expo/
-*/.expo/
-.expo-export-check/
-*/.expo-export-check/
-web-build/
-expo-env.d.ts
-
-# Android build outputs & local properties
-.gradle/
-*/.gradle/
-.kotlin/
-*/.kotlin/
-build/
-*/build/
-local.properties
-*/local.properties
-*.apk
-*.aab
-*.iml
-*.hprof
-.cxx/
-*/.cxx/

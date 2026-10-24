@@ -132,7 +132,7 @@ $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS trg_timeseries_local_date ON timeseries;
 CREATE TRIGGER trg_timeseries_local_date
-  BEFORE INSERT OR UPDATE ON timeseries
+  BEFORE INSERT ON timeseries
   FOR EACH ROW EXECUTE FUNCTION timeseries_fill_local_date();
 
 CREATE TABLE IF NOT EXISTS workouts (

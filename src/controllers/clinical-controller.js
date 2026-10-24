@@ -105,13 +105,6 @@ export class ClinicalController {
     res.json({ timeline });
   });
 
-  getProactiveInsights = asyncHandler(async (req, res) => {
-    const rawPid = req.params.patientId || req.memberId;
-    const patientId = rawPid === 'me' ? req.memberId : rawPid;
-    const insight = await this.clinicalService.getProactiveInsights(patientId);
-    res.json({ insight });
-  });
-
   getConsent = asyncHandler(async (req, res) => {
     let { scope } = req.params;
     const aliases = {
@@ -160,20 +153,4 @@ export class ClinicalController {
     const consent = await this.clinicalService.setConsent(req.memberId, scope, granted);
     res.json({ consent });
   });
-
-  getSummaryPdf = asyncHandler(async (req, res) => {
-    const rawPid = req.params.patientId || req.query.patientId || req.memberId;
-    const patientId = (!rawPid || rawPid === 'me' || rawPid === 'undefined' || rawPid === 'null')
-      ? req.memberId
-      : rawPid;
-    if (patientId !== req.memberId) {
-      throw new ApplicationError('Forbidden: Cannot access another patient record', 403, 'forbidden');
-    }
-    const { buffer, filename } = await this.clinicalService.getSummaryPdf(patientId);
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Content-Length', buffer.length);
-    res.send(buffer);
-  });
 }
-

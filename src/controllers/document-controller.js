@@ -10,8 +10,9 @@ export class DocumentController {
   }
 
   upload = asyncHandler(async (req, res) => {
-    let file = req.file || (req.files && (req.files.find(f => f.fieldname === 'file' || f.fieldname === 'document') || req.files[0]));
+    let file = req.file;
 
+    // Support frontend uploading via document/image URL
     if (!file && req.body?.url) {
       const docUrl = req.body.url;
       try {
@@ -48,42 +49,17 @@ export class DocumentController {
       throw new ApplicationError('No document file or URL provided', 400, 'validation_error');
     }
 
-    if (!file.buffer || file.buffer.length === 0) {
-      throw new ApplicationError('Uploaded file is empty. Please select a valid document or image.', 400, 'validation_error');
+    let mimeType = file.mimetype || 'application/pdf';
+    if (mimeType === 'image/jpg' || mimeType === 'image/pjpeg') {
+      mimeType = 'image/jpeg';
     }
-
-    let rawMime = (file.mimetype || '').split(';')[0].trim().toLowerCase();
-    if (rawMime === 'image/jpg' || rawMime === 'image/pjpeg') {
-      rawMime = 'image/jpeg';
-    }
-
-    const allowedMimes = [
-      'application/pdf',
-      'image/png',
-      'image/jpeg',
-      'image/tiff',
-      'image/webp',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'text/plain',
-      'text/csv',
-      'application/rtf'
-    ];
-
-    let mimeType = rawMime;
+    const allowedMimes = ['application/pdf', 'image/png', 'image/jpeg', 'image/tiff'];
     if (!allowedMimes.includes(mimeType)) {
       const ext = path.extname(file.originalname || '').toLowerCase();
       if (ext === '.pdf') mimeType = 'application/pdf';
       else if (ext === '.png') mimeType = 'image/png';
       else if (ext === '.jpg' || ext === '.jpeg') mimeType = 'image/jpeg';
       else if (ext === '.tif' || ext === '.tiff') mimeType = 'image/tiff';
-      else if (ext === '.webp') mimeType = 'image/webp';
-      else if (ext === '.doc') mimeType = 'application/msword';
-      else if (ext === '.docx') mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-      else if (ext === '.txt') mimeType = 'text/plain';
-      else if (ext === '.csv') mimeType = 'text/csv';
-      else if (ext === '.rtf') mimeType = 'application/rtf';
-      else if (rawMime.startsWith('image/')) mimeType = 'image/jpeg';
       else mimeType = 'application/pdf';
     }
 
@@ -128,4 +104,3 @@ export class DocumentController {
     res.json(result);
   });
 }
-

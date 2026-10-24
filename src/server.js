@@ -2,7 +2,6 @@ import { createApp } from './app.js';
 import { loadConfig } from './config/env.js';
 import { logger } from './logger.js';
 import { createDatabasePool } from './database/pool.js';
-import { exec } from 'node:child_process';
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 
@@ -24,6 +23,7 @@ async function start() {
     throw new Error('DATABASE_URL is required to start the server');
   }
 
+  // Express App Initialized
   const { app } = createApp({
     ...config,
     pool,
@@ -34,14 +34,6 @@ async function start() {
       port: config.port,
       url: `http://localhost:${config.port}`,
     });
-
-    const maintainAdbReverse = () => {
-      exec(`adb reverse tcp:${config.port} tcp:${config.port}`, () => {});
-      exec('adb reverse tcp:8081 tcp:8081', () => {});
-    };
-    maintainAdbReverse();
-    const adbTimer = setInterval(maintainAdbReverse, 4000);
-    if (adbTimer.unref) adbTimer.unref();
   });
 
   function shutdown() {

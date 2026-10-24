@@ -1,62 +1,59 @@
 export const PROVIDER_CAPABILITIES = {
+  garmin: { name: 'Garmin', type: 'oauth', connectionType: 'oauth', tier: 1 },
+  oura: { name: 'Oura', type: 'oauth', connectionType: 'oauth', tier: 1 },
+  whoop: { name: 'WHOOP', type: 'oauth', connectionType: 'oauth', tier: 1 },
+  fitbit: { name: 'Fitbit', type: 'oauth', connectionType: 'oauth', tier: 2 },
+  polar: { name: 'Polar', type: 'oauth', connectionType: 'oauth', tier: 2 },
+  suunto: { name: 'Suunto', type: 'oauth', connectionType: 'oauth', tier: 2 },
+  coros: { name: 'COROS', type: 'oauth', connectionType: 'oauth', tier: 2 },
+  ringconn: { name: 'RingConn', type: 'oauth', connectionType: 'oauth', tier: 2 },
+  withings: { name: 'Withings', type: 'oauth', connectionType: 'oauth', tier: 2 },
+  ultrahuman: { name: 'Ultrahuman', type: 'oauth', connectionType: 'oauth', tier: 2 },
 
+  apple_watch: {
+    name: 'Apple Watch',
+    type: 'phone_sdk',
+    connectionType: 'phone_sdk',
+    via: 'apple_health',
+    tier: 2,
+    instructions: 'Connect via Apple Health on your iPhone settings.',
+  },
+  samsung_health: {
+    name: 'Samsung Health',
+    type: 'phone_sdk',
+    connectionType: 'phone_sdk',
+    via: 'health_connect',
+    tier: 2,
+    instructions: 'Connect via Health Connect on your Android phone settings.',
+  },
   apple_health: {
     name: 'Apple Health',
     type: 'phone_sdk',
     connectionType: 'phone_sdk',
     via: 'apple_health',
-    tier: 1,
-    instructions: 'Connect via Apple Health on your iOS device settings.',
+    tier: 3,
   },
   health_connect: {
     name: 'Health Connect',
     type: 'phone_sdk',
     connectionType: 'phone_sdk',
     via: 'health_connect',
-    tier: 1,
-    instructions: 'Connect via Health Connect on your Android phone settings.',
+    tier: 3,
   },
-  garmin: { name: 'Garmin', type: 'oauth', connectionType: 'oauth', tier: 1 },
-  samsung_health: {
-    name: 'Samsung Health',
-    type: 'phone_sdk',
-    connectionType: 'phone_sdk',
-    via: 'health_connect',
-    tier: 1,
-    instructions: 'Connect via Samsung Health or Health Connect on your phone settings.',
-  },
-  google_health: {
-    name: 'Google Health',
-    type: 'oauth',
-    connectionType: 'oauth',
-    tier: 2,
-    instructions: 'Connect your Google Health account through OpenWearables OAuth.',
-  },
-  withings: { name: 'Withings', type: 'oauth', connectionType: 'oauth', tier: 1 },
-  oura: { name: 'Oura', type: 'oauth', connectionType: 'oauth', tier: 1 },
-  suunto: { name: 'Suunto', type: 'oauth', connectionType: 'oauth', tier: 1 },
-  polar: { name: 'Polar', type: 'oauth', connectionType: 'oauth', tier: 1 },
-  sensorbio: { name: 'Sensor Bio', type: 'oauth', connectionType: 'oauth', tier: 1, instructions: 'Connect Sensor Bio biometric sensors.' },
-  whoop: { name: 'WHOOP', type: 'oauth', connectionType: 'oauth', tier: 1 },
-  strava: { name: 'Strava', type: 'oauth', connectionType: 'oauth', tier: 2, instructions: 'Connect your Strava account for workout and activity telemetry.' },
-  ultrahuman: { name: 'Ultrahuman', type: 'oauth', connectionType: 'oauth', tier: 1 },
-  fitbit: { name: 'Fitbit', type: 'oauth', connectionType: 'oauth', tier: 2 },
 
-  apple: {
-    name: 'Apple Health',
-    type: 'phone_sdk',
-    connectionType: 'phone_sdk',
-    via: 'apple_health',
-    tier: 1,
-    instructions: 'Connect via Apple Health on your iOS device.',
+  inbody: {
+    name: 'InBody',
+    type: 'manual',
+    connectionType: 'manual',
+    tier: 2,
+    instructions: 'Add measurements or connect manually via manual device entry.',
   },
-  samsung: {
-    name: 'Samsung Health',
-    type: 'phone_sdk',
-    connectionType: 'phone_sdk',
-    via: 'samsung_health',
-    tier: 1,
-    instructions: 'Connect via Samsung Health Cloud or Health Connect.',
+  glucobase_cgm: {
+    name: 'GlucoBase CGM',
+    type: 'manual',
+    connectionType: 'manual',
+    tier: 2,
+    instructions: 'Add glucose readings or connect manually via manual device entry.',
   },
   manual: {
     name: 'Manual Entry',
@@ -70,8 +67,6 @@ export const PROVIDER_CAPABILITIES = {
 export function getProviderConfig(provider) {
   if (!provider) return null;
   const key = String(provider).toLowerCase();
-  if (key === 'samsung' || key === 'samsung_health') return PROVIDER_CAPABILITIES.samsung || PROVIDER_CAPABILITIES.samsung_health;
-  if (key === 'apple' || key === 'apple_health') return PROVIDER_CAPABILITIES.apple || PROVIDER_CAPABILITIES.apple_health;
   return PROVIDER_CAPABILITIES[key] || null;
 }
 
@@ -91,16 +86,13 @@ export function isPhoneSdkProvider(provider) {
 }
 
 export function listSupportedProviders() {
-  return Object.entries(PROVIDER_CAPABILITIES)
-    .filter(([key]) => key !== 'manual' && key !== 'bluetooth_ble')
-    .map(([key, val]) => ({
-      provider: key,
-      name: val.name,
-      connectionType: val.connectionType,
-      type: val.type,
-      via: val.via || null,
-      tier: val.tier,
-      instructions: val.instructions || null,
-    }));
+  return Object.entries(PROVIDER_CAPABILITIES).map(([key, val]) => ({
+    provider: key,
+    name: val.name,
+    connectionType: val.connectionType,
+    type: val.type,
+    via: val.via || null,
+    tier: val.tier,
+    instructions: val.instructions || null,
+  }));
 }
-

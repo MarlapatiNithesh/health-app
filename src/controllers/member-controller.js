@@ -18,11 +18,6 @@ export class MemberController {
     response.status(201).json(record);
   }
 
-  async getConsent(request, response) {
-    const consent = await this.service.getConsent(request.memberId, request.params.scope);
-    response.json({ consent });
-  }
-
   async profileHistory(request, response) {
     const history = await this.service.getProfileHistory(request.memberId, request.query);
     response.json(history);

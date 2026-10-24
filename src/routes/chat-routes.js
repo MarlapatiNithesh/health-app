@@ -1,6 +1,16 @@
 import { Router } from 'express';
 import { requireAuthentication } from '../middleware/authentication.js';
-import { tagLogger } from '../middleware/tag-logger.js';
+import { logger } from '../logger.js';
+
+function tagLogger(tag) {
+  return (req, _res, next) => {
+    logger.info(`[${tag}] ${req.method} ${req.baseUrl || ''}${req.path}`, {
+      memberId: req.memberId,
+      params: req.params,
+    });
+    next();
+  };
+}
 
 export function createChatRouter({
   jwtSecret,
@@ -11,7 +21,7 @@ export function createChatRouter({
 }) {
   const router = Router();
   const auth = authMiddleware || requireAuthentication(jwtSecret, memberRepo);
-  const consent = consentMiddleware || ((_req, _res, next) => next());
+  const consent = consentMiddleware || ((req, res, next) => next());
 
   router.post(
     '/chat',
@@ -35,22 +45,6 @@ export function createChatRouter({
     consent,
     tagLogger('TAG: CLINICAL_TRIAGE_AI'),
     orchestratorController.validateDrug
-  );
-
-  router.post(
-    '/chat/feedback',
-    auth,
-    consent,
-    tagLogger('TAG: CHAT_FEEDBACK'),
-    orchestratorController.submitFeedback
-  );
-
-  router.post(
-    '/chat/summarize',
-    auth,
-    consent,
-    tagLogger('TAG: CHAT_SUMMARIZE'),
-    orchestratorController.summarizeChat
   );
 
   return router;

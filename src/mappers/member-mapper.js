@@ -10,7 +10,7 @@ export class MemberMapper {
     const heightCm = member.heightCm != null ? Number(member.heightCm) : (member.height_cm != null ? Number(member.height_cm) : (member.profile?.heightCm != null ? Number(member.profile.heightCm) : null));
     const weightKg = member.weightKg != null ? Number(member.weightKg) : (member.weight_kg != null ? Number(member.weight_kg) : (member.profile?.weightKg != null ? Number(member.profile.weightKg) : null));
     const insuranceTier = member.insuranceTier || member.insurance_tier || member.profile?.insuranceTier || member.wellnessTier || 'bronze';
-    const wellnessScore = Number(member.wellnessScore ?? member.wellness_score ?? member.profile?.wellnessScore ?? 30);
+    const wellnessScore = Number(member.wellnessScore ?? member.healthScore ?? member.wellness_score ?? member.profile?.wellnessScore ?? member.profile?.healthScore ?? 50);
 
     const profile = member.profile || {
       fullName,
@@ -20,7 +20,11 @@ export class MemberMapper {
       weightKg,
       insuranceTier,
       wellnessScore,
+      healthScore: wellnessScore,
     };
+    profile.wellnessScore = wellnessScore;
+    profile.healthScore = wellnessScore;
+
     return {
       id: member.id,
       phone: member.phoneE164 || member.phone,
@@ -38,6 +42,7 @@ export class MemberMapper {
       weightKg,
       insuranceTier,
       wellnessScore,
+      healthScore: wellnessScore,
       createdAt: member.createdAt || member.created_at,
       owUserId: member.owUserId ?? null,
       timezone: member.timezone || 'Asia/Kolkata',

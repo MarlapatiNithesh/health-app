@@ -38,8 +38,7 @@ export class WearableRepository {
          updated_at       AS "updatedAt"
        FROM wearable_links
        WHERE member_id = $1
-         AND provider NOT IN ('apple_health','health_connect','phone_pedometer')
-         AND (status != 'disconnected' OR connection_type = 'manual')
+         AND provider NOT IN ('apple_health','health_connect')
        ORDER BY created_at DESC`,
       [memberId],
     );
@@ -77,7 +76,6 @@ export class WearableRepository {
          updated_at       AS "updatedAt"
        FROM wearable_links
        WHERE member_id = $1
-         AND provider NOT IN ('apple_health','health_connect','phone_pedometer','phone')
        ORDER BY created_at DESC`,
       [memberId],
     );
@@ -108,26 +106,13 @@ export class WearableRepository {
          ($1, $2, $3, $4, $5, $6, $7, $8,
           CASE WHEN $4 IN ('connected','syncing') THEN now() ELSE NULL END)
        ON CONFLICT (member_id, provider) DO UPDATE SET
-         connection_type  = CASE
-                              WHEN wearable_links.connection_type = 'oauth' AND EXCLUDED.connection_type = 'manual'
-                                THEN wearable_links.connection_type
-                              ELSE COALESCE(EXCLUDED.connection_type, wearable_links.connection_type)
-                            END,
-         status           = CASE
-                              WHEN wearable_links.connection_type = 'oauth' AND EXCLUDED.connection_type = 'manual'
-                                THEN wearable_links.status
-                              ELSE EXCLUDED.status
-                            END,
+         connection_type  = COALESCE(EXCLUDED.connection_type, wearable_links.connection_type),
+         status           = EXCLUDED.status,
          model            = COALESCE(EXCLUDED.model, wearable_links.model),
          battery_pct      = COALESCE(EXCLUDED.battery_pct, wearable_links.battery_pct),
          metrics_provided = CASE WHEN array_length(EXCLUDED.metrics_provided, 1) > 0 THEN EXCLUDED.metrics_provided ELSE wearable_links.metrics_provided END,
          metadata         = wearable_links.metadata || EXCLUDED.metadata,
-         connected_at     = CASE
-                              WHEN wearable_links.connection_type = 'oauth' AND EXCLUDED.connection_type = 'manual'
-                                THEN wearable_links.connected_at
-                              WHEN EXCLUDED.status IN ('connected','syncing') THEN now()
-                              ELSE wearable_links.connected_at
-                            END,
+         connected_at     = CASE WHEN EXCLUDED.status IN ('connected','syncing') THEN now() ELSE wearable_links.connected_at END,
          updated_at       = now()
        RETURNING
          id,
@@ -175,7 +160,7 @@ export class WearableRepository {
          updated_at       AS "updatedAt"
        FROM wearable_links
        WHERE member_id = $1 AND id = $2
-         AND provider NOT IN ('apple_health','health_connect','phone_pedometer')`,
+         AND provider NOT IN ('apple_health','health_connect')`,
       [memberId, deviceId],
     );
 
@@ -266,7 +251,8 @@ export class WearableRepository {
 
   async deleteWearableDevice(memberId, deviceId, client = this.pool) {
     await client.query(
-      `DELETE FROM wearable_links
+      `UPDATE wearable_links
+       SET status = 'disconnected', disconnected_at = now(), updated_at = now()
        WHERE member_id = $1 AND id = $2`,
       [memberId, deviceId],
     );
@@ -483,22 +469,40 @@ export class WearableRepository {
     return result.rows[0] ?? null;
   }
 
+  async listWearableLinks(memberId, client = this.pool) {
+    const result = await client.query(
+      `SELECT
+         id,
+         member_id        AS "memberId",
+         provider,
+         connection_type  AS "connectionType",
+         status,
+         model,
+         battery_pct      AS "batteryPct",
+         metrics_provided AS "metricsProvided",
+         metadata,
+         sync_cursor      AS "syncCursor",
+         connected_at     AS "connectedAt",
+         disconnected_at  AS "disconnectedAt",
+         last_sync_at     AS "lastSyncAt",
+         last_data_at     AS "lastDataAt",
+         error_detail     AS "errorDetail",
+         created_at       AS "createdAt",
+         updated_at       AS "updatedAt"
+       FROM wearable_links
+       WHERE member_id = $1
+       ORDER BY created_at`,
+      [memberId],
+    );
+    return result.rows;
+  }
+
   async touchLastData(memberId, provider, client = this.pool) {
     if (!memberId || !provider) return;
     await client.query(
       `UPDATE wearable_links
        SET last_data_at = now(), updated_at = now()
        WHERE member_id = $1 AND provider = $2 AND status != 'disconnected'`,
-      [memberId, provider.toLowerCase()],
-    );
-  }
-
-  async touchLastSync(memberId, provider, client = this.pool) {
-    if (!memberId || !provider) return;
-    await client.query(
-      `UPDATE wearable_links
-       SET last_sync_at = now(), updated_at = now()
-       WHERE member_id = $1 AND provider = $2`,
       [memberId, provider.toLowerCase()],
     );
   }
@@ -600,7 +604,12 @@ export class WearableRepository {
     );
 
     if (result.rowCount > 0) {
-      await this.touchLastData(memberId, provider, client);
+      await client.query(
+        `UPDATE wearable_links
+         SET last_data_at = now()
+         WHERE member_id = $1 AND provider = $2 AND status != 'disconnected'`,
+        [memberId, provider],
+      ).catch(() => {});
     }
 
     return result.rowCount;
@@ -654,7 +663,12 @@ export class WearableRepository {
     );
 
     if (result.rowCount > 0) {
-      await this.touchLastData(memberId, provider, client);
+      await client.query(
+        `UPDATE wearable_links
+         SET last_data_at = now()
+         WHERE member_id = $1 AND provider = $2 AND status != 'disconnected'`,
+        [memberId, provider],
+      ).catch(() => {});
     }
 
     return result.rowCount;
@@ -721,7 +735,12 @@ export class WearableRepository {
     );
 
     if (result.rowCount > 0) {
-      await this.touchLastData(memberId, provider, client);
+      await client.query(
+        `UPDATE wearable_links
+         SET last_data_at = now()
+         WHERE member_id = $1 AND provider = $2 AND status != 'disconnected'`,
+        [memberId, provider],
+      ).catch(() => {});
     }
 
     return result.rowCount;
@@ -757,7 +776,12 @@ export class WearableRepository {
     );
 
     if (result.rowCount > 0) {
-      await this.touchLastData(memberId, provider, client);
+      await client.query(
+        `UPDATE wearable_links
+         SET last_data_at = now()
+         WHERE member_id = $1 AND provider = $2 AND status != 'disconnected'`,
+        [memberId, provider],
+      ).catch(() => {});
     }
 
     return result.rowCount;
@@ -787,17 +811,6 @@ export class WearableRepository {
           response, raw_payload, retry_count, next_retry_at, completed_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
                CASE WHEN $10 IN ('success', 'failed', 'dead') THEN now() ELSE NULL END)
-       ON CONFLICT (member_id, idempotency_key)
-       DO UPDATE SET
-         records_read  = EXCLUDED.records_read,
-         records_saved = EXCLUDED.records_saved,
-         status        = EXCLUDED.status,
-         error_message = EXCLUDED.error_message,
-         duration_ms   = EXCLUDED.duration_ms,
-         response      = EXCLUDED.response,
-         raw_payload   = COALESCE(EXCLUDED.raw_payload, sync_logs.raw_payload),
-         completed_at  = CASE WHEN EXCLUDED.status IN ('success', 'failed', 'dead') THEN now() ELSE sync_logs.completed_at END,
-         updated_at    = now()
        RETURNING id`,
       [
         memberId,
@@ -885,7 +898,7 @@ export class WearableRepository {
     const result = await client.query(
       `SELECT
          metric_type AS "metricType", recorded_at AS "recordedAt",
-         ended_at AS "endedAt", local_date::text AS "localDate",
+         ended_at AS "endedAt", local_date AS "localDate",
          value, unit, provider, device_key AS "deviceKey",
          aggregation, source_record_id AS "sourceRecordId",
          quality_flag AS "qualityFlag", metadata
@@ -975,6 +988,29 @@ export class WearableRepository {
        LIMIT $${idx}`,
       values,
     );
+    if (result.rows.length === 0) {
+      const mem = await client.query(
+        `SELECT wellness_score AS score, insurance_tier AS qualifier, wellness_updated_at AS "calculatedAt"
+         FROM members WHERE id = $1`,
+        [memberId],
+      );
+      if (mem.rows[0]) {
+        const row = mem.rows[0];
+        const val = Number(row.score ?? 50);
+        return [{
+          id: `wellness_${memberId}`,
+          provider: 'composite',
+          sourceRecordId: null,
+          scoreType: 'overall',
+          score: val,
+          overallScore: val,
+          qualifier: val >= 85 ? 'optimal' : val >= 70 ? 'good' : val >= 50 ? 'fair' : 'needs_attention',
+          components: {},
+          trend: 'stable',
+          calculatedAt: row.calculatedAt || new Date().toISOString(),
+        }];
+      }
+    }
     return result.rows;
   }
 

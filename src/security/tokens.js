@@ -8,7 +8,7 @@ function decode(value) {
   return JSON.parse(Buffer.from(value, 'base64url').toString('utf8'));
 }
 
-export function createAccessToken(memberId, secret, expiresInSeconds = 7 * 86400) {
+export function createAccessToken(memberId, secret, expiresInSeconds = 3600) {
   if (!secret) throw new Error('JWT_SECRET is required');
 
   const now = Math.floor(Date.now() / 1000);

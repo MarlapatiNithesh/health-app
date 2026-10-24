@@ -9,12 +9,6 @@ import {
   listSupportedProviders,
 } from '../domain/providers.js';
 import { METRIC_DEFINITIONS } from '../domain/metrics.js';
-import {
-  reconcileWorkouts,
-  reconcileSleepSessions,
-  reconcileHealthScores,
-  reconcileWomensHealth,
-} from '../domain/reconciliation.js';
 
 export const WEARABLE_BRANDS = Object.keys(PROVIDER_CAPABILITIES);
 
@@ -35,22 +29,13 @@ export const WEARABLE_METRICS = [
 
 export const OPEN_WEARABLES_DATA_TYPES = ['timeseries', 'workout', 'sleep', 'womens_health', 'health_scores'];
 
-function responseItems(response, collectionName) {
-  if (Array.isArray(response)) return response;
-  const candidates = [response?.[collectionName], response?.data?.[collectionName], response?.data, response?.items];
-  return candidates.find(Array.isArray) || [];
-}
-
 function validateRedirectUrl(url) {
   if (!url) return null;
   try {
     const parsed = new URL(url);
     const isDeepLink = parsed.protocol && !['http:', 'https:'].includes(parsed.protocol);
     if (isDeepLink) {
-      if (parsed.protocol === 'goqiihealth:' && parsed.hostname === 'wearables' && parsed.pathname === '/callback') {
-        return url;
-      }
-      throw new Error('Mobile redirects must use goqiihealth://wearables/callback');
+      return url;
     }
     if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
       throw new Error('Invalid protocol');
@@ -72,13 +57,6 @@ function validateRedirectUrl(url) {
       [{ field: 'redirectUrl', message: err.message }],
     );
   }
-}
-
-function normalizeOpenWearablesProvider(provider) {
-  const value = String(provider || '').trim().toLowerCase();
-  if (['apple', 'apple_health', 'apple_health_sdk'].includes(value)) return 'apple_health';
-  if (['health_connect', 'google_health_connect'].includes(value)) return 'health_connect';
-  return value;
 }
 
 export class WearableService {
@@ -124,10 +102,10 @@ export class WearableService {
       try {
         await client.query('BEGIN');
         await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [memberId]);
-        const existing = await this.memberRepo?.getOwUserId?.(memberId, client);
-        if (existing) {
+        const check = await client.query('SELECT ow_user_id AS "owUserId" FROM members WHERE id = $1', [memberId]);
+        if (check.rows[0]?.owUserId) {
           await client.query('COMMIT');
-          return existing;
+          return check.rows[0].owUserId;
         }
 
         const owUser = await this.openWearables.findOrCreateUser({
@@ -137,16 +115,22 @@ export class WearableService {
         });
 
         if (owUser?.id) {
-          const updated = await this.memberRepo?.setOwUserId?.(memberId, owUser.id, client);
-          if (!updated) {
+          const updateRes = await client.query(
+            `UPDATE members
+             SET ow_user_id = $2, updated_at = now()
+             WHERE id = $1 AND (ow_user_id IS NULL OR ow_user_id = $2)
+             RETURNING ow_user_id AS "owUserId"`,
+            [memberId, owUser.id],
+          );
+          if (updateRes.rows.length === 0) {
             try {
               await this.openWearables.deleteUser(owUser.id);
             } catch (err) {
               logger.warn('Failed to clean up orphaned remote Open Wearables user', { err: err.message, owUserId: owUser.id });
             }
-            const latest = await this.memberRepo?.getOwUserId?.(memberId, client);
+            const latest = await client.query('SELECT ow_user_id AS "owUserId" FROM members WHERE id = $1', [memberId]);
             await client.query('COMMIT');
-            return latest || owUser.id;
+            return latest.rows[0]?.owUserId || owUser.id;
           }
           await client.query('COMMIT');
           return owUser.id;
@@ -186,89 +170,18 @@ export class WearableService {
     return null;
   }
 
-  async createSdkSession(memberId, requestOrigin = null) {
-    await this.requireMember(memberId);
-    if (!this.openWearables?.isConfigured?.() || typeof this.openWearables.createSdkUserToken !== 'function') {
-      throw new ApplicationError('OpenWearables SDK credentials are not configured.', 503, 'open_wearables_sdk_unconfigured');
-    }
-
-    const owUserId = await this.getOrCreateOwUserId(memberId);
-    if (!owUserId) {
-      throw new ApplicationError('Could not create the OpenWearables user for this account.', 502, 'open_wearables_user_missing');
-    }
-
-    let host = this.openWearables.mobileBaseUrl || requestOrigin;
-    if (!host) {
-      throw new ApplicationError('OpenWearables mobile API URL is not configured.', 503, 'open_wearables_mobile_url_missing');
-    }
-    try {
-      const parsed = new URL(host);
-      if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('URL must use HTTP or HTTPS.');
-      host = parsed.toString().replace(/\/$/, '');
-    } catch (err) {
-      throw new ApplicationError(`OpenWearables mobile API URL is invalid: ${err.message}`, 503, 'open_wearables_mobile_url_invalid');
-    }
-
-    try {
-      const credentials = await this.openWearables.createSdkUserToken(owUserId);
-      const accessToken = credentials?.access_token || credentials?.accessToken;
-      const refreshToken = credentials?.refresh_token || credentials?.refreshToken;
-      if (!accessToken || !refreshToken) throw new Error('OpenWearables did not return SDK tokens.');
-      return { userId: owUserId, accessToken, refreshToken, host };
-    } catch (err) {
-      throw new ApplicationError(`Could not start OpenWearables health sync: ${err.message}`, err.status === 503 ? 503 : 502, 'open_wearables_sdk_auth_failed');
-    }
-  }
-
-  async syncSdkDataToHealthLocker(memberId) {
-    await this.requireMember(memberId);
-    const result = await this.syncMemberDataFromOpenWearables(memberId);
-    return result;
-  }
-
-  async disconnectSdkProvider(memberId, provider) {
-    await this.requireMember(memberId);
-    const normalized = String(provider || '').trim().toLowerCase();
-    if (!['apple', 'health_connect'].includes(normalized)) {
-      throw new ApplicationError('Only Apple Health and Health Connect SDK sources can be disconnected here.', 422, 'invalid_sdk_provider');
-    }
-    if (!this.openWearables?.isConfigured?.()) {
-      throw new ApplicationError('OpenWearables is not configured.', 503, 'open_wearables_unconfigured');
-    }
-    const owUserId = await this.getOrCreateOwUserId(memberId);
-    await this.openWearables.disconnectProvider(owUserId, normalized);
-    return { provider: normalized, status: 'disconnected' };
-  }
-
   async listProviders() {
     const supported = listSupportedProviders();
-    let integrationStatus = 'not_configured';
     if (this.openWearables && this.openWearables.isConfigured()) {
-      integrationStatus = 'unavailable';
       try {
         const result = await this.openWearables.listProviders({ enabledOnly: true });
-        const remoteList = responseItems(result, 'providers');
-        integrationStatus = 'ready';
+        const remoteList = Array.isArray(result) ? result : (result?.data || []);
         if (remoteList.length > 0) {
-          const remoteMap = new Map(remoteList.map((p) => [(p.provider || p.id || p.name || '').toLowerCase(), p]));
-          return supported.map((s) => {
-            const remote = remoteMap.get(s.provider)
-              || ((s.provider === 'apple_health' || s.provider === 'apple_watch') ? remoteMap.get('apple') : null)
-              || (s.provider === 'samsung_health' ? remoteMap.get('samsung') : null);
-            return {
-              ...s,
-              integrationStatus,
-              iconUrl: remote?.icon_url || null,
-              liveSyncMode: remote?.live_sync_mode || null,
-              hasCloudApi: remote?.has_cloud_api ?? (s.type === 'oauth'),
-              isEnabled: Boolean(remote && (
-                remote.is_enabled
-                ?? remote.isEnabled
-                ?? remote.enabled
-                ?? true
-              )),
-            };
-          });
+          const remoteMap = new Map(remoteList.map((p) => [(p.provider || p.name || '').toLowerCase(), p]));
+          return supported.map((s) => ({
+            ...s,
+            isEnabled: remoteMap.has(s.provider) ? Boolean(remoteMap.get(s.provider).is_enabled ?? true) : true,
+          }));
         }
       } catch (err) {
         logger.warn('Failed to fetch remote providers from Open Wearables, using defaults', { err: err.message });
@@ -276,14 +189,12 @@ export class WearableService {
     }
     return supported.map((s) => ({
       ...s,
-      integrationStatus,
-      isEnabled: false,
+      isEnabled: true,
     }));
   }
 
   async generateConnectSession(memberId, brand, redirectUrl) {
     const member = await this.requireMember(memberId);
-    brand = String(brand || '').trim().toLowerCase();
     if ((process.env.NODE_ENV === 'production' || process.env.ENFORCE_CONSENT === 'true') &&
         !member.healthConsentAt && !member.health_consent_at) {
       throw new ApplicationError(
@@ -304,39 +215,9 @@ export class WearableService {
     }
 
     if (!isOauthProvider(brand)) {
-      if (config.type === 'phone_sdk') {
-        const link = await this.wearableRepo.upsertWearableLink(memberId, {
-          provider: brand,
-          connectionType: 'phone_sdk',
-          status: 'connected',
-          metricsProvided: [
-            'heart_rate',
-            'resting_heart_rate',
-            'steps',
-            'blood_pressure_systolic',
-            'blood_pressure_diastolic',
-            'blood_glucose',
-            'spo2',
-            'sleep',
-          ],
-          metadata: {
-            connectedVia: 'phone_sdk_bridge',
-            sdkType: config.via || brand,
-          },
-          force: true,
-        });
-
-        return {
-          deviceId: link.id,
-          brand,
-          status: 'connected',
-          connectionType: 'phone_sdk',
-          connectUrl: null,
-          instructions: `Provider ${brand} is connected via the mobile health bridge. Vitals stream automatically from your phone store.`,
-        };
-      }
-
-      const flowMsg = `Provider ${brand} is a manual entry provider. Please use manual device entry.`;
+      const flowMsg = config.type === 'phone_sdk'
+        ? `Provider ${brand} connects via phone SDK (${config.via}). Please use the mobile app integration flow.`
+        : `Provider ${brand} is a manual entry provider. Please use manual device entry.`;
       throw new ApplicationError(
         flowMsg,
         422,
@@ -349,36 +230,45 @@ export class WearableService {
       || process.env.OPEN_WEARABLES_REDIRECT_URL
       || 'https://app.yourwellness.com/wearables/callback';
 
-    let connectUrl = null;
+    let connectUrl;
 
-    if (this.openWearables && typeof this.openWearables.isConfigured === 'function' && this.openWearables.isConfigured()) {
-      try {
-        let owUserId = null;
-        try {
-          owUserId = await this.getOrCreateOwUserId(memberId);
-        } catch (owErr) {
-          logger.warn(`Could not lookup/create OW user for ${memberId}, using memberId fallback: ${owErr.message}`);
-        }
-        if (!owUserId) {
-          owUserId = memberId;
-        }
-
-        let authData = await this.openWearables.getProviderAuthorizationUrl(owUserId, brand, validRedirect).catch(() => null);
-        if (!authData?.authorization_url && (brand === 'google_health' || brand === 'google')) {
-          authData = await this.openWearables.getProviderAuthorizationUrl(owUserId, 'google', validRedirect).catch(() => null);
-        }
-        connectUrl = authData?.authorization_url || null;
-      } catch (err) {
-        logger.warn(`OpenWearables authorization URL error for ${brand}: ${err.message}`, { memberId });
+    if (this.openWearables && this.openWearables.isConfigured()) {
+      const owUserId = await this.getOrCreateOwUserId(memberId);
+      if (!owUserId) {
+        throw new ApplicationError('Failed to initialize Open Wearables user for connection', 502, 'open_wearables_error');
       }
-    }
 
-    if (!connectUrl) {
-      throw new ApplicationError(
-        `Provider '${brand}' OAuth is not yet configured or reachable in OpenWearables. Please check OpenWearables service credentials.`,
-        422,
-        'oauth_unconfigured'
-      );
+      try {
+        const authData = await this.openWearables.getProviderAuthorizationUrl(
+          owUserId,
+          brand,
+          validRedirect,
+        );
+        connectUrl = authData?.authorization_url;
+        if (!connectUrl || typeof connectUrl !== 'string') {
+          throw new Error('Authorization URL was not returned by provider');
+        }
+        const parsedAuth = new URL(connectUrl);
+        if (parsedAuth.protocol !== 'https:') {
+          throw new Error('Authorization URL must use HTTPS');
+        }
+        const owBaseHost = new URL(this.openWearables.baseUrl || 'https://api.openwearables.io').host;
+        if (!parsedAuth.host.includes('openwearables') && parsedAuth.host !== owBaseHost && !parsedAuth.host.includes('mockwearables')) {
+          throw new Error('Authorization URL host does not match OpenWearables');
+        }
+      } catch (err) {
+        throw new ApplicationError(
+          `Failed to initiate Open Wearables connection for ${brand}: ${err.message}`,
+          502,
+          'open_wearables_error',
+        );
+      }
+    } else {
+      if (process.env.NODE_ENV === 'production') {
+        throw new ApplicationError('Open Wearables integration is not configured', 502, 'open_wearables_unconfigured');
+      }
+      const baseUrl = process.env.OPEN_WEARABLES_BASE_URL || 'https://connect.openwearables.com';
+      connectUrl = `${baseUrl}/sandbox/${brand}?user_id=${encodeURIComponent(memberId)}&redirect_uri=${encodeURIComponent(validRedirect)}`;
     }
 
     const existing = (await this.wearableRepo.listWearableDevices(memberId)).find((d) => d.brand === brand);
@@ -389,7 +279,6 @@ export class WearableService {
       provider: brand,
       connectionType: 'oauth',
       status: targetStatus,
-      force: true,
     });
 
     return {
@@ -401,48 +290,6 @@ export class WearableService {
     };
   }
 
-  async connectProvider(memberId, provider, options = {}) {
-    await this.requireMember(memberId);
-    const brand = String(provider || '').trim().toLowerCase();
-    const config = getProviderConfig(brand);
-    if (!config) {
-      throw new ApplicationError(`Unsupported wearable provider: ${brand}.`, 422, 'validation_error');
-    }
-
-    const defaultMetrics = [
-      'heart_rate',
-      'resting_heart_rate',
-      'steps',
-      'blood_pressure_systolic',
-      'blood_pressure_diastolic',
-      'blood_glucose',
-      'spo2',
-      'sleep',
-    ];
-
-    const isHealthConnect = options.mode === 'health_connect' || brand === 'health_connect';
-    const link = await this.wearableRepo.upsertWearableLink(memberId, {
-      provider: brand,
-      connectionType: isHealthConnect ? 'phone_sdk' : (config.type || 'oauth'),
-      status: 'connected',
-      metricsProvided: defaultMetrics,
-      metadata: {
-        connectedVia: options.mode || 'direct_connect',
-        platform: options.platform || 'cloud',
-        note: options.note || 'Provider verified & connected',
-      },
-      force: true,
-    });
-
-    return {
-      success: true,
-      provider: brand,
-      status: 'connected',
-      message: `Successfully connected ${config.name || brand}.`,
-      link,
-    };
-  }
-
   async triggerRemoteSync(memberId, provider, options = {}) {
     await this.requireMember(memberId);
     const config = getProviderConfig(provider);
@@ -451,8 +298,7 @@ export class WearableService {
     }
 
     if (!this.openWearables || !this.openWearables.isConfigured()) {
-      await this.wearableRepo.touchLastSync?.(memberId, provider).catch(() => {});
-      return { status: 'success', provider, message: `${config.name || provider} is connected and syncing via active pipeline.` };
+      throw new ApplicationError('Open Wearables is not configured with an API key', 400, 'open_wearables_unconfigured');
     }
 
     const owUserId = await this.memberRepo?.getOwUserId?.(memberId);
@@ -461,34 +307,10 @@ export class WearableService {
     }
 
     try {
-      let providerSync;
-      const isGarmin = provider.toLowerCase() === 'garmin';
-      if (isGarmin) {
-        if (options?.firstConnect || options?.historical) {
-          providerSync = await this.openWearables.syncHistoricalData(owUserId, 'garmin');
-        } else {
-          providerSync = { status: 'skipped', message: 'Garmin syncs via webhook push; use historical=true to request a backfill.' };
-        }
-      } else {
-        providerSync = await this.openWearables.syncUserData(owUserId, provider, options);
+      if (provider.toLowerCase() === 'garmin' && options?.firstConnect) {
+        return await this.openWearables.syncHistoricalData(owUserId, 'garmin');
       }
-
-      const importResult = await this.syncMemberDataFromOpenWearables(memberId, owUserId);
-      const accepted = (importResult.workoutsSaved || 0)
-        + (importResult.sleepSaved || 0)
-        + (importResult.recoveriesSaved || 0)
-        + (importResult.timeseriesSaved || 0);
-
-      await this.wearableRepo.touchLastSync?.(memberId, provider).catch(() => {});
-
-      return {
-        status: importResult.synced ? 'success' : accepted > 0 ? 'partial' : 'success',
-        provider,
-        accepted,
-        providerSync,
-        imported: importResult,
-        message: `Successfully synced ${config.name || provider}.`,
-      };
+      return await this.openWearables.syncUserData(owUserId, provider, options);
     } catch (error) {
       if (error.status === 401 || error.status === 403) {
         throw new ApplicationError(`Open Wearables API auth error: ${error.message}`, 401, 'open_wearables_unauthorized');
@@ -496,14 +318,7 @@ export class WearableService {
       if (error.status === 404) {
         return { status: 'skipped', message: `User has no remote connection for ${provider}.` };
       }
-      logger.warn(`Remote sync for ${provider}: ${error.message}. Local connection maintained.`, { memberId });
-      await this.wearableRepo.touchLastSync?.(memberId, provider).catch(() => {});
-      return {
-        status: 'success',
-        provider,
-        accepted: 0,
-        message: `Sync checked for ${config.name || provider}. Telemetry records are up-to-date.`,
-      };
+      throw error;
     }
   }
 
@@ -530,30 +345,8 @@ export class WearableService {
 
   async listConnections(memberId) {
     await this.requireMember(memberId);
-    let reconciliation = { reconciled: false };
-    try {
-      reconciliation = await this.reconcileRemoteConnections(memberId);
-    } catch (err) {
-      logger.warn('Reconcile remote connections notice:', { err: err.message });
-    }
-
     if (this.wearableRepo?.listWearableLinks) {
-      const links = await this.wearableRepo.listWearableLinks(memberId);
-      if (!reconciliation.reconciled) {
-        return links.map((link) => {
-          const isLocalOrSdk = link.connectionType === 'phone_sdk' ||
-                               link.connectionType === 'phone' ||
-                               link.metadata?.connectedVia === 'health_connect' ||
-                               link.metadata?.connectedVia === 'direct_connect' ||
-                               link.provider === 'health_connect' ||
-                               link.provider === 'google_health';
-          if (isLocalOrSdk) return link;
-          return link.connectionType === 'oauth' && link.status === 'connected'
-            ? { ...link, status: 'unverified' }
-            : link;
-        });
-      }
-      return links;
+      return this.wearableRepo.listWearableLinks(memberId);
     }
     if (this.openWearablesRepo?.listWearableLinks) {
       return this.openWearablesRepo.listWearableLinks(memberId);
@@ -569,54 +362,19 @@ export class WearableService {
 
     try {
       const remoteConns = await this.openWearables.getConnections(owUserId);
-      const remoteList = responseItems(remoteConns, 'connections');
+      const remoteList = Array.isArray(remoteConns) ? remoteConns : (remoteConns?.data || []);
       const localLinks = await this.wearableRepo.listWearableLinks(memberId);
       const updates = [];
-      const remoteByProvider = new Map();
 
       for (const remote of remoteList) {
-        const rawProvider = (remote.provider || remote.name || '').toLowerCase();
-        const prov = normalizeOpenWearablesProvider(rawProvider);
+        const prov = (remote.provider || remote.name || '').toLowerCase();
         if (!prov) continue;
-        remoteByProvider.set(prov, remote);
-        const connectionType = ['apple_health', 'health_connect'].includes(prov) ? 'phone_sdk' : 'oauth';
-        const rawStatus = String(remote.status || '').toLowerCase();
-        const remoteStatus = ['active', 'connected'].includes(rawStatus)
-          ? 'connected'
-          : ['expired', 'revoked'].includes(rawStatus)
-            ? 'token_expired'
-            : rawStatus === 'pending'
-              ? 'connecting'
-              : rawStatus === 'error'
-                ? 'error'
-                : 'disconnected';
         const local = localLinks.find((l) => l.provider === prov);
-        if (!local) {
-          await this.wearableRepo.upsertWearableLink(memberId, {
-            provider: prov,
-            connectionType,
-            status: remoteStatus,
-            metadata: remote.metadata || {},
-            force: true,
-          });
-          updates.push({ provider: prov, from: null, to: remoteStatus });
-        } else if (local.status !== remoteStatus) {
-          await this.wearableRepo.upsertWearableLink(memberId, {
-            provider: prov,
-            connectionType,
-            status: remoteStatus,
-            metadata: remote.metadata || {},
-            errorDetail: remote.error || null,
-            force: true,
-          });
+        const remoteStatus = remote.status === 'active' ? 'connected' : (remote.status === 'expired' || remote.status === 'revoked' ? 'token_expired' : remote.status);
+        if (local && local.status !== remoteStatus) {
+          await this.wearableRepo.setWearableLinkStatus(memberId, prov, remoteStatus, remote.error || null);
           updates.push({ provider: prov, from: local.status, to: remoteStatus });
         }
-      }
-
-      for (const local of localLinks) {
-        if (local.connectionType !== 'oauth' || remoteByProvider.has(local.provider) || local.status === 'disconnected') continue;
-        await this.wearableRepo.setWearableLinkStatus(memberId, local.provider, 'disconnected');
-        updates.push({ provider: local.provider, from: local.status, to: 'disconnected' });
       }
       return { reconciled: true, updates };
     } catch (err) {
@@ -633,22 +391,18 @@ export class WearableService {
       throw new ApplicationError(`Invalid provider: ${provider}`, 422, 'validation_error');
     }
 
-    const hasOauthLink = (await this.wearableRepo.listWearableLinks(memberId))
-      .some((link) => link.provider === prov && link.connectionType === 'oauth');
-    if (hasOauthLink && (!this.openWearables || !this.openWearables.isConfigured())) {
-      throw new ApplicationError('OpenWearables is not configured; the provider account could not be disconnected.', 503, 'open_wearables_unconfigured');
-    }
-
     if (this.openWearables && this.openWearables.isConfigured()) {
       let owUserId = await this.memberRepo?.getOwUserId?.(memberId);
-      if (hasOauthLink && !owUserId) {
-        throw new ApplicationError('OpenWearables user link is missing; the provider account could not be disconnected.', 503, 'open_wearables_user_missing');
+      if (!owUserId && process.env.NODE_ENV !== 'production') {
+        owUserId = await this.getOrCreateOwUserId(memberId).catch(() => null);
       }
       if (owUserId) {
         try {
           await this.openWearables.disconnectProvider(owUserId, prov);
         } catch (error) {
-          logger.warn('Remote disconnect notice in OpenWearables:', { err: error.message, provider: prov });
+          if (error.status !== 401 && error.status !== 404) {
+            throw error;
+          }
         }
       }
     }
@@ -661,50 +415,6 @@ export class WearableService {
 
   async disconnectProvider(memberId, provider) {
     return this.disconnectRemoteProvider(memberId, provider);
-  }
-
-  async disconnectAllRemoteProviders(memberId) {
-    await this.requireMember(memberId);
-    const links = await this.wearableRepo.listWearableLinks(memberId);
-    const owUserId = await this.memberRepo?.getOwUserId?.(memberId);
-
-    if (owUserId && this.openWearables && this.openWearables.isConfigured()) {
-      try {
-        const remoteConns = await this.openWearables.getConnections(owUserId);
-        const remoteList = responseItems(remoteConns, 'connections');
-        for (const remote of remoteList) {
-          const prov = (remote.provider || remote.name || '').toLowerCase();
-          if (prov) {
-            try {
-              await this.openWearables.disconnectProvider(owUserId, prov);
-            } catch (err) {
-              if (err.status !== 404) {
-                logger.warn('Failed to disconnect remote provider in OW', { err: err.message, provider: prov });
-              }
-            }
-          }
-        }
-      } catch (err) {
-        logger.warn('Failed to fetch remote connections for disconnect all', { err: err.message });
-      }
-    }
-
-    for (const link of links) {
-      if (owUserId && link.connectionType === 'oauth' && this.openWearables && this.openWearables.isConfigured()) {
-        try {
-          await this.openWearables.disconnectProvider(owUserId, link.provider);
-        } catch (err) {
-          if (err.status !== 404) {
-            logger.warn('Failed to disconnect remote provider in OW', { err: err.message, provider: link.provider });
-          }
-        }
-      }
-      await this.wearableRepo.setWearableLinkStatus(memberId, link.provider, 'disconnected');
-      if (this.openWearablesRepo?.setWearableLinkStatus) {
-        await this.openWearablesRepo.setWearableLinkStatus(memberId, link.provider, 'disconnected');
-      }
-    }
-    return { success: true, message: 'All wearable providers have been disconnected.' };
   }
 
   async getSyncRuns(memberId, limit = 20) {
@@ -765,19 +475,18 @@ export class WearableService {
     if (typeof this.openWearables.getConnections === 'function') {
       try {
         const res = await this.openWearables.getConnections(owUserId);
-        connections = responseItems(res, 'connections');
+        connections = Array.isArray(res) ? res : (res?.data || res?.items || []);
       } catch (err) {
         logger.error('Failed to fetch OpenWearables connections', { memberId, error: err.message });
         return { synced: false, reason: 'fetch_connections_failed', error: err.message };
       }
     }
 
-    const connList = connections;
+    const connList = Array.isArray(connections) ? connections : (connections?.data || []);
     const connectedProviders = [];
 
     for (const conn of connList) {
-      const rawProvider = (conn.provider || conn.source?.provider || conn.brand || '').toLowerCase();
-      const p = normalizeOpenWearablesProvider(rawProvider);
+      const p = (conn.provider || conn.source?.provider || conn.brand || '').toLowerCase();
       if (!p) continue;
 
       let status = 'disconnected';
@@ -799,7 +508,6 @@ export class WearableService {
       if (this.openWearablesRepo?.upsertWearableLink) {
         await this.openWearablesRepo.upsertWearableLink(memberId, {
           provider: p,
-          connectionType: ['apple_health', 'health_connect'].includes(p) ? 'phone_sdk' : 'oauth',
           status,
           metadata: conn.metadata || {},
         });
@@ -817,7 +525,6 @@ export class WearableService {
         durationMs: Date.now() - startTime,
       };
     }
-    const fallbackDataProvider = connectedProviders.length === 1 ? connectedProviders[0] : 'openwearables';
 
     let earliestLastSync = null;
     if (this.openWearablesRepo?.listWearableLinks) {
@@ -840,7 +547,7 @@ export class WearableService {
     if (earliestLastSync) {
       startDate = new Date(earliestLastSync - 3 * 86400000).toISOString().split('T')[0];
     } else {
-      startDate = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+      startDate = '2024-01-01';
     }
     const endDate = new Date(Date.now() + 86400000).toISOString().split('T')[0];
 
@@ -884,7 +591,7 @@ export class WearableService {
         this.openWearables.getWorkouts(owUserId, startDate, endDate, { cursor, page })
       );
       for (const w of workouts) {
-        const p = normalizeOpenWearablesProvider(w.provider || w.source?.provider || fallbackDataProvider);
+        const p = (w.provider || w.source?.provider || connectedProviders[0] || 'wearable').toLowerCase();
         const saved = await this.openWearablesRepo.insertWorkout(memberId, p, w);
         if (saved > 0) {
           workoutsSaved += saved;
@@ -901,7 +608,7 @@ export class WearableService {
         this.openWearables.getSleepSessions(owUserId, startDate, endDate, { cursor, page })
       );
       for (const s of sleeps) {
-        const p = normalizeOpenWearablesProvider(s.provider || s.source?.provider || fallbackDataProvider);
+        const p = (s.provider || s.source?.provider || connectedProviders[0] || 'wearable').toLowerCase();
         const saved = await this.openWearablesRepo.insertSleepSession(memberId, p, s);
         if (saved > 0) {
           sleepSaved += saved;
@@ -919,7 +626,7 @@ export class WearableService {
       );
       const tsBatch = [];
       for (const r of recoveries) {
-        const p = normalizeOpenWearablesProvider(r.provider || r.source?.provider || fallbackDataProvider);
+        const p = (r.provider || r.source?.provider || connectedProviders[0] || 'wearable').toLowerCase();
         if (r.recovery_score != null) {
           await this.openWearablesRepo.insertHealthScore(memberId, p, {
             scoreType: 'recovery',
@@ -972,7 +679,7 @@ export class WearableService {
         );
         const tsRows = [];
         for (const act of summaries) {
-          const p = normalizeOpenWearablesProvider(act.provider || act.source?.provider || fallbackDataProvider);
+          const p = (act.provider || act.source?.provider || connectedProviders[0] || 'wearable').toLowerCase();
           const recAt = act.date ? (act.date.includes('T') ? act.date : `${act.date}T00:00:00.000Z`) : null;
           if (!recAt) continue;
           if (act.steps_count != null || act.steps != null) {
@@ -1040,7 +747,7 @@ export class WearableService {
           this.openWearables.getSleepSummary(owUserId, startDate, endDate, { cursor, page })
         );
         for (const ss of sleepSummaries) {
-          const p = normalizeOpenWearablesProvider(ss.provider || ss.source?.provider || fallbackDataProvider);
+          const p = (ss.provider || ss.source?.provider || connectedProviders[0] || 'wearable').toLowerCase();
           if (ss.score != null || ss.sleep_score != null) {
             await this.openWearablesRepo.insertHealthScore(memberId, p, {
               scoreType: 'sleep',
@@ -1058,128 +765,20 @@ export class WearableService {
 
     if (typeof this.openWearables.getTimeseries === 'function') {
       try {
-        const allTsItems = await fetchAllPages(({ cursor }) =>
-          this.openWearables.getTimeseries(
-            owUserId,
-            `${startDate}T00:00:00Z`,
-            `${endDate}T23:59:59Z`,
-            {
-              cursor,
-              types: [
-                'heart_rate', 'resting_heart_rate', 'steps',
-                'heart_rate_variability_sdnn', 'heart_rate_variability_rmssd',
-                'oxygen_saturation', 'blood_glucose', 'blood_pressure_systolic',
-                'blood_pressure_diastolic', 'respiratory_rate', 'active_energy',
-                'distance_walking_running', 'weight',
-              ],
-            },
-          )
+        const tsData = await this.openWearables.getTimeseries(
+          owUserId,
+          `${startDate}T00:00:00Z`,
+          `${endDate}T23:59:59Z`,
+          { types: ['heart_rate', 'steps', 'hrv'] }
         );
-        const items = allTsItems.map((row) => ({
-          ...row,
-          provider: normalizeOpenWearablesProvider(row.provider || row.source?.provider || fallbackDataProvider),
-        }));
+        const items = tsData?.data || tsData?.items || (Array.isArray(tsData) ? tsData : []);
         if (items.length && this.openWearablesRepo?.insertTimeseriesBatch) {
           const count = await this.openWearablesRepo.insertTimeseriesBatch(memberId, 'wearable', items);
           timeseriesSaved += count;
-          for (const item of items) {
-            if (item.provider) touchedProviders.add(item.provider);
-          }
         }
       } catch (err) {
         endpointErrors.push({ endpoint: 'timeseries', error: err.message });
         logger.error('Failed to sync timeseries from OpenWearables', { memberId, error: err.message });
-      }
-    }
-
-    if (typeof this.openWearables.getBodySummary === 'function') {
-      try {
-        const body = await this.openWearables.getBodySummary(owUserId);
-        if (body && typeof body === 'object') {
-          const bodyTs = [];
-          const nowIso = new Date().toISOString();
-          const p = fallbackDataProvider;
-
-          if (body.latest?.blood_pressure_systolic != null) {
-            bodyTs.push({
-              provider: p,
-              metricType: 'blood_pressure_systolic',
-              recordedAt: body.latest.timestamp || nowIso,
-              value: Number(body.latest.blood_pressure_systolic),
-              unit: 'mmHg',
-              sourceRecordId: `bp_sys_${owUserId}_${Date.now()}`,
-            });
-          }
-          if (body.latest?.blood_pressure_diastolic != null) {
-            bodyTs.push({
-              provider: p,
-              metricType: 'blood_pressure_diastolic',
-              recordedAt: body.latest.timestamp || nowIso,
-              value: Number(body.latest.blood_pressure_diastolic),
-              unit: 'mmHg',
-              sourceRecordId: `bp_dia_${owUserId}_${Date.now()}`,
-            });
-          }
-          if (body.latest?.blood_glucose != null) {
-            bodyTs.push({
-              provider: p,
-              metricType: 'blood_glucose',
-              recordedAt: body.latest.timestamp || nowIso,
-              value: Number(body.latest.blood_glucose),
-              unit: 'mg/dL',
-              sourceRecordId: `glucose_${owUserId}_${Date.now()}`,
-            });
-          }
-          if (body.latest?.body_temperature != null || body.latest?.body_temperature_celsius != null) {
-            bodyTs.push({
-              provider: p,
-              metricType: 'temperature',
-              recordedAt: body.latest.timestamp || nowIso,
-              value: Number(body.latest.body_temperature ?? body.latest.body_temperature_celsius),
-              unit: '°C',
-              sourceRecordId: `temp_${owUserId}_${Date.now()}`,
-            });
-          }
-          if (body.averaged?.resting_heart_rate_bpm != null) {
-            bodyTs.push({
-              provider: p,
-              metricType: 'resting_heart_rate',
-              recordedAt: nowIso,
-              value: Number(body.averaged.resting_heart_rate_bpm),
-              unit: 'bpm',
-              sourceRecordId: `rhr_avg_${owUserId}_${Date.now()}`,
-            });
-          }
-          if (body.averaged?.avg_hrv_rmssd_ms != null) {
-            bodyTs.push({
-              provider: p,
-              metricType: 'hrv',
-              recordedAt: nowIso,
-              value: Number(body.averaged.avg_hrv_rmssd_ms),
-              unit: 'ms',
-              sourceRecordId: `hrv_avg_${owUserId}_${Date.now()}`,
-            });
-          }
-          if (body.static?.weight_kg != null) {
-            bodyTs.push({
-              provider: p,
-              metricType: 'weight',
-              recordedAt: nowIso,
-              value: Number(body.static.weight_kg),
-              unit: 'kg',
-              sourceRecordId: `weight_${owUserId}_${Date.now()}`,
-            });
-          }
-
-          if (bodyTs.length && this.openWearablesRepo?.insertTimeseriesBatch) {
-            const count = await this.openWearablesRepo.insertTimeseriesBatch(memberId, 'wearable', bodyTs);
-            timeseriesSaved += count;
-            touchedProviders.add(p);
-          }
-        }
-      } catch (err) {
-        endpointErrors.push({ endpoint: 'body_summary', error: err.message });
-        logger.error('Failed to sync body summary from OpenWearables', { memberId, error: err.message });
       }
     }
 
@@ -1188,7 +787,7 @@ export class WearableService {
         this.openWearables.getMenstrualCycles(owUserId, startDate, endDate, { cursor, page })
       );
       for (const c of cycles) {
-        const p = normalizeOpenWearablesProvider(c.provider || c.source?.provider || fallbackDataProvider);
+        const p = (c.provider || c.source?.provider || connectedProviders[0] || 'wearable').toLowerCase();
         await this.openWearablesRepo.insertWomensHealth(memberId, p, c);
         touchedProviders.add(p);
       }
@@ -1246,30 +845,30 @@ export class WearableService {
 
   async addDevice(memberId, input) {
     await this.requireMember(memberId);
-    const brand = (input.brand || input.provider || 'bluetooth_ble').toLowerCase();
+    const brand = (input.brand || input.provider || '').toLowerCase();
     const config = getProviderConfig(brand);
-    const connectionType = 'manual';
+    if (!config || config.type !== 'manual') {
+      throw new ApplicationError(
+        'addDevice is only allowed for manual providers (e.g. inbody, glucobase_cgm).',
+        422,
+        'invalid_operation',
+      );
+    }
 
-    let batteryPct = 90;
+    let batteryPct = null;
     if (input.batteryPct != null) {
       const b = Number(input.batteryPct);
       if (!Number.isNaN(b) && b >= 0 && b <= 100) batteryPct = Math.round(b);
     }
-    const model = typeof input.model === 'string' && input.model.trim()
-      ? input.model.slice(0, 100)
-      : typeof input.deviceModel === 'string' && input.deviceModel.trim()
-      ? input.deviceModel.slice(0, 100)
-      : config?.name || brand.toUpperCase();
-
-    const defaultMetrics = ['steps', 'heart_rate', 'sleep', 'calories', 'spo2'];
-    const metricsProvided = Array.isArray(input.metricsProvided) && input.metricsProvided.length > 0
+    const model = typeof input.model === 'string' ? input.model.slice(0, 100) : null;
+    const metricsProvided = Array.isArray(input.metricsProvided)
       ? input.metricsProvided.filter((m) => METRIC_DEFINITIONS[m])
-      : defaultMetrics;
+      : [];
 
     const dev = await this.wearableRepo.createWearableDevice(memberId, {
       brand,
-      connectionType,
-      status: 'disconnected',
+      connectionType: 'manual',
+      status: 'connected',
       model,
       batteryPct,
       metricsProvided,
@@ -1301,9 +900,7 @@ export class WearableService {
     const device = await this.wearableRepo.getWearableDevice(memberId, deviceId);
     if (!device) throw new ApplicationError('Device not found', 404, 'device_not_found');
 
-    if (device.connectionType === 'oauth') {
-      await this.disconnectRemoteProvider(memberId, device.brand);
-    }
+    await this.disconnectRemoteProvider(memberId, device.brand);
     await this.wearableRepo.deleteWearableDevice(memberId, deviceId);
   }
 
@@ -1369,132 +966,22 @@ export class WearableService {
 
   async listWorkouts(memberId, query = {}) {
     await this.requireMember(memberId);
-    const workouts = await this.openWearablesRepo.listWorkouts(memberId, query);
-    return reconcileWorkouts(workouts);
+    return this.openWearablesRepo.listWorkouts(memberId, query);
   }
 
   async listSleepSessions(memberId, query = {}) {
     await this.requireMember(memberId);
-    const sessions = await this.openWearablesRepo.listSleepSessions(memberId, query);
-    return reconcileSleepSessions(sessions);
+    return this.openWearablesRepo.listSleepSessions(memberId, query);
   }
 
   async listHealthScores(memberId, query = {}) {
     await this.requireMember(memberId);
-    const scores = await this.openWearablesRepo.listHealthScores(memberId, query);
-    return reconcileHealthScores(scores);
-  }
-
-  async listWomensHealth(memberId, query = {}) {
-    await this.requireMember(memberId);
-    const records = await this.openWearablesRepo.listWomensHealth(memberId, query);
-    return reconcileWomensHealth(records);
+    return this.openWearablesRepo.listHealthScores(memberId, query);
   }
 
   async getSyncLogs(memberId, query = {}) {
     await this.requireMember(memberId);
     return this.openWearablesRepo.getRecentSyncLogs(memberId, query);
-  }
-
-  async importAppleXml(memberId, fileBuffer, filename = 'export.xml') {
-    await this.requireMember(memberId);
-    if (!this.openWearables || !this.openWearables.isConfigured()) {
-      throw new ApplicationError('OpenWearables is not configured.', 503, 'open_wearables_unconfigured');
-    }
-    const owUserId = await this.getOrCreateOwUserId(memberId);
-    if (!owUserId) {
-      throw new ApplicationError('Could not resolve OpenWearables user.', 502, 'open_wearables_user_missing');
-    }
-
-    const fileSize = Buffer.byteLength(fileBuffer);
-    const MIN_MULTIPART = 5 * 1024 * 1024; // 5 MiB
-
-    if (fileSize < MIN_MULTIPART) {
-      try {
-        const directResult = await this.openWearables.uploadAppleXmlDirect(owUserId, fileBuffer, filename);
-        return {
-          status: directResult?.status || 'processing',
-          taskId: directResult?.task_id || directResult?.id || null,
-          method: 'direct',
-          owUserId,
-        };
-      } catch (directErr) {
-        logger.warn(`Apple XML direct upload failed: ${directErr.message}`, { memberId });
-        throw new ApplicationError(
-          `Apple XML direct upload failed: ${directErr.message}`,
-          directErr.status || 502,
-          'apple_xml_upload_failed',
-        );
-      }
-    }
-
-    const PART_SIZE = 100 * 1024 * 1024; // 100 MiB default
-    const created = await this.openWearables.createAppleXmlMultipart(owUserId, {
-      filename,
-      contentType: 'application/xml',
-      fileSize,
-    });
-
-    const partSize = created.part_size || PART_SIZE;
-    const partCount = Math.ceil(fileSize / partSize);
-    const partNumbers = Array.from({ length: partCount }, (_, i) => i + 1);
-
-    let completionSubmitted = false;
-    try {
-      const signed = await this.openWearables.signAppleXmlMultipart(owUserId, {
-        key: created.key,
-        uploadId: created.upload_id,
-        partNumbers,
-      });
-
-      const urlMap = new Map(
-        (signed.urls || []).map((u) => [u.part_number, u.url]),
-      );
-
-      const completedParts = [];
-      for (let i = 0; i < partCount; i++) {
-        const start = i * partSize;
-        const chunk = fileBuffer.slice(start, start + partSize);
-        const partUrl = urlMap.get(i + 1);
-        if (!partUrl) throw new Error(`No presigned URL for part ${i + 1}`);
-
-        const res = await this.openWearables.fetchFn(partUrl, {
-          method: 'PUT',
-          body: chunk,
-          headers: { 'Content-Type': 'application/octet-stream' },
-        });
-        if (!res.ok) throw new Error(`Part ${i + 1} upload failed: ${res.status}`);
-        const etag = res.headers.get('etag') || res.headers.get('ETag');
-        if (!etag) throw new Error(`Missing ETag for part ${i + 1} — ensure CORS exposes the ETag header.`);
-        completedParts.push({ part_number: i + 1, etag: etag.replace(/"/g, '') });
-        logger.info(`Apple XML multipart: uploaded part ${i + 1}/${partCount}`, { memberId });
-      }
-
-      completionSubmitted = true;
-      const result = await this.openWearables.completeAppleXmlMultipart(owUserId, {
-        key: created.key,
-        uploadId: created.upload_id,
-        parts: completedParts,
-      });
-
-      return { status: result.status || 'processing', taskId: result.task_id || null, key: result.key, owUserId };
-    } catch (err) {
-      if (!completionSubmitted) {
-        try {
-          await this.openWearables.abortAppleXmlMultipart(owUserId, {
-            key: created.key,
-            uploadId: created.upload_id,
-          });
-        } catch (abortErr) {
-          logger.warn('Failed to abort Apple XML multipart upload', { err: abortErr.message });
-        }
-      }
-      throw new ApplicationError(
-        `Apple XML import failed: ${err.message}`,
-        err.status >= 400 && err.status < 500 ? err.status : 502,
-        'apple_xml_import_failed',
-      );
-    }
   }
 
   async requireMember(memberId) {

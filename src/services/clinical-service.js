@@ -1,11 +1,47 @@
 import { ApplicationError } from '../errors/application-error.js';
-import { ClinicalRecordMapper, PatientMapper, HealthEventMapper } from '../mappers/index.js';
+import { ClinicalRecordMapper, PatientMapper, HealthEventMapper, ClinicalTriageMapper } from '../mappers/index.js';
 
+const NSAID_SET = new Set([
+  'ibuprofen', 'naproxen', 'diclofenac', 'aspirin', 'nsaid', 'meloxicam',
+  'celecoxib', 'ketorolac', 'indomethacin', 'piroxicam', 'etodolac',
+]);
+
+const HYPERTENSION_KEYWORDS = ['hypertension', 'high blood pressure', 'elevated bp'];
+const KIDNEY_KEYWORDS = ['kidney', 'renal', 'nephro', 'ckd', 'esrd'];
+
+const KNOWN_INTERACTION_RULES = [
+  { drugA: 'nsaid', drugB: 'lisinopril', severity: 'CAUTION', reason: 'NSAIDs may diminish the antihypertensive effect of Lisinopril and increase renal risk.' },
+  { drugA: 'nsaid', drugB: 'ramipril', severity: 'CAUTION', reason: 'NSAIDs may diminish the antihypertensive effect of ACE inhibitors.' },
+  { drugA: 'nsaid', drugB: 'enalapril', severity: 'CAUTION', reason: 'NSAIDs may diminish the antihypertensive effect of ACE inhibitors.' },
+  { drugA: 'nsaid', drugB: 'warfarin', severity: 'UNSAFE', reason: 'Concomitant use substantially increases risk of severe gastrointestinal bleeding.' },
+  { drugA: 'aspirin', drugB: 'warfarin', severity: 'UNSAFE', reason: 'High risk of severe bleeding and hemorrhage.' },
+  { drugA: 'sildenafil', drugB: 'nitroglycerin', severity: 'UNSAFE', reason: 'Life-threatening hypotension: severe cardiovascular collapse risk.' },
+  { drugA: 'potassium', drugB: 'lisinopril', severity: 'UNSAFE', reason: 'High risk of severe hyperkalemia and cardiac arrhythmias.' },
+  { drugA: 'methotrexate', drugB: 'ibuprofen', severity: 'UNSAFE', reason: 'Decreased methotrexate clearance causing toxicity.' },
+];
+
+const fdaInteractionCache = new Map();
+
+/**
+ * Unified ClinicalService
+ * Combines Clinical Records Management (Profiles, Diagnoses, Medications, Allergies, Labs, Timeline)
+ * and Clinical Rules & Safety Triage (Drug-Drug Interactions, Contraindications, OpenFDA queries).
+ */
 export class ClinicalService {
-  constructor(clinicalRepo, proactiveMonitoringService = null) {
+  constructor(clinicalRepo = null, {
+    openFdaBaseUrl = 'https://api.fda.gov/drug/label.json',
+    openFdaEnabled = false,
+    fetchTimeoutMs = 25,
+  } = {}) {
     this.clinicalRepo = clinicalRepo;
-    this.proactiveMonitoringService = proactiveMonitoringService;
+    this.openFdaBaseUrl = openFdaBaseUrl;
+    this.openFdaEnabled = openFdaEnabled;
+    this.fetchTimeoutMs = fetchTimeoutMs;
   }
+
+  // ─────────────────────────────────────────────────────────────
+  // 1. PATIENT PROFILE & 360 CONTEXT
+  // ─────────────────────────────────────────────────────────────
 
   async getProfile(patientId) {
     let patient = await this.clinicalRepo.findPatientById(patientId);
@@ -25,14 +61,33 @@ export class ClinicalService {
     return PatientMapper.toDto(updated);
   }
 
+  async getPatientContext(patientId) {
+    return this.clinicalRepo.getPatientContext(patientId);
+  }
+
+  async getTimeline(patientId, limit = 50) {
+    const timeline = await this.clinicalRepo.getTimeline(patientId, limit);
+    return timeline.map(HealthEventMapper.toTimelineDto);
+  }
+
+  async getConsent(memberId, scope) {
+    return this.clinicalRepo.getConsent(memberId, scope);
+  }
+
+  async setConsent(memberId, scope, granted) {
+    return this.clinicalRepo.setConsent(memberId, scope, granted);
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // 2. CLINICAL RECORDS (CONDITIONS, MEDS, ALLERGIES, LABS)
+  // ─────────────────────────────────────────────────────────────
+
   async getConditions(patientId) {
     const records = await this.clinicalRepo.findClinicalRecords(patientId, 'condition');
     return ClinicalRecordMapper.toDtoList(records);
   }
 
-  async addCondition(patientId, input = {}) {
-    const { code, status, severity, onsetDate, diagnosedDate } = input;
-    const name = input.name || input.condition || input.conditionName || input.diagnosis;
+  async addCondition(patientId, { name, code, status, severity, onsetDate } = {}) {
     if (!name) {
       throw new ApplicationError('Condition name is required', 400, 'validation_error');
     }
@@ -69,10 +124,7 @@ export class ClinicalService {
     return ClinicalRecordMapper.toDtoList(records);
   }
 
-  async addMedication(patientId, input = {}) {
-    const { rxnormCode, frequency, route, startedAt } = input;
-    const name = input.name || input.drugName || input.medication || input.medicationName || input.drug;
-    const dose = input.dose || input.dosage;
+  async addMedication(patientId, { name, rxnormCode, dose, frequency, route, startedAt } = {}) {
     if (!name) {
       throw new ApplicationError('Medication name is required', 400, 'validation_error');
     }
@@ -111,8 +163,8 @@ export class ClinicalService {
     return ClinicalRecordMapper.toDtoList(records);
   }
 
-  async addAllergy(patientId, { substance, name, allergen: allergenProp, reaction, severity, verificationStatus = 'patient_confirmed' } = {}) {
-    const allergen = substance || name || allergenProp;
+  async addAllergy(patientId, { substance, name, reaction, severity, verificationStatus = 'patient_confirmed' } = {}) {
+    const allergen = substance || name;
     if (!allergen) {
       throw new ApplicationError('Allergy substance is required', 400, 'validation_error');
     }
@@ -183,66 +235,148 @@ export class ClinicalService {
     return ClinicalRecordMapper.toDto(record);
   }
 
-  async getPatientContext(patientId) {
-    return this.clinicalRepo.getPatientContext(patientId);
-  }
+  // ─────────────────────────────────────────────────────────────
+  // 3. CLINICAL TRIAGE, DRUG INTERACTIONS & SAFETY CHECKS
+  // ─────────────────────────────────────────────────────────────
 
-  async getTimeline(patientId, limit = 50) {
-    const timeline = await this.clinicalRepo.getTimeline(patientId, limit);
-    return timeline.map(HealthEventMapper.toTimelineDto);
-  }
-
-  async getProactiveInsights(patientId) {
-    if (this.proactiveMonitoringService) {
-      return this.proactiveMonitoringService.getLatestPingOrEvaluate(patientId);
+  async validateDrugAction({ drug, context = {} }) {
+    if (!drug) {
+      return ClinicalTriageMapper.toSafetyCheckDto({ status: 'SAFE', reasons: [], sources: [], timestamp: new Date().toISOString() });
     }
-    if (typeof this.clinicalRepo?.getRecentHealthEvents === 'function') {
-      const recent = await this.clinicalRepo.getRecentHealthEvents(patientId, 'proactive_ping', 1);
-      if (recent && recent.length > 0) {
-        return {
-          id: recent[0].id,
-          pingMessage: recent[0].summary,
-          rulesTriggered: recent[0].structuredData?.rulesTriggered || [],
-          eventTime: recent[0].eventTime,
-          isNew: false
-        };
+
+    const drugLower = String(drug).toLowerCase().trim();
+    const isProposedNsaid = NSAID_SET.has(drugLower) || Array.from(NSAID_SET).some((n) => drugLower.includes(n));
+
+    const activeMedications = context.activeMedications || context.medications || [];
+    const allergies = context.allergies || [];
+    const conditions = context.activeConditions || context.conditions || [];
+
+    const reasons = [];
+    const sources = [];
+    let status = 'SAFE';
+
+    for (const allergy of allergies) {
+      const substance = String(allergy.substance || allergy.name || allergy.drug || '').toLowerCase().trim();
+      if (substance && (drugLower.includes(substance) || substance.includes(drugLower))) {
+        status = 'UNSAFE';
+        reasons.push(`Patient has a documented allergy to ${allergy.substance || allergy.name || allergy.drug}.`);
+        sources.push('Patient Profile: Allergies');
       }
     }
-    return null;
-  }
 
-  async getConsent(memberId, scope) {
-    return this.clinicalRepo.getConsent(memberId, scope);
-  }
+    for (const activeMed of activeMedications) {
+      const activeMedName = String(activeMed.name || activeMed.drug || '').toLowerCase().trim();
+      if (!activeMedName || activeMedName === drugLower) continue;
 
-  async setConsent(memberId, scope, granted) {
-    return this.clinicalRepo.setConsent(memberId, scope, granted);
-  }
+      let matchedRule = false;
+      for (const rule of KNOWN_INTERACTION_RULES) {
+        const matchesA = (rule.drugA === 'nsaid' && isProposedNsaid) || drugLower.includes(rule.drugA);
+        const matchesB = activeMedName.includes(rule.drugB);
+        const reverseMatchesA = (rule.drugA === 'nsaid' && NSAID_SET.has(activeMedName)) || activeMedName.includes(rule.drugA);
+        const reverseMatchesB = drugLower.includes(rule.drugB);
 
-  async getSummaryPdf(patientId) {
-    if (!this.pdfService) {
-      const { PdfSummaryService } = await import('./pdf-summary-service.js');
-      const pool = this.clinicalRepo?.pool;
-      let encounterRepo = null;
-      let memberRepo = null;
-      let documentRepo = null;
-      let healthSampleRepo = null;
-      if (pool) {
-        const { EncounterRepository, MemberRepository, DocumentRepository, HealthSampleRepository } = await import('../repositories/index.js');
-        encounterRepo = new EncounterRepository(pool);
-        memberRepo = new MemberRepository(pool);
-        documentRepo = new DocumentRepository(pool);
-        healthSampleRepo = new HealthSampleRepository(pool);
+        if ((matchesA && matchesB) || (reverseMatchesA && reverseMatchesB)) {
+          matchedRule = true;
+          if (rule.severity === 'UNSAFE' || status !== 'UNSAFE') {
+            status = rule.severity;
+          }
+          reasons.push(`INTERACTION: ${rule.reason} (${drug} + ${activeMed.name || activeMed.drug})`);
+          sources.push('Clinical Pharmacopeia Guidelines');
+          break;
+        }
       }
-      this.pdfService = new PdfSummaryService({
-        clinicalRepo: this.clinicalRepo,
-        encounterRepo,
-        memberRepo,
-        documentRepo,
-        healthSampleRepo,
-      });
+
+      if (matchedRule) continue;
+
+      const pairKey = `${drugLower}:${activeMedName}`;
+      if (fdaInteractionCache.has(pairKey)) {
+        const cached = fdaInteractionCache.get(pairKey);
+        if (cached.hasInteraction) {
+          status = 'UNSAFE';
+          reasons.push(`SEVERE INTERACTION: OpenFDA warns against combining ${drug} and ${activeMed.name || activeMed.drug}.`);
+          sources.push('OpenFDA Drug Interactions Database (cached)');
+        }
+        continue;
+      }
+
+      if (this.openFdaEnabled) {
+        try {
+          const queryUrl = new URL(this.openFdaBaseUrl);
+          queryUrl.searchParams.set('search', `(interactions:"${drugLower}" AND "${activeMedName}")`);
+          queryUrl.searchParams.set('limit', '1');
+
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), this.fetchTimeoutMs);
+
+          const response = await fetch(queryUrl.toString(), { signal: controller.signal });
+          clearTimeout(timer);
+
+          if (response.ok) {
+            const data = await response.json();
+            const hasInteraction = Boolean(data.results && data.results.length > 0);
+            fdaInteractionCache.set(pairKey, { hasInteraction, timestamp: Date.now() });
+
+            if (hasInteraction) {
+              status = 'UNSAFE';
+              reasons.push(`SEVERE INTERACTION: OpenFDA warns against combining ${drug} and ${activeMed.name || activeMed.drug}.`);
+              sources.push('OpenFDA Drug Interactions Database');
+            }
+          } else {
+            fdaInteractionCache.set(pairKey, { hasInteraction: false, timestamp: Date.now() });
+          }
+        } catch {}
+      }
     }
-    return this.pdfService.generateSummaryPdf(patientId);
+
+    if (isProposedNsaid) {
+      let hasHypertension = false;
+      let hasKidneyDisease = false;
+
+      for (const c of conditions) {
+        const text = String(c.name || c.display || c.title || '').toLowerCase();
+        const code = String(c.code || '');
+
+        if (!hasHypertension && (HYPERTENSION_KEYWORDS.some((kw) => text.includes(kw)) || code.startsWith('I10'))) {
+          hasHypertension = true;
+        }
+        if (!hasKidneyDisease && (KIDNEY_KEYWORDS.some((kw) => text.includes(kw)) || code.startsWith('N18'))) {
+          hasKidneyDisease = true;
+        }
+      }
+
+      if (hasHypertension) {
+        if (status !== 'UNSAFE') status = 'CAUTION';
+        reasons.push('NSAIDs can elevate blood pressure. Caution advised for patients with Hypertension.');
+        sources.push('Clinical Guidelines: Hypertension Management');
+      }
+
+      if (hasKidneyDisease) {
+        status = 'UNSAFE';
+        reasons.push('NSAIDs can worsen renal function. Contraindicated in Chronic Kidney Disease.');
+        sources.push('Clinical Guidelines: Nephrology Guidelines');
+      }
+    }
+
+    return ClinicalTriageMapper.toSafetyCheckDto({
+      status,
+      reasons,
+      sources,
+      timestamp: new Date().toISOString(),
+    });
   }
 }
 
+/**
+ * Backwards compatibility delegate for ClinicalRulesService
+ */
+export class ClinicalRulesService {
+  constructor(opts = {}) {
+    this.service = new ClinicalService(null, opts);
+  }
+
+  validateDrugAction(args) {
+    return this.service.validateDrugAction(args);
+  }
+}
+
+export default ClinicalService;

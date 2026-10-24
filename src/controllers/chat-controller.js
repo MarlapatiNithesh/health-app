@@ -10,21 +10,17 @@ export class ChatController {
   }
 
   chat = asyncHandler(async (req, res) => {
-    const rawMsg = req.body.message || req.body.content || req.body.text;
-    const { encounterId, intent, stream, model, requestedModel } = req.body;
-    const activeModel = model || requestedModel || 'gemini';
-    if (!rawMsg || typeof rawMsg !== 'string' || !rawMsg.trim()) {
+    const { encounterId, message, intent, stream } = req.body;
+    if (!message || typeof message !== 'string' || !message.trim()) {
       throw new ApplicationError('Message text is required', 400, 'validation_error');
     }
 
-    const message = rawMsg.trim();
-
     if (stream) {
-
+      // SSE Setup for real-time agentic progress updates
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
+        'Connection': 'keep-alive'
       });
 
       const onProgress = (statusMsg) => {
@@ -35,9 +31,8 @@ export class ChatController {
         const response = await this.chatService.handleChatMessage({
           patientId: req.memberId,
           encounterId,
-          message,
+          message: message.trim(),
           intent,
-          model: activeModel,
           onProgress,
         });
         res.write(`data: ${JSON.stringify({ event: 'complete', data: response })}\n\n`);
@@ -52,9 +47,8 @@ export class ChatController {
     const response = await this.chatService.handleChatMessage({
       patientId: req.memberId,
       encounterId,
-      message,
+      message: message.trim(),
       intent,
-      model: activeModel,
     });
 
     res.json(response);
@@ -69,26 +63,9 @@ export class ChatController {
   });
 
   validateDrug = asyncHandler(async (req, res) => {
-    const drug = req.body.drug || req.body.medication || req.body.drugName;
+    const { drug, context } = req.body;
     if (!drug) throw new ApplicationError('Drug name is required', 400, 'validation_error');
-
-    const hasInlineLists = Array.isArray(req.body.allergies) || Array.isArray(req.body.patientAllergies) ||
-      Array.isArray(req.body.conditions) || Array.isArray(req.body.existingConditions);
-
-    let patientContext;
-    if (req.body.context) {
-      patientContext = req.body.context;
-    } else if (hasInlineLists) {
-      const rawAllergies = req.body.allergies || req.body.patientAllergies || [];
-      const rawConditions = req.body.conditions || req.body.existingConditions || [];
-      patientContext = {
-        allergies: rawAllergies.map((a) => (typeof a === 'string' ? { substance: a } : a)),
-        activeConditions: rawConditions.map((c) => (typeof c === 'string' ? { name: c } : c)),
-        conditions: rawConditions.map((c) => (typeof c === 'string' ? { name: c } : c)),
-      };
-    } else {
-      patientContext = await this.clinicalRepo.getPatientContext(req.memberId);
-    }
+    const patientContext = context || (await this.clinicalRepo.getPatientContext(req.memberId));
 
     const result = await this.clinicalRulesService.validateDrugAction({
       drug,
@@ -97,37 +74,7 @@ export class ChatController {
 
     res.json(result);
   });
-
-  submitFeedback = asyncHandler(async (req, res) => {
-    let { messageId, encounterId, rating, feedbackText, tags } = req.body;
-    if (rating === 1 || rating === '1' || rating === 'up') rating = 'thumbs_up';
-    if (rating === -1 || rating === '-1' || rating === 'down') rating = 'thumbs_down';
-
-    if (!messageId || !rating || !['thumbs_up', 'thumbs_down'].includes(rating)) {
-      throw new ApplicationError('messageId and valid rating (thumbs_up or thumbs_down) are required', 400, 'validation_error');
-    }
-
-    const result = await this.chatService.submitFeedback(req.memberId, {
-      messageId,
-      encounterId,
-      rating,
-      feedbackText,
-      tags: Array.isArray(tags) ? tags : [],
-    });
-
-    res.status(201).json(result);
-  });
-
-  summarizeChat = asyncHandler(async (req, res) => {
-    const encounterId = req.body.encounterId || req.params.encounterId || req.body.sessionId;
-    if (!encounterId) {
-      throw new ApplicationError('encounterId is required', 400, 'validation_error');
-    }
-    const result = await this.chatService.summarizeEncounter(req.memberId, encounterId);
-    res.json(result);
-  });
 }
 
 export const OrchestratorController = ChatController;
 export default ChatController;
-

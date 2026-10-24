@@ -5,9 +5,6 @@ import { requireAuthentication } from '../middleware/authentication.js';
 export function createMemberRouter(controller, jwtSecret, memberRepo = null) {
   const router = Router();
 
-  router.delete('/', requireAuthentication(jwtSecret), asyncHandler((request, response) =>
-    controller.deleteAccount(request, response)));
-
   router.use(requireAuthentication(jwtSecret, memberRepo));
 
   router.get('/profile', asyncHandler((request, response) =>
@@ -24,8 +21,9 @@ export function createMemberRouter(controller, jwtSecret, memberRepo = null) {
 
   router.post('/consents', asyncHandler((request, response) =>
     controller.consent(request, response)));
-  router.get('/consents/:scope', asyncHandler((request, response) =>
-    controller.getConsent(request, response)));
+
+  router.delete('/', asyncHandler((request, response) =>
+    controller.deleteAccount(request, response)));
 
   return router;
 }

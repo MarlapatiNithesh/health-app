@@ -1,20 +1,15 @@
 export class ClinicalRecordMapper {
   static toDto(row) {
     if (!row) return null;
-    const details = typeof row.details === 'string' ? JSON.parse(row.details) : (row.details || {});
     return {
       id: row.id,
       patientId: row.patientId || row.patient_id,
       recordType: row.recordType || row.record_type,
       name: row.name,
-      substance: row.name || details.substance || details.allergen || null,
-      reaction: details.reaction || row.reaction || null,
-      testName: row.name,
-      value: row.valueNum ?? row.value_num ?? row.valueText ?? row.value_text ?? null,
       code: row.code || null,
       codeSystem: row.codeSystem || row.code_system || null,
       status: row.status || 'active',
-      severity: row.severity || details.severity || 'moderate',
+      severity: row.severity || null,
       valueNum: row.valueNum ?? row.value_num ?? null,
       valueText: row.valueText || row.value_text || null,
       unit: row.unit || null,
@@ -26,7 +21,7 @@ export class ClinicalRecordMapper {
       route: row.route || null,
       startAt: row.startAt || row.start_at,
       endAt: row.endAt || row.end_at || null,
-      details,
+      details: typeof row.details === 'string' ? JSON.parse(row.details) : (row.details || {}),
       source: row.source || 'manual',
       confidence: row.confidence ?? 1.0,
       verificationStatus: row.verificationStatus || row.verification_status || 'patient_confirmed',

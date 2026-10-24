@@ -1,5 +1,4 @@
 import express from 'express';
-import path from 'path';
 import { loadConfig } from './config/env.js';
 import { createDatabasePool } from './database/pool.js';
 import { createRepositories } from './repositories/index.js';
@@ -11,7 +10,7 @@ import { HealthController } from './controllers/health-controller.js';
 import { MemberController } from './controllers/member-controller.js';
 import { WearableController } from './controllers/wearable-controller.js';
 import { PhoneController } from './controllers/phone-controller.js';
-import { createHealthRouter } from './routes/health-routes.js';
+import { createHealthRouter, createPhoneHealthRouter } from './routes/health-routes.js';
 import { createMemberRouter } from './routes/member-routes.js';
 import { createWearableRouter } from './routes/wearable-routes.js';
 import { createWebhookRouter } from './routes/webhook-routes.js';
@@ -24,9 +23,36 @@ import { ApplicationError } from './errors/application-error.js';
 import { requestContext } from './middleware/request-context.js';
 import { createPhoneAuthLimiter } from './middleware/phone-auth-limiter.js';
 import { logger } from './logger.js';
-import { createMedibotRouter } from './routes/medibot-routes.js';
+import {
+  createMedibotRouter,
+  createChatRouter,
+  createDocumentRouter,
+  createEncounterRouter,
+  createClinicalRouter,
+} from './routes/medibot-routes.js';
+import { ClinicalRecordRepository, EncounterRepository, DocumentRepository } from './repositories/index.js';
+import { ClinicalController } from './controllers/clinical-controller.js';
+import { EncounterController } from './controllers/encounter-controller.js';
+import { DocumentController } from './controllers/document-controller.js';
+import { ChatController, OrchestratorController } from './controllers/chat-controller.js';
+import { ClinicalService, ClinicalRulesService } from './services/clinical-service.js';
+import { DocumentService, DocumentProcessorService } from './services/document-service.js';
+import { LLMService } from './services/llm-service.js';
+import { ChatService, ClinicalOrchestratorService } from './services/chat-service.js';
 import { setupSwaggerDocs } from './docs/swagger-config.js';
 import { createAppContainer } from './di/app-container.js';
+
+// ── Notification System ────────────────────────────────────────
+import { NotificationRepository } from './repositories/notification-repository.js';
+import {
+  NotificationService,
+  NotificationRulesService,
+  NotificationDispatchService,
+  NotificationPushService,
+} from './services/notification-service.js';
+import { NotificationController } from './controllers/notification-controller.js';
+import { createNotificationRouter } from './routes/notification-routes.js';
+import { NotificationSchedulerWorker } from './workers/notification-worker.js';
 
 export function createApp(config = loadConfig()) {
   if (!config.jwtSecret) throw new Error('JWT_SECRET is required');
@@ -52,9 +78,6 @@ export function createApp(config = loadConfig()) {
   const openWearablesClient = config.openWearablesClient ?? new OpenWearablesClient({
     baseUrl: config.openWearablesBaseUrl,
     apiKey: config.openWearablesApiKey,
-    appId: config.openWearablesAppId,
-    appSecret: config.openWearablesAppSecret,
-    mobileBaseUrl: config.openWearablesMobileBaseUrl,
   });
 
   const twilioVerifyClient = config.twilioVerifyClient ?? new TwilioVerifyClient({
@@ -64,7 +87,7 @@ export function createApp(config = loadConfig()) {
   });
 
   const healthService = new HealthService(
-    { phoneHealthRepo, healthSampleRepo, memberRepo, wearableRepo, openWearablesRepo, openWearablesClient },
+    { phoneHealthRepo, healthSampleRepo, memberRepo, wearableRepo, openWearablesRepo },
     { batchLimit: config.healthBatchLimit },
   );
   const memberService = new MemberService(memberRepo, config.jwtSecret, openWearablesClient);
@@ -106,16 +129,12 @@ export function createApp(config = loadConfig()) {
   app.disable('x-powered-by');
   app.set('trust proxy', true);
 
+  // CORS middleware for Swagger UI, browser clients, and cross-origin requests
   app.use((req, res, next) => {
     const origin = req.headers.origin;
     res.setHeader('Access-Control-Allow-Origin', origin || '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD');
-    const reqHeaders = req.headers['access-control-request-headers'];
-    res.setHeader(
-      'Access-Control-Allow-Headers',
-      reqHeaders || 'Content-Type, Authorization, Accept, X-Requested-With, x-request-id, origin, Idempotency-Key, idempotency-key'
-    );
-    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, Content-Length, Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With, x-request-id, origin');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Max-Age', '86400');
 
@@ -134,20 +153,24 @@ export function createApp(config = loadConfig()) {
   }));
 
   app.use('/v1/me', createMemberRouter(memberController, config.jwtSecret, memberRepo));
-  const healthRouter = createHealthRouter(healthController, config.jwtSecret);
-  app.use(['/v1/me', '/v1/health'], healthRouter);
+  app.use('/v1/me', createHealthRouter(healthController, config.jwtSecret));
   const wearableRouter = createWearableRouter(wearableController, config.jwtSecret);
-  app.use(['/v1/wearables', '/wearables', '/api/wearables', '/v1/me/wearables'], wearableRouter);
+  app.use('/v1/me/wearables', wearableRouter);
+  app.use('/v1/wearables', wearableRouter);
+  app.use('/wearables', wearableRouter);
 
   if (phoneController) {
     const authLimiter = config.authLimiter ?? createPhoneAuthLimiter();
     const phoneRouter = createPhoneRouter(phoneController, config.jwtSecret);
-    app.use(['/phone', '/v1/phone'], authLimiter, phoneRouter);
+    app.use('/phone', authLimiter, phoneRouter);
+    app.use('/v1/phone', authLimiter, phoneRouter);
   }
 
   if (config.webhookSecret) {
     const webhookRouter = createWebhookRouter(healthController, config.webhookSecret);
-    app.use(['/api/webhooks', '/v1/webhooks', '/api/v1'], webhookRouter);
+    app.use('/api/webhooks', webhookRouter);
+    app.use('/v1/webhooks', webhookRouter);
+    app.use('/api/v1', webhookRouter);
     logger.info('Webhook routes registered at /api/webhooks, /v1/webhooks, and /api/v1');
   }
 
@@ -165,6 +188,7 @@ export function createApp(config = loadConfig()) {
   const encounterController = config.encounterController ?? container.resolve('encounterController');
   const documentController = config.documentController ?? container.resolve('documentController');
   const orchestratorController = config.orchestratorController ?? container.resolve('orchestratorController');
+
   const clinicalRepo = config.clinicalRepo ?? container.resolve('clinicalRepo');
 
   const medibotRouter = createMedibotRouter({
@@ -177,28 +201,56 @@ export function createApp(config = loadConfig()) {
     orchestratorController,
   });
 
-  app.use(['/medibot', '/api/medibot', '/v1/medibot', '/v1'], medibotRouter);
+  app.use('/medibot', medibotRouter);
+  app.use('/v1/medibot', medibotRouter);
+  app.use('/v1', medibotRouter);
   logger.info('MediBot clinical routes registered in-process at /medibot, /v1/medibot, and /v1');
 
-  const distPath = path.join(process.cwd(), 'mobile-app/dist');
-  const noCache = (_req, res, next) => {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    if (next) next();
-  };
-  app.use('/app', noCache, express.static(distPath, { etag: false, lastModified: false }));
-  app.use('/assets', express.static(path.join(distPath, 'assets')));
-  app.use(express.static(distPath));
-  app.use('/app', noCache, (_req, res) => {
-    res.sendFile(path.join(distPath, 'index.html'));
-  });
+  // ── Notification System ─────────────────────────────────────
+  const notificationRepo = config.notificationRepo ?? (pool ? new NotificationRepository(pool) : null);
+
+  if (notificationRepo) {
+    const notificationService = config.notificationService ??
+      config.notificationDispatchService ??
+      new NotificationService({
+        notificationRepo,
+        fcmClient: config.fcmClient ?? null,
+        apnsClient: config.apnsClient ?? null,
+        queue: config.notificationQueue ?? null,
+      });
+
+    healthService.notificationDispatchService = notificationService;
+
+    const notificationController = config.notificationController ??
+      new NotificationController({ notificationRepo, notificationDispatchService: notificationService });
+
+    const notificationRouter = createNotificationRouter(
+      notificationController,
+      config.jwtSecret,
+      memberRepo,
+    );
+    app.use('/notifications', notificationRouter);
+    app.use('/v1/notifications', notificationRouter);
+    logger.info('Notification routes registered at /notifications and /v1/notifications');
+
+    // Start the scheduler worker (polls DB for due notifications)
+    if (config.startNotificationScheduler !== false) {
+      const scheduler = new NotificationSchedulerWorker({ notificationRepo, pushService: notificationService });
+      scheduler.start();
+    }
+
+    // Attach dispatch service to app locals so other parts can use it
+    app.locals.notificationDispatchService = notificationService;
+    app.locals.notificationService = notificationService;
+  } else {
+    logger.warn('NotificationRepository skipped: no DB pool available');
+  }
 
   app.get('/', (_request, response) => {
     response.redirect('/docs');
   });
 
-  app.get('/health', async (_request, response) => {
+  app.get('/health', async (request, response) => {
     try {
       if (pool) {
         await pool.query('SELECT 1');

@@ -261,7 +261,6 @@ export function mapTimeseriesRow(raw, provider, memberId, { deviceKey = '', aggr
   const quality = ['good', 'suspect', 'poor'].includes(raw.qualityFlag || raw.quality_flag)
     ? (raw.qualityFlag || raw.quality_flag)
     : 'good';
-  const localDate = (raw.localDate || raw.local_date || raw.date || raw.day || (typeof sourceRecordId === 'string' ? sourceRecordId : '')).match(/\d{4}-\d{2}-\d{2}/)?.[0] || null;
 
   return {
     memberId,
@@ -271,8 +270,6 @@ export function mapTimeseriesRow(raw, provider, memberId, { deviceKey = '', aggr
     device_key: resolvedDeviceKey,
     sourceRecordId: sourceRecordId ? String(sourceRecordId) : null,
     source_record_id: sourceRecordId ? String(sourceRecordId) : null,
-    localDate,
-    local_date: localDate,
     metricType: canonicalMetric,
     metric_type: canonicalMetric,
     aggregation: resolvedAggregation,

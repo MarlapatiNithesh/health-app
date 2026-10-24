@@ -42,7 +42,7 @@ export class PhoneVerificationService {
       }
     }
 
-    const normalizedChannel = (channel === 'whatsapp' || channel === 'call') ? channel : 'sms';
+    const normalizedChannel = channel === 'whatsapp' ? 'whatsapp' : 'sms';
     let result;
     let isTrialDevFallback = false;
 
@@ -90,33 +90,14 @@ export class PhoneVerificationService {
       expiresAt: new Date(Date.now() + this.otpTtlSeconds * 1000),
     });
 
-    let isExistingMember = false;
-    let existingMemberName = null;
-    let existingProfile = null;
-    if (this.memberRepo?.findMemberByPhone) {
-      try {
-        const existing = await this.memberRepo.findMemberByPhone(normalized.e164);
-        if (existing && existing.status !== 'deleted' && (existing.fullName || existing.profile?.fullName)) {
-          isExistingMember = true;
-          existingMemberName = existing.fullName || existing.profile?.fullName;
-          existingProfile = existing.profile || existing;
-        }
-      } catch (e) {
-
-      }
-    }
-
     return {
       status: 'sent',
       sessionId: session.id,
       phone: normalized.e164,
       phoneE164: normalized.e164,
-      channel: result?.channel || normalizedChannel,
+      channel: normalizedChannel,
       cooldownSeconds: this.cooldownSeconds,
       expiresAt: session.expiresAt,
-      isExistingMember,
-      existingMemberName,
-      existingProfile,
     };
   }
 
@@ -131,35 +112,19 @@ export class PhoneVerificationService {
       ]);
     }
 
-    const allowDevOtp = process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_OTP === 'true';
-    const validDevCodes = ['123456', '805296', process.env.DEV_OTP_CODE].filter(Boolean);
-    const isDevCode = allowDevOtp && validDevCodes.includes(cleanOtp);
-
-    let session = await this.repo.findPendingSession(normalized.e164, true);
+    const session = await this.repo.findPendingSession(normalized.e164, true);
     if (!session) {
-      if (isDevCode) {
-        session = await this.repo.createVerificationSession({
-          memberId,
-          phoneE164: normalized.e164,
-          channel: 'sms',
-          maxVerifyAttempts: this.maxVerifyAttempts,
-          maxResendCount: this.maxResendCount,
-          requestIp: null,
-          userAgent: 'demo-dev-client',
-          providerMessageId: 'dev_mock_verify',
-          expiresAt: new Date(Date.now() + 600 * 1000).toISOString(),
-        });
-      } else {
-        throw new ApplicationError(
-          'No active verification session found. Please request a new code.',
-          404,
-          'session_not_found',
-        );
-      }
+      throw new ApplicationError(
+        'No active verification session found. Please request a new code.',
+        404,
+        'session_not_found',
+      );
     }
 
+    const allowDevOtp = process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_OTP === 'true';
     let checkResult;
-    if (isDevCode) {
+
+    if (allowDevOtp && cleanOtp === (process.env.DEV_OTP_CODE || '123456')) {
       checkResult = { valid: true, status: 'approved' };
     } else {
       try {
@@ -248,8 +213,6 @@ export class PhoneVerificationService {
 
     const accessToken = createAccessToken(member.id, this.jwtSecret);
 
-    const isExistingMember = Boolean(completed.member?.fullName || member?.fullName);
-
     return {
       status: 'verified',
       verified: true,
@@ -259,8 +222,6 @@ export class PhoneVerificationService {
       token: accessToken,
       accessToken,
       tokenType: 'Bearer',
-      isNewMember: !isExistingMember,
-      isExistingMember,
       member,
     };
   }

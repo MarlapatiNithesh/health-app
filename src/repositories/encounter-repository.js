@@ -1,13 +1,13 @@
 import { withTransaction } from '../database/pool.js';
 import { globalCache } from '../cache/cache-manager.js';
 import { EncounterMapper } from '../mappers/index.js';
-import { ensurePatientAndConsent } from './helpers.js';
-import { logger } from '../logger.js';
 
 export class EncounterRepository {
   constructor(pool) {
     this.pool = pool;
   }
+
+  // ── Encounters (chat_sessions) ────────────────────────────────────────────
 
   async createEncounter(patientId, {
     intent = 'general',
@@ -19,7 +19,20 @@ export class EncounterRepository {
     symptomState = {},
   } = {}) {
     return withTransaction(this.pool, async (client) => {
-      await ensurePatientAndConsent(client, patientId);
+      await client.query(
+        `UPDATE members
+            SET health_consent_at = COALESCE(health_consent_at, now()),
+                health_consent_version = COALESCE(health_consent_version, '1.0'),
+                updated_at = now()
+          WHERE id = $1`,
+        [patientId]
+      ).catch(() => {});
+      await client.query(
+        `INSERT INTO patients (id, preferred_language, units_system, privacy_level)
+         VALUES ($1, 'en-IN', 'metric', 'standard')
+         ON CONFLICT (id) DO NOTHING`,
+        [patientId]
+      ).catch(() => {});
 
       const validIntents = ['symptom', 'medication_query', 'record_query', 'general'];
       const cleanIntent = validIntents.includes(intent) ? intent : (symptoms?.length > 0 || chiefComplaint ? 'symptom' : 'general');
@@ -173,6 +186,8 @@ export class EncounterRepository {
     });
   }
 
+  // ── Messages ──────────────────────────────────────────────────────────────
+
   async appendMessage(encounterId, patientId, { role = 'user', content, meta = {}, latencyMs = null }) {
     let cleanRole = String(role || 'user').toLowerCase();
     if (['patient', 'member', 'client', 'me'].includes(cleanRole)) cleanRole = 'user';
@@ -192,6 +207,8 @@ export class EncounterRepository {
       return EncounterMapper.toMessageDto(res.rows[0]);
     });
   }
+
+  // ── Symptom State ─────────────────────────────────────────────────────────
 
   async getSymptomState(encounterId) {
     const sessionRes = await this.pool.query(
@@ -239,6 +256,8 @@ export class EncounterRepository {
     });
   }
 
+  // ── Observability: Tool Calls & Model Runs ─────────────────────────────────
+
   async logToolCall(encounterId, patientId, { toolName, arguments: args = {}, result = null, status = 'pending', latencyMs = null, errorMsg = null }) {
     return withTransaction(this.pool, async (client) => {
       const res = await client.query(
@@ -261,87 +280,5 @@ export class EncounterRepository {
       );
       return EncounterMapper.toModelRunDto(res.rows[0]);
     });
-  }
-
-  async searchPatientMemory(patientId, vector, limit = 2) {
-    try {
-      const typeCheck = await this.pool.query("SELECT 1 FROM pg_type WHERE typname = 'vector' LIMIT 1;");
-      if (typeCheck.rowCount > 0) {
-        const vectorStr = `[${Array.from(vector).join(',')}]`;
-        const res = await this.pool.query(
-          `SELECT id, summary_text, (embedding <=> $2::vector) AS distance
-           FROM patient_memory
-           WHERE patient_id = $1
-           ORDER BY distance ASC
-           LIMIT $3`,
-          [patientId, vectorStr, limit]
-        );
-        return res.rows;
-      }
-
-      const res = await this.pool.query(
-        `SELECT id, summary_text, embedding
-         FROM patient_memory
-         WHERE patient_id = $1
-         ORDER BY created_at DESC
-         LIMIT 20`,
-        [patientId]
-      );
-      const target = Array.isArray(vector) ? vector : Array.from(vector || []);
-      const scored = res.rows.map((row) => {
-        const emb = row.embedding;
-        let sim = 0.5;
-        if (Array.isArray(emb) && target.length > 0) {
-          let dot = 0, normA = 0, normB = 0;
-          const len = Math.min(emb.length, target.length);
-          for (let i = 0; i < len; i++) {
-            dot += emb[i] * target[i];
-            normA += emb[i] * emb[i];
-            normB += target[i] * target[i];
-          }
-          const mag = Math.sqrt(normA) * Math.sqrt(normB);
-          sim = mag > 0 ? dot / mag : 0.5;
-        }
-        return { id: row.id, summary_text: row.summary_text, similarity: sim };
-      });
-      scored.sort((a, b) => b.similarity - a.similarity);
-      return scored.slice(0, limit);
-    } catch (err) {
-      logger.debug('searchPatientMemory query failed', { error: err.message });
-      return [];
-    }
-  }
-
-  async savePatientMemory(patientId, encounterId, summaryText, vector) {
-    try {
-      const typeCheck = await this.pool.query("SELECT 1 FROM pg_type WHERE typname = 'vector' LIMIT 1;");
-      if (typeCheck.rowCount > 0) {
-        const vectorStr = `[${Array.from(vector).join(',')}]`;
-        await this.pool.query(
-          `INSERT INTO patient_memory (patient_id, encounter_id, summary_text, embedding)
-           VALUES ($1, $2, $3, $4::vector)`,
-          [patientId, encounterId, summaryText, vectorStr]
-        );
-      } else {
-        const arr = Array.isArray(vector) ? vector : Array.from(vector || []);
-        await this.pool.query(
-          `INSERT INTO patient_memory (patient_id, encounter_id, summary_text, embedding)
-           VALUES ($1, $2, $3, $4)`,
-          [patientId, encounterId, summaryText, arr]
-        );
-      }
-    } catch (err) {
-      logger.debug('savePatientMemory query failed', { error: err.message });
-    }
-  }
-
-  async saveChatFeedback(patientId, { messageId, encounterId = null, rating, feedbackText = null, tags = [] }) {
-    const res = await this.pool.query(
-      `INSERT INTO chat_feedback (message_id, patient_id, encounter_id, rating, feedback_text, tags)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, message_id AS "messageId", rating, feedback_text AS "feedbackText", tags, created_at AS "createdAt"`,
-      [messageId, patientId, encounterId, rating, feedbackText, tags]
-    );
-    return res.rows[0];
   }
 }

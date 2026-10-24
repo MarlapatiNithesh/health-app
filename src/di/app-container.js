@@ -11,24 +11,21 @@ import { TimeseriesRepository } from '../repositories/timeseries-repository.js';
 import { SyncLogRepository } from '../repositories/sync-log-repository.js';
 import { PhoneVerificationRepository } from '../repositories/phone-verification-repository.js';
 
-import { ClinicalService } from '../services/clinical-service.js';
+import { ClinicalService, ClinicalRulesService } from '../services/clinical-service.js';
 import { EncounterService } from '../services/encounter-service.js';
-import { DocumentService } from '../services/document-service.js';
-import { DocumentProcessorService } from '../services/document-processor-service.js';
-import { ClinicalRulesService } from '../services/clinical-rules-service.js';
-import { ClinicalOrchestratorService } from '../services/clinical-orchestrator-service.js';
+import { DocumentService, DocumentProcessorService } from '../services/document-service.js';
+import { ChatService, ClinicalOrchestratorService } from '../services/chat-service.js';
 import { HealthService } from '../services/health-service.js';
 import { MemberService } from '../services/member-service.js';
 import { WearableService } from '../services/wearable-service.js';
 import { LLMService } from '../services/llm-service.js';
 import { SymptomPriorityService } from '../services/symptom-priority-service.js';
 import { ResponseSafetyValidator } from '../services/response-safety-validator.js';
-import { ProactiveMonitoringService } from '../services/proactive-monitoring-service.js';
 
 import { ClinicalController } from '../controllers/clinical-controller.js';
 import { EncounterController } from '../controllers/encounter-controller.js';
 import { DocumentController } from '../controllers/document-controller.js';
-import { OrchestratorController } from '../controllers/orchestrator-controller.js';
+import { ChatController, OrchestratorController } from '../controllers/chat-controller.js';
 import { HealthController } from '../controllers/health-controller.js';
 import { MemberController } from '../controllers/member-controller.js';
 
@@ -87,7 +84,7 @@ export function createAppContainer(config = {}) {
   }));
 
   if (config.clinicalService) container.registerInstance('clinicalService', config.clinicalService);
-  else container.register('clinicalService', (c) => new ClinicalService(c.resolve('clinicalRepo'), c.resolve('proactiveMonitoringService')));
+  else container.registerClass('clinicalService', ClinicalService, ['clinicalRepo']);
 
   if (config.encounterService) container.registerInstance('encounterService', config.encounterService);
   else container.registerClass('encounterService', EncounterService, ['encounterRepo']);
@@ -109,27 +106,13 @@ export function createAppContainer(config = {}) {
   else container.registerClass('clinicalRulesService', ClinicalRulesService, ['clinicalRepo']);
 
   if (config.llmService) container.registerInstance('llmService', config.llmService);
-  else container.register('llmService', () => new LLMService({
-    geminiApiKey: config.geminiApiKey || process.env.GEMINI_API_KEY || '',
-    openaiApiKey: config.openaiApiKey || process.env.OPENAI_API_KEY || '',
-    huggingFaceApiKey: config.huggingFaceApiKey || process.env.HUGGINGFACE_API_KEY || '',
-    defaultModel: config.geminiModel || process.env.GEMINI_MODEL || 'gemini-2.0-flash',
-    endpointUrl: config.geminiEndpointUrl || process.env.GEMINI_ENDPOINT_URL || '',
-    timeoutMs: config.geminiTimeoutMs ? parseInt(config.geminiTimeoutMs, 10) : undefined,
-  }));
+  else container.register('llmService', () => new LLMService({ geminiApiKey: config.geminiApiKey || process.env.GEMINI_API_KEY || '' }));
 
-  if (config.proactiveMonitoringService) container.registerInstance('proactiveMonitoringService', config.proactiveMonitoringService);
-  else {
-    container.register('proactiveMonitoringService', (c) => new ProactiveMonitoringService({
-      clinicalRepo: c.resolve('clinicalRepo'),
-      encounterRepo: c.resolve('encounterRepo'),
-      llmService: c.resolve('llmService'),
-    }));
-  }
-
+  // Symptom priority service (singleton — stateless, safe to share)
   if (config.symptomPriorityService) container.registerInstance('symptomPriorityService', config.symptomPriorityService);
   else container.registerClass('symptomPriorityService', SymptomPriorityService, []);
 
+  // Response safety validator
   if (config.responseSafetyValidator) container.registerInstance('responseSafetyValidator', config.responseSafetyValidator);
   else container.register('responseSafetyValidator', () => new ResponseSafetyValidator({ strictMode: false }));
 
@@ -141,7 +124,6 @@ export function createAppContainer(config = {}) {
       documentRepo: c.resolve('documentRepo'),
       rulesService: c.resolve('clinicalRulesService'),
       clinicalRulesService: c.resolve('clinicalRulesService'),
-      healthService: c.resolve('healthService'),
       llmService: c.resolve('llmService'),
       symptomPriorityService: c.resolve('symptomPriorityService'),
       responseSafetyValidator: c.resolve('responseSafetyValidator'),
@@ -183,4 +165,3 @@ export function createAppContainer(config = {}) {
 
   return container;
 }
-

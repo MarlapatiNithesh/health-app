@@ -4,6 +4,7 @@ import { globalGeminiClient } from '../integrations/gemini-client.js';
 import { SymptomPriorityService } from './symptom-priority-service.js';
 import { ResponseSafetyValidator } from './response-safety-validator.js';
 
+// ── Emergency red-flag patterns ────────────────────────────────────────────────
 const RED_FLAG_ITEMS = [
   { trigger: 'chest pain', message: 'Severe chest pain or pressure requires immediate emergency attention.', regex: /\b(?:severe\s+)?chest\s+pain\b/i },
   { trigger: 'shortness of breath', message: 'Difficulty breathing or sudden shortness of breath is a critical symptom.', regex: /\b(?:shortness\s+of\s+breath|difficulty\s+breathing|can't\s+breathe|cannot\s+breathe)\b/i },
@@ -15,6 +16,7 @@ const RED_FLAG_ITEMS = [
   { trigger: 'severe bleeding', message: 'Severe or uncontrolled bleeding requires immediate emergency care.', regex: /\b(?:severe\s+bleeding|uncontrolled\s+bleeding|bleeding\s+heavily|haemorrhage|hemorrhage)\b/i },
 ];
 
+// ── Intent classification ──────────────────────────────────────────────────────
 const INTENT_MAP = [
   { intent: 'symptom_report', regex: /\b(?:pain|fever|cough|symptom|ache|sore|dizzy|nausea|hurt|feel\s+(?:sick|bad|ill|unwell)|breathless|swelling|rash|bleed|vomit|diarrhoea|diarrhea|fatigue|tired|weak)\b/i },
   { intent: 'medication_question', regex: /\b(?:medicine|drug|pill|prescription|dose|dosage|medication|tablet|capsule|take|refill|pharmacy|side effect|interaction)\b/i },
@@ -26,8 +28,9 @@ const INTENT_MAP = [
 
 const PLACEHOLDER_VECTOR = new Float32Array(768).fill(0.01);
 
+// Maximum prior encounters to show in session memory
 const MAX_PRIOR_ENCOUNTERS = 4;
-
+// How many messages to keep in LLM context (prevents token overflow)
 const MAX_CONTEXT_MESSAGES = 30;
 
 export class ChatService {
@@ -36,7 +39,6 @@ export class ChatService {
     clinicalRepo,
     documentRepo,
     clinicalRulesService,
-    healthService = null,
     llmService,
     geminiClient = globalGeminiClient,
     symptomPriorityService = null,
@@ -46,24 +48,26 @@ export class ChatService {
     this.clinicalRepo = clinicalRepo;
     this.documentRepo = documentRepo;
     this.clinicalRulesService = clinicalRulesService;
-    this.healthService = healthService;
     this.llmService = llmService;
     this.geminiClient = geminiClient;
 
+    // Use injected or create defaults
     this.symptomPriorityService = symptomPriorityService || new SymptomPriorityService();
     this.responseSafetyValidator = responseSafetyValidator || new ResponseSafetyValidator();
   }
+
+  // ── Main chat handler ───────────────────────────────────────────────────────
 
   async handleChatMessage({
     patientId,
     encounterId = null,
     message,
     intent = null,
-    model = 'gemini',
     onProgress = null,
   }) {
     const startTime = Date.now();
 
+    // ── Step 1: Resume or create encounter ─────────────────────────────────────
     const isUuid = encounterId && typeof encounterId === 'string' &&
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(encounterId);
 
@@ -80,11 +84,13 @@ export class ChatService {
       encounterId = encounter.id;
     }
 
+    // ── Step 2: Persist user message ───────────────────────────────────────────
     await this.encounterRepo.appendMessage(encounterId, patientId, {
       role: 'user',
       content: message,
     });
 
+    // ── Step 3: Emergency red-flag screen (runs BEFORE anything else) ──────────
     const redFlagMatch = this.#screenRedFlags(message);
     if (redFlagMatch) {
       const alertResponse = `🚨 **EMERGENCY WARNING**: ${redFlagMatch.message} Please seek immediate emergency medical care (call 112 / 911 / 999) or go to the nearest emergency department right now.`;
@@ -117,49 +123,35 @@ export class ChatService {
       });
     }
 
+    // ── Step 4: Parallel data fetch — patient context, prior encounters, RAG ────
     onProgress?.('Fetching Patient 360 profile, lab results, and medical history...');
-    const healthReadingsPromise = this.healthService && typeof this.clinicalRepo?.getConsent === 'function'
-      ? this.clinicalRepo.getConsent(patientId, 'health_data')
-        .then((consent) => consent?.granted
-          ? this.healthService.getRecentHealthContext(patientId, 30, 100)
-          : [])
-        .catch((err) => {
-          logger.warn('Could not load consented health readings for MediBot', { error: err.message });
-          return [];
-        })
-      : Promise.resolve([]);
-
-    const [patientContext, refreshedEncounter, ragEvidence, priorEncounters, healthReadings, semanticMemory, emotionState] = await Promise.all([
+    
+    const [patientContext, refreshedEncounter, ragEvidence, priorEncounters, semanticMemory, emotionState] = await Promise.all([
       this.clinicalRepo.getPatientContext(patientId),
       this.encounterRepo.findEncounterById(encounterId),
       this.#retrieveDualSearchEvidence(patientId, message),
-      this.encounterRepo.listEncountersByPatient(patientId, MAX_PRIOR_ENCOUNTERS + 1)
-        .catch(() => []),
-      healthReadingsPromise,
+      this.encounterRepo.listEncountersByPatient(patientId, MAX_PRIOR_ENCOUNTERS + 1).catch(() => []),
       this.#retrieveSemanticMemory(patientId, message),
-      this.llmService.detectEmotion ? this.llmService.detectEmotion(message) : null,
+      this.llmService.detectEmotion ? this.llmService.detectEmotion(message) : null // NEW: Emotion Routing
     ]);
 
+    // ── Step 5: Structured symptom extraction ──────────────────────────────────
     onProgress?.('Running clinical triage and symptom classification...');
+
     const currentSymptomState = refreshedEncounter?.symptomState || {};
-    const lastAssistantMsg = (refreshedEncounter?.messages || [])
-      .slice().reverse().find((m) => m.role === 'assistant');
-    const pendingNextField = lastAssistantMsg?.meta?.nextField || currentSymptomState?.pendingNextField || null;
-
-    const detectedIntent = intent || this.#classifyIntent(message);
-    const isNonSymptomQuery = ['medication_question', 'factual_record_query', 'health_trend_question', 'document_question', 'general_health_question'].includes(detectedIntent);
-    const isExplicitSymptomReport = detectedIntent === 'symptom_report' || this.symptomPriorityService.isSymptomReport(message);
-
-    const isSymptomIntent = isExplicitSymptomReport || (!isNonSymptomQuery && !!pendingNextField);
+    const isSymptomIntent = this.#classifyIntent(message) === 'symptom_report' ||
+      this.symptomPriorityService.isSymptomReport(message) ||
+      !!currentSymptomState?.primarySymptom;
 
     let updatedSymptomState = currentSymptomState;
 
     if (isSymptomIntent) {
       updatedSymptomState = await this.#extractAndMergeSymptoms(
-        encounterId, patientId, message, currentSymptomState, pendingNextField
+        encounterId, patientId, message, currentSymptomState
       );
     }
 
+    // ── Step 6: Determine next assessment field ────────────────────────────────
     const nextField = isSymptomIntent
       ? this.symptomPriorityService.getNextField(updatedSymptomState)
       : null;
@@ -167,6 +159,7 @@ export class ChatService {
     const assessmentComplete = isSymptomIntent &&
       this.symptomPriorityService.isMinimumComplete(updatedSymptomState);
 
+    // ── Step 7: Final risk assessment if assessment just completed ─────────────
     let riskAssessment = null;
     if (isSymptomIntent && assessmentComplete && !currentSymptomState?.riskAssessed) {
       riskAssessment = this.symptomPriorityService.assessRisk(updatedSymptomState, patientContext);
@@ -175,6 +168,7 @@ export class ChatService {
         rules: riskAssessment.triggeredRules,
       });
 
+      // Update encounter risk level based on assessment
       if (riskAssessment.riskLevel === 'high') {
         await this.encounterRepo.updateEncounterStatus(encounterId, {
           riskLevel: 'high',
@@ -184,6 +178,7 @@ export class ChatService {
         await this.encounterRepo.updateEncounterStatus(encounterId, { riskLevel: 'medium' }).catch(() => {});
       }
 
+      // Mark symptom state as risk-assessed so we don't re-assess next turn
       await this.encounterRepo.upsertSymptomState(encounterId, patientId, {
         ...updatedSymptomState,
         riskAssessed: true,
@@ -192,6 +187,7 @@ export class ChatService {
       }).catch(() => {});
     }
 
+    // ── Step 8: Escalate HIGH risk encounters immediately ──────────────────────
     if (riskAssessment?.riskLevel === 'high') {
       const escalationResponse = `⚠️ **Based on your symptom assessment**, your reported symptoms — particularly ${updatedSymptomState.primarySymptom || 'the symptoms described'} — warrant **urgent medical attention**.
 
@@ -232,79 +228,74 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
       });
     }
 
+    // ── Step 9: Build system prompt ────────────────────────────────────────────
     const priorEncounterList = (priorEncounters || [])
-      .filter((e) => e.id !== encounterId); 
+      .filter((e) => e.id !== encounterId); // exclude current session
 
     const systemPrompt = this.#buildSystemPrompt(
       patientContext,
       updatedSymptomState,
       ragEvidence,
       priorEncounterList,
+      semanticMemory,
+      emotionState, // Inject emotion state
       nextField,
       isSymptomIntent,
-      assessmentComplete,
-      healthReadings,
-      semanticMemory,
-      emotionState,
+      assessmentComplete
     );
 
+    // ── Step 10: Build message history (windowed) ──────────────────────────────
     const allMessages = (refreshedEncounter?.messages || [])
       .map((m) => ({ role: m.role, content: m.content }));
 
+    // Keep last N messages to avoid token overflow, always keep the first (if system)
     const windowedMessages = allMessages.length > MAX_CONTEXT_MESSAGES
       ? allMessages.slice(-MAX_CONTEXT_MESSAGES)
       : allMessages;
 
-    let modelSystemPrompt = systemPrompt;
-    if (model === 'medgamma' || model === 'medgemma') {
-      onProgress?.('Consulting MedGemma 2B specialized clinical model for differential diagnosis...');
-      modelSystemPrompt = `${systemPrompt}\n\n[SPECIALIZED CLINICAL MODE: MedGemma 2B Foundation Model]\nAdopt the clinical reasoning of the specialized MedGemma 2B medical model. Emphasize differential diagnoses, clinical etiology, and evidence-based medicine guidelines.`;
-    } else if (model === 'gpt-4o' || model === 'openai') {
-      onProgress?.('Engaging GPT-4o deep diagnostic reasoning engine...');
-      modelSystemPrompt = `${systemPrompt}\n\n[DEEP REASONING MODE: GPT-4o Clinical Engine]\nAdopt comprehensive step-by-step diagnostic reasoning, multi-system pathophysiological analysis, and detailed clinical evaluation.`;
-    } else {
-      onProgress?.('Generating clinical response with Gemini 2.5 Flash multi-agent engine...');
-    }
-
+    // ── Step 11: LLM call (with tool-calling loop) ─────────────────────────────
+    onProgress?.('Generating Differential Diagnosis and formulating clinical response...');
+    
     const toolHandlers = this.#buildToolHandlers(patientId, encounterId);
     let llmResult;
-
+    
     if (this.llmService.generateWithToolCalling) {
       llmResult = await this.llmService.generateWithToolCalling({
         messages: windowedMessages,
-        systemPrompt: modelSystemPrompt,
+        systemPrompt,
         toolHandlers,
-        requestedModel: model,
-        symptomState: updatedSymptomState,
-        nextField,
-        assessmentComplete,
       });
     } else {
       llmResult = await this.llmService.generateCompletion({
         messages: windowedMessages,
-        systemPrompt: modelSystemPrompt,
-        requestedModel: model,
+        systemPrompt,
       });
     }
 
     let finalContent = llmResult.content;
 
+    // ── Step 11.5: The Clinical Critic (Multi-Agent Review) ─────────────────
     if (this.llmService.clinicalReviewAgent) {
       onProgress?.('Attending Physician Agent is reviewing the draft against your allergy list...');
-      const allergiesText = (patientContext.allergies || []).map((a) => a.substance || a.name).join(', ') || 'None';
+      
+      const allergiesText = (patientContext.allergies || []).map(a => a.substance || a.name).join(', ') || 'None';
       const criticResult = await this.llmService.clinicalReviewAgent(finalContent, allergiesText);
+      
       if (criticResult && criticResult.approved === false) {
         logger.warn('ChatService: Clinical Critic REJECTED draft', { reason: criticResult.reason });
+        
         windowedMessages.push({ role: 'assistant', content: finalContent });
         windowedMessages.push({ role: 'user', content: `[CRITICAL REVIEW BOARD]: Your previous draft was rejected by the Attending Physician because: ${criticResult.reason}. Please rewrite your response to be safe.` });
+        
         const rewriteResult = await this.llmService.generateCompletion({
           messages: windowedMessages,
-          systemPrompt: systemPrompt + '\nIMPORTANT: Do not recommend any medication the patient is allergic to.',
+          systemPrompt,
         });
         finalContent = rewriteResult.content;
       }
     }
 
+    // ── Step 12: Response safety validation ───────────────────────────────────
     const validationResult = this.responseSafetyValidator.validate(finalContent, {
       patientContext,
       symptomState: updatedSymptomState,
@@ -320,29 +311,22 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
       finalContent = 'I\'m sorry, I wasn\'t able to generate an appropriate response for that. Please consult your healthcare provider for specific medical guidance.';
     }
 
-    const resolvedModelName = llmResult.modelName || (
-      (model === 'medgamma' || model === 'medgemma')
-        ? 'MedGemma 2B'
-        : (model === 'gpt-4o' || model === 'openai')
-        ? 'GPT-4o Clinical'
-        : 'Gemini 2.5 Flash'
-    );
-
+    // ── Step 13: Persist assistant message + model run ─────────────────────────
     const [, assistantMsg] = await Promise.all([
       this.encounterRepo.logModelRun(encounterId, patientId, {
-        modelName: resolvedModelName,
-        modelVersion: llmResult.modelVersion || 'v1beta',
-        promptHash: llmResult.promptHash || null,
-        inputTokens: llmResult.tokens?.input ?? 0,
-        outputTokens: llmResult.tokens?.output ?? 0,
-        latencyMs: llmResult.latencyMs ?? 0,
+        modelName: llmResult.modelName,
+        modelVersion: llmResult.modelVersion,
+        promptHash: llmResult.promptHash,
+        inputTokens: llmResult.tokens.input,
+        outputTokens: llmResult.tokens.output,
+        latencyMs: llmResult.latencyMs,
       }),
       this.encounterRepo.appendMessage(encounterId, patientId, {
         role: 'assistant',
         content: finalContent,
-        latencyMs: llmResult.latencyMs ?? 0,
+        latencyMs: llmResult.latencyMs,
         meta: {
-          model: resolvedModelName,
+          model: llmResult.modelName,
           safetyStatus: validationResult.status,
           nextField: nextField || null,
           assessmentComplete,
@@ -350,6 +334,7 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
       }),
     ]);
 
+    // ── Step 14: Auto-summarise if assessment just completed ───────────────────
     if (assessmentComplete && !currentSymptomState?.riskAssessed) {
       this.#summariseAndPersistEncounter(encounterId, patientId, refreshedEncounter?.messages || [])
         .catch((err) => logger.warn('ChatService: background summarisation failed', { error: err.message }));
@@ -366,9 +351,10 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
       symptomState: updatedSymptomState,
       nextField,
       assessmentComplete,
-      modelName: resolvedModelName,
     });
   }
+
+  // ── RAG query endpoint ──────────────────────────────────────────────────────
 
   async queryRAG(patientId, queryText) {
     try {
@@ -404,12 +390,7 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
     }
   }
 
-  async submitFeedback(patientId, feedbackData) {
-    if (typeof this.encounterRepo?.saveChatFeedback === 'function') {
-      return await this.encounterRepo.saveChatFeedback(patientId, feedbackData);
-    }
-    return { status: 'recorded', ...feedbackData };
-  }
+  // ── Private: Tool Calling ───────────────────────────────────────────────────
 
   #buildToolHandlers(patientId, encounterId) {
     return {
@@ -437,42 +418,45 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
     }
   }
 
-  async #extractAndMergeSymptoms(encounterId, patientId, text, existingState, pendingNextField = null) {
+  // ── Private: structured symptom extraction ──────────────────────────────────
+
+  async #extractAndMergeSymptoms(encounterId, patientId, text, existingState) {
     try {
+      // Use LLM JSON extraction if API key available, else fall back to regex
+      let extracted = {};
 
-      const ruleExtracted = this.symptomPriorityService?.extractSymptomFromText
-        ? this.symptomPriorityService.extractSymptomFromText(text, pendingNextField, existingState)
-        : {};
-
-      let llmExtracted = {};
       if (this.llmService?.generateJsonExtraction) {
-        try {
-          llmExtracted = await this.llmService.generateJsonExtraction(text, existingState);
-        } catch {
-          llmExtracted = {};
-        }
+        extracted = await this.llmService.generateJsonExtraction(text, existingState);
       }
 
-      const combined = { ...ruleExtracted, ...llmExtracted };
+      // Regex fallback for severity and duration (always run as safety net)
+      const SEVERITY_REGEX = /\b([0-9]|10)\s*(?:\/10|out of 10)\b|\bseverity (?:is )?([0-9]|10)\b/i;
+      const DURATION_REGEX = /\b(\d+)\s*(days?|weeks?|months?|hours?|minutes?)\b/i;
 
-      if (pendingNextField && !combined[pendingNextField] && text.length > 1 && text.length < 90) {
-        combined[pendingNextField] = text.trim();
+      if (!extracted.severity) {
+        const sevMatch = SEVERITY_REGEX.exec(text);
+        if (sevMatch) extracted.severity = parseInt(sevMatch[1] || sevMatch[2], 10);
+      }
+      if (!extracted.duration) {
+        const durMatch = DURATION_REGEX.exec(text);
+        if (durMatch) extracted.duration = `${durMatch[1]} ${durMatch[2]}`;
       }
 
-      const merged = { ...existingState };
-      for (const [key, val] of Object.entries(combined)) {
+      // Merge new extraction over existing state
+      const merged = {};
+      // Start with existing
+      Object.assign(merged, existingState);
+      // Apply new extractions (only non-empty values)
+      for (const [key, val] of Object.entries(extracted)) {
         if (val !== null && val !== undefined && val !== '') {
           merged[key] = val;
         }
       }
 
-      if (Object.keys(combined).length > 0) {
+      if (Object.keys(extracted).length > 0) {
         await this.encounterRepo.upsertSymptomState(encounterId, patientId, merged)
           .catch((err) => logger.debug('ChatService: symptom state upsert failed', { error: err.message }));
-        logger.debug('ChatService: symptom state updated', {
-          extracted: Object.keys(combined),
-          merged: Object.keys(merged),
-        });
+        logger.debug('ChatService: symptom state updated', { extracted: Object.keys(extracted), merged: Object.keys(merged) });
       }
 
       return merged;
@@ -481,6 +465,8 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
       return existingState;
     }
   }
+
+  // ── Private: dual vector + document RAG ────────────────────────────────────
 
   async #retrieveDualSearchEvidence(patientId, queryText) {
     let vectorChunks = [];
@@ -508,12 +494,50 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
     return { vectorChunks: vectorChunks || [], documents: documents || [] };
   }
 
+  // ── Private: intent classification ─────────────────────────────────────────
+
   #classifyIntent(text = '') {
     for (const item of INTENT_MAP) {
       if (item.regex.test(text)) return item.intent;
     }
     return 'out_of_scope';
   }
+
+  // ── Private: Long-Term Semantic Memory ────────────────────────────────────
+
+  async #retrieveSemanticMemory(patientId, queryText) {
+    if (!this.llmService?.embedTextHuggingFace || !queryText) return [];
+    try {
+      const queryVector = await this.llmService.embedTextHuggingFace(queryText);
+      // We pass the raw array, or use placeholder if failed
+      const vector = queryVector.length === 384 ? queryVector : new Float32Array(384).fill(0.01);
+      
+      // In production, we execute:
+      // SELECT summary_text FROM patient_memory WHERE patient_id = $1 ORDER BY embedding <-> $2 LIMIT 2
+      // For now, if the repo method doesn't exist, return empty array.
+      if (typeof this.encounterRepo?.searchPatientMemory === 'function') {
+        return await this.encounterRepo.searchPatientMemory(patientId, vector, 2);
+      }
+      return [];
+    } catch (err) {
+      logger.debug('Semantic Memory retrieval bypassed', { error: err.message });
+      return [];
+    }
+  }
+
+  async #embedAndSaveMemory(patientId, encounterId, summary) {
+    if (!this.llmService?.embedTextHuggingFace || !summary) return;
+    try {
+      const vector = await this.llmService.embedTextHuggingFace(summary);
+      if (vector.length === 384 && typeof this.encounterRepo?.savePatientMemory === 'function') {
+        await this.encounterRepo.savePatientMemory(patientId, encounterId, summary, vector);
+      }
+    } catch (err) {
+      logger.debug('Semantic Memory save bypassed', { error: err.message });
+    }
+  }
+
+  // ── Private: red-flag screening ────────────────────────────────────────────
 
   #screenRedFlags(text = '') {
     for (const item of RED_FLAG_ITEMS) {
@@ -522,18 +546,7 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
     return null;
   }
 
-  async summarizeEncounter(patientId, encounterId) {
-    const encounter = await this.encounterRepo.findEncounterById(encounterId);
-    if (!encounter) {
-      throw new ApplicationError('Encounter not found', 404, 'not_found');
-    }
-    const messages = encounter.messages || [];
-    if (messages.length === 0) {
-      return { status: 'skipped', reason: 'no_messages', encounterId };
-    }
-    await this.#summariseAndPersistEncounter(encounterId, patientId, messages);
-    return { status: 'summarized', encounterId };
-  }
+  // ── Private: background encounter summarisation ─────────────────────────────
 
   async #summariseAndPersistEncounter(encounterId, patientId, messages) {
     try {
@@ -557,7 +570,7 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
           structuredData: { encounterId, source: 'medibot_assessment' },
           sessionId: encounterId,
         }).catch(() => {}),
-        this.#embedAndSaveMemory(patientId, encounterId, summary),
+        this.#embedAndSaveMemory(patientId, encounterId, summary), // NEW: Save to Long-Term Memory
       ]);
 
       logger.info('ChatService: encounter summarised and persisted', { encounterId });
@@ -566,45 +579,20 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
     }
   }
 
-  async #retrieveSemanticMemory(patientId, queryText) {
-    if (!this.llmService?.embedTextHuggingFace || !queryText) return [];
-    try {
-      const queryVector = await this.llmService.embedTextHuggingFace(queryText);
-      const vector = queryVector.length === 384 ? queryVector : new Float32Array(384).fill(0.01);
-      if (typeof this.encounterRepo?.searchPatientMemory === 'function') {
-        return await this.encounterRepo.searchPatientMemory(patientId, vector, 2);
-      }
-    } catch (err) {
-      logger.debug('Semantic Memory retrieval bypassed', { error: err.message });
-    }
-    return [];
-  }
-
-  async #embedAndSaveMemory(patientId, encounterId, summary) {
-    if (!this.llmService?.embedTextHuggingFace || !summary) return;
-    try {
-      const vector = await this.llmService.embedTextHuggingFace(summary);
-      if (vector.length === 384 && typeof this.encounterRepo?.savePatientMemory === 'function') {
-        await this.encounterRepo.savePatientMemory(patientId, encounterId, summary, vector);
-      }
-    } catch (err) {
-      logger.debug('Semantic Memory save bypassed', { error: err.message });
-    }
-  }
+  // ── Private: full system prompt assembly ────────────────────────────────────
 
   #buildSystemPrompt(
     context = {},
     symptomState = null,
     ragEvidence = null,
     priorEncounters = [],
-    nextField = null,
-    isSymptomIntent = false,
-    assessmentComplete = false,
-    healthReadings = [],
     semanticMemory = [],
     emotionState = null,
+    nextField = null,
+    isSymptomIntent = false,
+    assessmentComplete = false
   ) {
-
+    // ── Patient 360 clinical context ────────────────────────────────────────────
     const conditions = (context.activeConditions || [])
       .map((c) => `${c.name}${c.code ? ` (${c.code})` : ''}`)
       .join(', ') || 'None recorded';
@@ -621,10 +609,6 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
       .map((l) => `${l.name || l.testName}: ${l.valueNum ?? l.valueText ?? l.value ?? ''} ${l.unit || ''} [${l.interpretation || 'recorded'}]`)
       .join(', ') || 'None recorded';
 
-    const connectedHealthReadings = (healthReadings || [])
-      .map((sample) => `  - ${sample.metric}: ${sample.value} ${sample.unit || ''}; ${sample.recordedAt || sample.localDate || 'date unavailable'}; source ${sample.provider || 'phone health app'}`)
-      .join('\n') || '  No recent connected health readings are available or health sharing is off.';
-
     const lifestyle = context.patient?.lifestyle && typeof context.patient.lifestyle === 'object' &&
       Object.keys(context.patient.lifestyle).length > 0
       ? Object.entries(context.patient.lifestyle)
@@ -636,6 +620,7 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
       ? context.patient.goals.join(', ')
       : 'None recorded';
 
+    // ── Prior encounter session memory ──────────────────────────────────────────
     const priorSessionSummaries = (priorEncounters || [])
       .filter((e) => e.summary || e.symptomState?.primarySymptom)
       .slice(0, MAX_PRIOR_ENCOUNTERS)
@@ -645,12 +630,14 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
         const risk = e.riskLevel ? ` [Risk: ${e.riskLevel}]` : '';
         return `  • ${date}: ${summary}${risk}`;
       })
-      .join('\n') || '  • No prior consultations recorded';
+      .join('\n') || '  • No recent consultations recorded';
 
+    // ── Long-Term Semantic Memory (Vector Search) ───────────────────────────────
     const longTermMemoryText = (semanticMemory || [])
       .map((m) => `  • [Past Memory Match]: ${m.summary_text}`)
       .join('\n') || '  • No relevant long-term memories triggered.';
 
+    // ── RAG evidence ────────────────────────────────────────────────────────────
     const docSummaries = (ragEvidence?.documents || [])
       .map((d) => `  - [Doc ID: ${d.id}, File: ${d.originalFilename}, Type: ${d.docType}]: ${d.summary || 'Uploaded document'}`)
       .join('\n') || '  None uploaded';
@@ -659,14 +646,17 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
       .map((c) => `  - [Relevance: ${Number(c.similarity || 0).toFixed(2)}]: ${c.contentText}`)
       .join('\n') || '  None';
 
+    // ── Symptom assessment block (adaptive questioning) ─────────────────────────
     const symptomBlock = (isSymptomIntent && symptomState)
       ? this.symptomPriorityService.buildSymptomAssessmentBlock(symptomState)
       : '';
 
+    // ── Compose full system prompt ──────────────────────────────────────────────
     return `You are MediBot, a personalised, evidence-based clinical AI assistant for ${context.patient?.fullName || 'the patient'}.
-You are a health information assistant, not a clinician. Be warm, clear, and focused on the patient's wellbeing without claiming to diagnose or replace professional care.
-${emotionState === 'HIGH_ANXIETY' ? "🚨 [SYSTEM ALERT]: The patient's message indicates HIGH ANXIETY, FEAR, or PANIC. You MUST adjust your tone to be highly empathetic, calming, and reassuring before asking any clinical questions.\n" : ''}
+You behave like a caring, experienced general practitioner — warm, thorough, and focused on the patient's wellbeing.
 Blood Group: ${context.patient?.bloodGroup || 'Not recorded'}
+
+${emotionState === 'HIGH_ANXIETY' ? '🚨 [SYSTEM ALERT]: The patient\'s message indicates HIGH ANXIETY, FEAR, or PANIC. You MUST adjust your tone to be highly empathetic, calming, and reassuring before asking any clinical questions.' : ''}
 
 ════════════════════════════════════════════════════════════════════════════════
 PATIENT PROFILE & CLINICAL HISTORY:
@@ -686,14 +676,10 @@ KNOWN ALLERGIES:
 RECENT LAB RESULTS:
   ${labs}
 
-RECENT CONNECTED HEALTH APP READINGS (last 30 days; only when health sharing is enabled):
-${connectedHealthReadings}
-
 ════════════════════════════════════════════════════════════════════════════════
-CONSULTATION HISTORY (Session Memory — prior encounters):
+CONSULTATION HISTORY (Recent Sessions):
 ${priorSessionSummaries}
 
-════════════════════════════════════════════════════════════════════════════════
 LONG-TERM MEMORY (Relevant Past Context):
 ${longTermMemoryText}
 
@@ -705,48 +691,40 @@ RELEVANT EVIDENCE FROM DOCUMENTS (semantic search):
 ${chunkTexts}
 ${symptomBlock ? '\n' + symptomBlock : ''}
 ════════════════════════════════════════════════════════════════════════════════
-CORE BEHAVIOURAL & FORMATTING RULES (follow always):
+CORE BEHAVIOURAL RULES (follow always):
 
-0. FORMATTING & READABILITY (CRITICAL):
-${isSymptomIntent && !assessmentComplete
-  ? `   - ACTIVE ASSESSMENT TURN: You are currently inquiring about: "${nextField}".
-   - Keep answers CONCISE (under 120 words). Do NOT jump ahead or provide premature clinical diagnoses yet.
-   - Always start with: 🎯 **Primary Focus:** Assessing ${symptomState?.primarySymptom || 'Reported Symptom'} (${nextField})
-   - Acknowledge what the patient just reported warmly and ask the SINGLE next clarifying question.
-   - Conclude with the suggested quick response options under:
-     💡 **Follow-up & Feedback Questions:**`
-  : `   - Keep answers CONCISE, scannable, and cleanly structured (under 180 words). Avoid dense, lengthy walls of text.
-   - Always start your response with a clear highlight line:
-     🎯 **Primary Focus:** [Key health topic, observation, or vital relation]
-   - Use clear markdown sections with bullet points:
-     - 📋 **Key Observations**: [1-2 concise points with evidence]
-     - 🩺 **Clinical Guidance**: [1-2 actionable, safe points]
-   - Conclude with a dedicated follow-up section:
-     💡 **Follow-up & Feedback Questions:**
-     1. [First clarifying or feedback question]
-     2. [Second clarifying or feedback question]`}
+1. GROUNDING: Base every clinical statement on the patient's records above or the uploaded documents. Never invent clinical facts.
+2. SOURCE CITATIONS: Every clinical statement must have a citation. When citing patient records: write [Record: <field name>, <date>]. When citing guidelines: write [Source: <guideline name>, <year>].
+3. NO DEFINITIVE DIAGNOSES: Say "This presentation is highly consistent with..." instead of "You have...".
+4. EMPATHY: Acknowledge what the patient is feeling before responding clinically.
 
-1. HEALTH DATA: Use connected health readings only when present above. State their source and date when discussing them. They may be incomplete or delayed; do not describe them as continuous monitoring or use them alone to diagnose.
+${isSymptomIntent && !assessmentComplete 
+  ? `--- ACTIVE DIAGNOSTIC MODE ---
+You are currently investigating a symptom. You must act like an expert diagnostician.
+BEFORE asking your next question, you MUST generate a hidden thought block detailing your Differential Diagnosis (DDx).
+Format your response EXACTLY like this:
 
-2. GROUNDING: Base every clinical statement on the patient's records above or the uploaded documents. Never invent clinical facts.
-3. If asked about information NOT in the records, say clearly: "I don't see that in your medical records."
-4. MEDICATION QUESTIONS: Always reference the patient's active medications above and their documented allergies.
-5. SOURCE CITATIONS: Every clinical statement must have a citation. When citing patient records: write [Record: <field name>, <date>]. When citing guidelines: write [Source: <guideline name>, <year>]. If you have no grounding data, say so.
-6. NO DEFINITIVE DIAGNOSES: Never say "You have [condition]." Say "Your symptoms may suggest..." and recommend professional evaluation.
-7. NO DOSAGE PRESCRIPTIONS: Never tell the patient to "take X mg of Y." Refer to their existing prescription details only.
-8. EMPATHY: Acknowledge what the patient is feeling warmly and directly.
-9. DISCLAIMER: When providing any clinical guidance, remind the patient to consult a healthcare professional.
-${isSymptomIntent && !assessmentComplete
-  ? `10. ACTIVE DIAGNOSTIC MODE: You are currently evaluating a symptom. Act like an expert diagnostician. Mentally evaluate the top 3 differential diagnoses (DDx) based on current records and ask the single most distinguishing clarifying question.`
-  : assessmentComplete
-  ? `10. ASSESSMENT COMPLETE (CLINICAL TRIAD): Deliver your final evaluation using the Clinical Triad format:
-     1. The Synthesis (concise summary of reported symptoms, vitals, and relevant lab history).
-     2. Clinical Assessment & Confidence (most likely condition/pattern and confidence level).
-     3. Evidence-Based Plan & Recommendations (guideline-backed points to discuss with their doctor).`
-  : ''}`;
+<thought_process>
+1. Top 3 possible conditions based on current data: [List them]
+2. What critical piece of information is missing to prove/disprove condition #1?
+3. Formulate the single most distinguishing question to get that information.
+</thought_process>
+
+[Your empathetic, human-facing question here. Ask ONLY ONE question.]`
+  : `--- ASSESSMENT COMPLETE: FINAL CLINICAL RESPONSE ---
+You have gathered enough information. You must deliver your final assessment using the "Clinical Triad" format.
+Format your response exactly like this:
+
+**1. The Synthesis**
+[Briefly summarize what you heard: e.g., "Based on our chat, you have 8/10 burning foot pain at night, and your HbA1c is currently elevated at 8.4%."]
+
+**2. Clinical Assessment & Confidence**
+[State the most likely condition and your confidence score: e.g., "This presentation is highly consistent (90% confidence) with Diabetic Peripheral Neuropathy."]
+
+**3. Evidence-Based Plan & Medication Suggestion**
+[Cite the retrieved guidelines. Suggest potential medication adjustments or new therapeutic options (e.g. "Guidelines suggest starting Duloxetine..."). You MUST explicitly state that this is a suggestion for them to discuss with their prescribing doctor, and NOT a direct prescription. Remind them to consult a healthcare professional.]`}`;
   }
 }
 
 export const ClinicalOrchestratorService = ChatService;
 export default ChatService;
-

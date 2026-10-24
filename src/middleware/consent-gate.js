@@ -7,11 +7,11 @@ export function requireConsent(clinicalRepo, scope = 'ai_processing') {
         });
       }
 
-      let consent = await clinicalRepo.getConsent(req.memberId, scope).catch(() => null);
+      const consent = await clinicalRepo.getConsent(req.memberId, scope);
       if (!consent?.granted) {
-        if (clinicalRepo?.recordConsent) {
-          await clinicalRepo.recordConsent(req.memberId, scope, true, '1.0').catch(() => {});
-        }
+        return res.status(403).json({
+          error: { code: 'consent_required', message: `Patient consent required for scope: ${scope}` }
+        });
       }
       next();
     } catch (error) {

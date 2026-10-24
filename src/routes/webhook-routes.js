@@ -32,7 +32,8 @@ export function createWebhookRouter(controller, webhookSecret) {
     }),
   ];
 
-  router.post(['/health', '/open-wearables'], ...handleWebhook);
+  router.post('/health', ...handleWebhook);
+  router.post('/open-wearables', ...handleWebhook);
 
   router.get('/providers/:provider/webhooks', (request, response) => {
     const { provider } = request.params;

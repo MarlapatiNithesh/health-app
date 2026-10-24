@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS health_documents (
   original_filename     TEXT NOT NULL,
   storage_key           TEXT NOT NULL,
   mime_type             TEXT NOT NULL CHECK (mime_type IN
-                          ('application/pdf','image/png','image/jpeg','image/tiff','image/webp','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document','text/plain','text/csv','application/rtf')),
+                          ('application/pdf','image/png','image/jpeg','image/tiff')),
   size_bytes            BIGINT NOT NULL CHECK (size_bytes > 0),
   compressed_size_bytes BIGINT,
   sha256                TEXT NOT NULL,

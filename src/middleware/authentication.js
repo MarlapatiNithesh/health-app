@@ -4,7 +4,7 @@ import { verifyAccessToken } from '../security/tokens.js';
 export function requireAuthentication(jwtSecret, memberRepo = null) {
   return async (request, response, next) => {
     const authorization = request.headers.authorization;
-    const token = authorization?.match(/^Bearer\s+(\S+)$/i)?.[1] || request.query?.token;
+    const token = authorization?.match(/^Bearer\s+(\S+)$/i)?.[1];
     const claims = verifyAccessToken(token, jwtSecret);
 
     if (!claims) {

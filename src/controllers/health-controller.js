@@ -45,19 +45,9 @@ export class HealthController {
     response.status(202).json(result);
   }
 
-  async ingestManualHealthData(request, response) {
-    const result = await this.service.ingestManualHealthData(
-      request.memberId,
-      request.body,
-      request.get('idempotency-key'),
-    );
-    response.status(201).json(result);
-  }
-
   async getDailySummary(request, response) {
     const { from, to } = request.query;
-    const memberId = request.memberId || request.query.memberId;
-    const summary = await this.service.getDailySummary(memberId, from, to);
+    const summary = await this.service.getDailySummary(request.memberId, from, to);
     response.json({ data: summary });
   }
 

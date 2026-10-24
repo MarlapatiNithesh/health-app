@@ -259,7 +259,6 @@ export const METRIC_ALIASES = {
   skin_temperature: 'temperature',
   body_temperature: 'temperature',
   distance_meters: 'distance',
-  distance_walking_running: 'distance',
   active_energy: 'active_energy_burned',
   basal_energy: 'basal_metabolic_rate',
   energy: 'calories',

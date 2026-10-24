@@ -41,14 +41,18 @@ export class MemberRepository {
       healthConsentAt: row.healthConsentAt ?? null,
       healthConsentVersion: row.healthConsentVersion ?? null,
       wellnessUpdatedAt: row.wellnessUpdatedAt ?? null,
+      wellnessScore: Number(row.wellnessScore ?? 50),
+      healthScore: Number(row.wellnessScore ?? 50),
+      insuranceTier: row.insuranceTier ?? 'bronze',
       profile: {
         fullName: row.fullName ?? null,
         dob: row.dob ?? null,
         gender: row.gender ?? null,
         heightCm: row.heightCm != null ? Number(row.heightCm) : null,
         weightKg: row.weightKg != null ? Number(row.weightKg) : null,
-        insuranceTier: row.insuranceTier,
-        wellnessScore: Number(row.wellnessScore ?? 30),
+        insuranceTier: row.insuranceTier ?? 'bronze',
+        wellnessScore: Number(row.wellnessScore ?? 50),
+        healthScore: Number(row.wellnessScore ?? 50),
       },
     };
   }
@@ -237,6 +241,20 @@ export class MemberRepository {
     });
   }
 
+  async updateWellnessScoreAndTier(memberId, score, tier, client = this.pool) {
+    const res = await client.query(
+      `UPDATE members
+       SET wellness_score = $2,
+           insurance_tier = COALESCE($3, insurance_tier),
+           wellness_updated_at = now(),
+           updated_at = now()
+       WHERE id = $1
+       RETURNING id, wellness_score AS "wellnessScore", insurance_tier AS "insuranceTier"`,
+      [memberId, score, tier],
+    );
+    return res.rows[0];
+  }
+
   async getOwUserId(memberId, client = this.pool) {
     const res = await client.query('SELECT ow_user_id AS "owUserId" FROM members WHERE id = $1', [memberId]);
     return res.rows[0]?.owUserId ?? null;
@@ -275,54 +293,24 @@ export class MemberRepository {
        RETURNING id, health_consent_at AS "healthConsentAt", health_consent_version AS "healthConsentVersion"`,
       [memberId, Boolean(granted), version],
     );
-    await client.query(
-      `INSERT INTO member_consents (member_id, scope, granted, granted_at, revoked_at)
-       VALUES ($1, $2, $3, CASE WHEN $3 THEN now() ELSE NULL END, CASE WHEN $3 THEN NULL ELSE now() END)
-       ON CONFLICT (member_id, scope) DO UPDATE SET
-         granted = EXCLUDED.granted,
-         granted_at = CASE WHEN EXCLUDED.granted THEN now() ELSE member_consents.granted_at END,
-         revoked_at = CASE WHEN EXCLUDED.granted THEN NULL ELSE now() END`,
-      [memberId, type, Boolean(granted)],
-    );
-    return {
-      ...(result.rows[0] || {}),
+    return result.rows[0] ?? {
       id: memberId,
-      memberId,
-      scope: type,
-      granted: Boolean(granted),
-      createdAt: new Date().toISOString(),
+      type,
       version,
+      granted: Boolean(granted),
+      recordedAt: new Date().toISOString(),
     };
   }
 
-  async getConsent(memberId, scope, client = this.pool) {
-    const result = await client.query(
-      `SELECT id, member_id AS "memberId", scope, granted,
-              granted_at AS "grantedAt", revoked_at AS "revokedAt", created_at AS "createdAt"
-         FROM member_consents WHERE member_id = $1 AND scope = $2`,
-      [memberId, scope],
-    );
-    return result.rows[0] ?? null;
-  }
-
-  async deleteMember(memberId, reason = 'user_requested', client = this.pool) {
-    await client.query('DELETE FROM member_consents WHERE member_id = $1', [memberId]).catch(() => {});
-    await client.query('DELETE FROM sync_logs WHERE member_id = $1', [memberId]).catch(() => {});
-    await client.query('DELETE FROM health_scores WHERE member_id = $1', [memberId]).catch(() => {});
-    await client.query('DELETE FROM member_biometric_history WHERE member_id = $1', [memberId]).catch(() => {});
-    await client.query('DELETE FROM timeseries WHERE member_id = $1', [memberId]).catch(() => {});
-    await client.query('DELETE FROM sleep_sessions WHERE member_id = $1', [memberId]).catch(() => {});
-    await client.query('DELETE FROM workouts WHERE member_id = $1', [memberId]).catch(() => {});
-    await client.query('DELETE FROM wearable_links WHERE member_id = $1', [memberId]).catch(() => {});
-    await client.query('DELETE FROM patients WHERE id = $1', [memberId]).catch(() => {});
+  async deleteMember(memberId, reason = null, client = this.pool) {
     const result = await client.query(
       `UPDATE members
        SET status = 'deleted', deletion_reason = $2, deletion_at = now(), updated_at = now()
        WHERE id = $1
        RETURNING id, status, deletion_at AS "deletionAt"`,
-      [memberId, reason]
-    ).catch(() => ({ rows: [] }));
-    return result.rows[0] || { id: memberId, status: 'deleted' };
+      [memberId, reason],
+    );
+    return result.rows[0] ?? null;
   }
 
   async getProfileHistory(memberId, { limit = 50, offset = 0 } = {}, client = this.pool) {
@@ -362,9 +350,5 @@ export class MemberRepository {
       [memberId, score, tier],
     );
     return result.rows[0] ?? null;
-  }
-
-  async updateWellnessScoreAndTier(memberId, score, tier, client = this.pool) {
-    return this.updateWellnessScore(memberId, score, tier, client);
   }
 }

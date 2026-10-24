@@ -34,7 +34,7 @@ export class DocumentService {
 
   async uploadAndProcess(patientId, file) {
     if (this.clinicalRepo?.ensurePatient) {
-      await this.clinicalRepo.ensurePatient(patientId).catch(() => {});
+      await this.clinicalRepo.ensurePatient(patientId).catch(() => { });
     }
 
     const sha256 = createHash('sha256').update(file.buffer).digest('hex');
@@ -45,7 +45,7 @@ export class DocumentService {
       const existing = await this.documentRepo.findDocumentByHash(patientId, sha256);
       if (existing) {
         try {
-          await this.#runExtractionPipeline(patientId, existing.id, file.buffer, file.mimetype || 'application/pdf', visualHash, file.originalname);
+          await this.#runExtractionPipeline(patientId, existing.id, file.buffer, file.mimetype || 'application/pdf', visualHash);
         } catch (err) {
           logger.error('Document extraction re-run error', { documentId: existing.id, error: err.message });
         }
@@ -83,11 +83,11 @@ export class DocumentService {
     });
 
     try {
-      await this.#runExtractionPipeline(patientId, document.id, file.buffer, file.mimetype || 'application/pdf', visualHash, file.originalname);
+      await this.#runExtractionPipeline(patientId, document.id, file.buffer, file.mimetype || 'application/pdf', visualHash);
     } catch (err) {
       logger.error('Document extraction pipeline error', { documentId: document.id, error: err.message });
       if (typeof this.documentRepo?.updateExtractionStatus === 'function') {
-        await this.documentRepo.updateExtractionStatus(document.id, 'failed', { errorCode: err.message }).catch(() => {});
+        await this.documentRepo.updateExtractionStatus(document.id, 'failed', { errorCode: err.message }).catch(() => { });
       }
     }
 
@@ -99,58 +99,11 @@ export class DocumentService {
     });
   }
 
-  #inferDocType(filename = '', text = '') {
-    return this.#detectDocType(text, filename, []);
-  }
-
-  #detectDocType(text = '', filename = '', entities = []) {
-    const lowerText = (text || '').toLowerCase();
-    const lowerName = (filename || '').toLowerCase();
-
-
-    const imagingKeywords = [
-      'x-ray', 'xray', 'mri', 'ct scan', 'computed tomography', 'magnetic resonance',
-      'ultrasound', 'sonography', 'radiology', 'radiologist', 'mammogram',
-      'radiograph', 'scan report', 'imaging study', 'contrast study', 'fluoroscopy',
-      'echo', 'echocardiogram', 'pet scan'
-    ];
-    if (imagingKeywords.some((kw) => lowerName.includes(kw) || lowerText.includes(kw))) {
-      return 'imaging';
-    }
-
-
-    const dischargeKeywords = [
-      'discharge summary', 'discharge card', 'discharge advice', 'date of admission',
-      'date of discharge', 'hospital course', 'condition on discharge', 'inpatient summary',
-      'admission date', 'ipd no', 'discharge diagnosis', 'course in hospital'
-    ];
-    if (dischargeKeywords.some((kw) => lowerName.includes(kw) || lowerText.includes(kw))) {
-      return 'discharge_summary';
-    }
-
-
-    const labKeywords = [
-      'lab report', 'laboratory', 'pathology', 'biochemistry', 'hematology',
-      'lipid profile', 'complete blood count', 'cbc', 'urine analysis',
-      'fasting glucose', 'serology', 'lft', 'kft', 'thyroid profile',
-      'reference range', 'specimen', 'biological reference', 'blood report',
-      'hba1c', 'cholesterol', 'creatinine', 'hemoglobin', 'platelet', 'wbc count'
-    ];
-    const hasLabEntities = Array.isArray(entities) && entities.some((e) => e.fieldName === 'lab_test' || e.fieldName === 'lab_value');
-    if (hasLabEntities || labKeywords.some((kw) => lowerName.includes(kw) || lowerText.includes(kw))) {
-      return 'lab_report';
-    }
-
-
-    const rxKeywords = [
-      'prescription', 'rx', 'prescribed', 'take once daily', 'dosage',
-      'doctor', 'clinic', 'tablet', 'capsule', 'syrup', 'opd', 'dispense'
-    ];
-    const hasMedEntities = Array.isArray(entities) && entities.some((e) => e.fieldName === 'medication_name');
-    if (hasMedEntities || rxKeywords.some((kw) => lowerName.includes(kw) || lowerText.includes(kw))) {
-      return 'prescription';
-    }
-
+  #inferDocType(filename = '') {
+    const lower = filename.toLowerCase();
+    if (lower.includes('lab') || lower.includes('blood') || lower.includes('test')) return 'lab_report';
+    if (lower.includes('discharge') || lower.includes('summary')) return 'discharge_summary';
+    if (lower.includes('scan') || lower.includes('xray') || lower.includes('mri') || lower.includes('firstpage') || lower.includes('cambridge')) return 'imaging';
     return 'prescription';
   }
 
@@ -238,7 +191,7 @@ export class DocumentService {
     return chunks;
   }
 
-  async #runExtractionPipeline(patientId, documentId, buffer, mimeType, visualHash, filename = 'Document') {
+  async #runExtractionPipeline(patientId, documentId, buffer, mimeType, visualHash) {
     if (typeof this.documentRepo?.updateExtractionStatus === 'function') {
       await this.documentRepo.updateExtractionStatus(documentId, 'processing');
     }
@@ -262,7 +215,7 @@ export class DocumentService {
             });
             const ret = await worker.recognize(buffer);
             extractedText = ret?.data?.text || '';
-            await worker.terminate().catch(() => {});
+            await worker.terminate().catch(() => { });
             ocrEngine = 'tesseract.js';
           } catch (tessErr) {
             logger.warn('Tesseract OCR fallback failed', { error: tessErr.message });
@@ -271,22 +224,8 @@ export class DocumentService {
         } else {
           extractedText = buffer.toString('utf8');
         }
-      } else if (mimeType?.includes('wordprocessingml') || mimeType?.includes('docx')) {
-        try {
-          const raw = buffer.toString('utf8');
-          const matches = raw.match(/<w:t[^>]*>([^<]+)<\/w:t>/g);
-          if (matches && matches.length > 0) {
-            extractedText = matches.map((m) => m.replace(/<[^>]+>/g, '')).join(' ');
-          } else {
-            extractedText = buffer.toString('utf8').replace(/[^\x20-\x7E\n\r\t]/g, ' ');
-          }
-        } catch {
-          extractedText = buffer.toString('utf8').replace(/[^\x20-\x7E\n\r\t]/g, ' ');
-        }
-        ocrEngine = 'docx_xml';
       } else {
-        extractedText = buffer.toString('utf8').replace(/[^\x20-\x7E\n\r\t]/g, ' ');
-        ocrEngine = 'raw_text';
+        extractedText = buffer.toString('utf8');
       }
     } catch (ocrErr) {
       logger.warn('OCR extraction fallback used', { error: ocrErr.message });
@@ -366,21 +305,16 @@ export class DocumentService {
     }
 
     if (this.documentRepo?.updateContentTextHash && textHash) {
-      await this.documentRepo.updateContentTextHash(documentId, textHash).catch(() => {});
+      await this.documentRepo.updateContentTextHash(documentId, textHash).catch(() => { });
     }
 
-    const detectedType = this.#detectDocType(extractedText, filename, entities);
-    if (this.documentRepo?.updateDocumentDocType) {
-      await this.documentRepo.updateDocumentDocType(documentId, detectedType).catch(() => {});
-    }
-
-    const docSummary = this.#generateClinicalSummary(detectedType, entities);
+    const docSummary = this.#generateClinicalSummary('prescription', entities);
     if (typeof this.documentRepo?.updateDocumentMetadata === 'function') {
       await this.documentRepo.updateDocumentMetadata(documentId, {
         summary: docSummary,
         contentFingerprint,
         visualHash,
-      }).catch(() => {});
+      }).catch(() => { });
     }
 
     let provenance = null;
@@ -400,22 +334,16 @@ export class DocumentService {
       confidence: e.confidence,
       pageNumber: e.pageNumber || Math.floor(idx / 10) + 1,
       section: e.section || 'prescription_body',
-      status: 'confirmed',
+      status: e.confidence >= this.confidenceAutoCommit ? 'confirmed' : 'pending',
     }));
 
     if (this.documentRepo?.saveExtractedFields) {
       await this.documentRepo.saveExtractedFields(documentId, patientId, fields, provenance?.id);
     }
 
-
-    for (const f of fields) {
-      await this.#commitFieldToClinicalRecords(patientId, documentId, f, provenance?.id, fields).catch(() => {});
-    }
-
-    await this.#recordDocumentEncounter(patientId, documentId, fields, filename);
-
-    if (this.documentRepo?.updateExtractionStatus) {
-      await this.documentRepo.updateExtractionStatus(documentId, 'done').catch(() => {});
+    const autoCommitFields = fields.filter((f) => f.confidence >= this.confidenceAutoCommit);
+    for (const f of autoCommitFields) {
+      await this.#commitFieldToClinicalRecords(patientId, documentId, f, provenance?.id, fields);
     }
 
     const chunks = this.#chunkText(extractedText);
@@ -441,7 +369,9 @@ export class DocumentService {
       })
     );
 
-    const finalStatus = fields.length > 0 ? 'done' : 'done';
+    const finalStatus = autoCommitFields.length === fields.length && fields.length > 0
+      ? 'done'
+      : 'review_needed';
 
     if (typeof this.documentRepo?.updateExtractionStatus === 'function') {
       await this.documentRepo.updateExtractionStatus(documentId, finalStatus, {
@@ -455,7 +385,7 @@ export class DocumentService {
       await this.clinicalRepo.createHealthEvent(patientId, {
         eventType,
         eventTime: new Date(),
-        summary: `Document processed: ${fields.length} clinical record(s) extracted`,
+        summary: `Document processed: ${autoCommitFields.length} clinical record(s) extracted`,
         structuredData: { documentId, fieldsCount: fields.length, status: finalStatus },
         provenanceId: provenance?.id || null,
       }).catch((err) => {
@@ -467,7 +397,7 @@ export class DocumentService {
   async #extractEntities(text) {
     if (!text || typeof text !== 'string') return [];
 
-
+    // 1. Multimodal / Generative clinical extraction via Gemini
     if (this.geminiClient?.apiKey) {
       try {
         const prompt = [
@@ -546,7 +476,7 @@ ${text}`
 
     const entities = [];
 
-
+    // Parse markdown table rows for lab reports: | Test | Value | Unit | Reference |
     const tableRowRegex = /\|\s*([^|\r\n]+?)\s*\|\s*(\d+(?:\.\d+)?)\s*\|\s*([^|\r\n]*?)\s*\|\s*([^|\r\n]*?)\s*\|/g;
     let tableMatch;
     while ((tableMatch = tableRowRegex.exec(text)) !== null) {
@@ -656,23 +586,11 @@ ${text}`
     const CLINICAL_CONDITIONS = [
       'Type 2 Diabetes Mellitus',
       'Diabetic Ketoacidosis',
-      'Diabetes Mellitus',
       'Diabetes',
-      'Hypertension',
-      'Essential Hypertension',
-      'High Blood Pressure',
-      'Asthma',
-      'Chronic Kidney Disease',
-      'CKD',
+      'Jaundice',
       'Hyperthyroidism',
       'Hypothyroidism',
-      'Jaundice',
-      'Dyslipidemia',
-      'Hyperlipidemia',
-      'High Cholesterol',
-      'GERD',
-      'Migraine',
-      'Fatty Liver',
+      'Hypertension',
     ];
     for (const cond of CLINICAL_CONDITIONS) {
       const condRegex = new RegExp(`\\b${cond.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i');
@@ -685,56 +603,6 @@ ${text}`
             confidence: 0.92,
             pageNumber: 1,
             section: 'diagnoses',
-          });
-        }
-      }
-    }
-
-
-    const ALLERGY_REGEX = /\b(?:allerg(?:y|ies)|allergic\s+to|known\s+allerg(?:y|ies))[:\s]+([A-Za-z0-9\s,\/\-]+?)(?:\.|\n|$|;)/gi;
-    let algMatch;
-    while ((algMatch = ALLERGY_REGEX.exec(text)) !== null) {
-      const substance = algMatch[1].trim();
-      if (substance && !/none|nkda|denies|no\s+known/i.test(substance)) {
-        if (!entities.some((e) => e.fieldName === 'allergy' && e.normalizedValue.toLowerCase() === substance.toLowerCase())) {
-          entities.push({
-            fieldName: 'allergy',
-            rawValue: substance,
-            normalizedValue: substance,
-            confidence: 0.94,
-            pageNumber: 1,
-            section: 'allergies',
-          });
-        }
-      }
-    }
-
-    const CLINICAL_ALLERGENS = [
-      'Penicillin',
-      'Amoxicillin',
-      'Sulfa',
-      'Sulfamethoxazole',
-      'Aspirin',
-      'Ibuprofen',
-      'NSAIDs',
-      'Peanuts',
-      'Latex',
-      'Codeine',
-      'Morphine',
-      'Shellfish',
-      'Ciprofloxacin',
-    ];
-    for (const alg of CLINICAL_ALLERGENS) {
-      const algReg = new RegExp(`\\b${alg}\\b`, 'i');
-      if (algReg.test(text)) {
-        if (!entities.some((e) => e.fieldName === 'allergy' && e.normalizedValue.toLowerCase() === alg.toLowerCase())) {
-          entities.push({
-            fieldName: 'allergy',
-            rawValue: alg,
-            normalizedValue: alg,
-            confidence: 0.93,
-            pageNumber: 1,
-            section: 'allergies',
           });
         }
       }
@@ -783,9 +651,8 @@ ${text}`
     if (!this.clinicalRepo?.createClinicalRecord) return;
 
     if (field.fieldName === 'medication_name') {
-      const idx = allFields.indexOf(field);
-      const doseField = allFields.find((f, i) => f.fieldName === 'dose' && (idx === -1 || (i >= idx && i <= idx + 4)));
-      const freqField = allFields.find((f, i) => f.fieldName === 'frequency' && (idx === -1 || (i >= idx && i <= idx + 4)));
+      const doseField = allFields.find((f) => f.fieldName === 'dose');
+      const freqField = allFields.find((f) => f.fieldName === 'frequency');
       await this.clinicalRepo.createClinicalRecord(patientId, {
         recordType: 'medication',
         name: field.normalizedValue || field.rawValue,
@@ -861,11 +728,8 @@ ${text}`
         confidence: field.confidence,
       });
     } else if (field.fieldName === 'clinical_finding') {
-      const isVital = /(?:pulse|heart\s*rate|bpm|spo2|oxygen|temp|temperature|weight|bp|blood\s*pressure)/i.test(
-        field.normalizedValue || field.rawValue || ''
-      );
       await this.clinicalRepo.createClinicalRecord(patientId, {
-        recordType: isVital ? 'observation' : 'condition',
+        recordType: 'observation',
         name: field.normalizedValue || field.rawValue,
         source: 'document',
         documentId,
@@ -891,7 +755,7 @@ ${text}`
         });
       }
     } catch {
-
+      // Fallback if provenance creation encounters a non-fatal constraint
     }
 
     const allExtractions = doc.extractions || [];
@@ -901,15 +765,13 @@ ${text}`
 
     for (const f of fieldsToCommit) {
       if (f.id && this.documentRepo?.updateFieldStatus) {
-        await this.documentRepo.updateFieldStatus(f.id, 'confirmed').catch(() => {});
+        await this.documentRepo.updateFieldStatus(f.id, 'confirmed').catch(() => { });
       }
       await this.#commitFieldToClinicalRecords(patientId, documentId, f, provenance?.id, allExtractions);
     }
 
-    await this.#recordDocumentEncounter(patientId, documentId, allExtractions, doc.originalFilename);
-
     if (this.documentRepo?.updateExtractionStatus) {
-      await this.documentRepo.updateExtractionStatus(documentId, 'done').catch(() => {});
+      await this.documentRepo.updateExtractionStatus(documentId, 'done').catch(() => { });
     }
 
     return {
@@ -921,62 +783,7 @@ ${text}`
         : 'Document confirmed and marked completed.',
     };
   }
-
-
-  async #recordDocumentEncounter(patientId, documentId, fields, filename) {
-    try {
-      const doctorField = fields.find((f) => f.fieldName === 'doctor_name');
-      const hospitalField = fields.find((f) => f.fieldName === 'hospital_name');
-      const dateField = fields.find((f) => f.fieldName === 'date');
-      const findingFields = fields
-        .filter((f) => (f.fieldName === 'diagnosis' || f.fieldName === 'clinical_finding') && !/(?:bpm|spo2|temp|weight)/i.test(f.normalizedValue || f.rawValue || ''))
-        .map((f) => f.normalizedValue || f.rawValue);
-
-      const doctorName = doctorField?.normalizedValue || doctorField?.rawValue;
-      const hospitalName = hospitalField?.normalizedValue || hospitalField?.rawValue;
-      const docDate = dateField?.normalizedValue || dateField?.rawValue;
-
-      const summary = doctorName && hospitalName
-        ? `${doctorName} • ${hospitalName}`
-        : doctorName
-        ? `${doctorName} Consultation`
-        : hospitalName
-        ? `${hospitalName} Visit`
-        : `Clinical Prescription • ${filename || 'Document'}`;
-
-      const primarySymptom = findingFields.length > 0 ? findingFields.join(', ') : 'Clinical consultation & prescription review';
-
-      const pool = this.clinicalRepo?.pool || this.documentRepo?.pool;
-      if (pool) {
-        const existing = await pool.query(
-          "SELECT id FROM chat_sessions WHERE symptom_state->>'documentId' = $1",
-          [documentId]
-        );
-        if (existing.rows.length === 0) {
-          const parsedDate = docDate && !isNaN(Date.parse(docDate)) ? new Date(docDate) : new Date();
-          await pool.query(
-            `INSERT INTO chat_sessions (
-              patient_id, intent, risk_level, status, summary, symptom_state, started_at
-            ) VALUES ($1, 'record_query', 'low', 'complete', $2, $3, $4)`,
-            [
-              patientId,
-              summary,
-              JSON.stringify({
-                documentId,
-                doctorName,
-                facility: hospitalName,
-                date: docDate,
-                primarySymptom,
-                diagnoses: findingFields,
-                source: 'Prescription document upload',
-              }),
-              parsedDate,
-            ]
-          );
-        }
-      }
-    } catch (encErr) {
-      logger.warn('Failed to record document clinical encounter', { error: encErr?.message });
-    }
-  }
 }
+
+export const DocumentProcessorService = DocumentService;
+export default DocumentService;

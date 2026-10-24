@@ -25,7 +25,7 @@ export class PhoneHealthRepository {
        ON CONFLICT (member_id, provider) DO UPDATE SET
          connection_type  = 'phone_sdk',
          status           = EXCLUDED.status,
-         metrics_provided = EXCLUDED.metrics_provided,
+         metrics_provided = CASE WHEN array_length(EXCLUDED.metrics_provided, 1) > 0 THEN EXCLUDED.metrics_provided ELSE wearable_links.metrics_provided END,
          metadata         = wearable_links.metadata || EXCLUDED.metadata,
          sync_cursor      = COALESCE(EXCLUDED.sync_cursor, wearable_links.sync_cursor),
          connected_at     = CASE WHEN EXCLUDED.status IN ('connected','syncing') THEN COALESCE(wearable_links.connected_at, now()) ELSE wearable_links.connected_at END,
@@ -68,19 +68,9 @@ export class PhoneHealthRepository {
     };
   }
 
-  async getPhoneConnection(memberId, preferredProviderOrClient = null, maybeClient = null) {
-    let targetProvider = null;
-    let client = this.pool;
-
-    if (typeof preferredProviderOrClient === 'string') {
-      targetProvider = preferredProviderOrClient.toLowerCase();
-      client = maybeClient || this.pool;
-    } else if (preferredProviderOrClient && typeof preferredProviderOrClient.query === 'function') {
-      client = preferredProviderOrClient;
-    }
-
-    let query = `
-      SELECT
+  async getPhoneConnection(memberId, client = this.pool) {
+    const result = await client.query(
+      `SELECT
          id,
          member_id    AS "userId",
          provider,
@@ -91,18 +81,11 @@ export class PhoneHealthRepository {
          updated_at   AS "updatedAt"
        FROM wearable_links
        WHERE member_id = $1
-         AND provider IN ('apple_health','health_connect','phone_pedometer')
-    `;
-    const params = [memberId];
-
-    if (targetProvider) {
-      query += ` AND provider = $2`;
-      params.push(targetProvider);
-    } else {
-      query += ` ORDER BY last_sync_at DESC NULLS LAST LIMIT 1`;
-    }
-
-    const result = await client.query(query, params);
+         AND provider IN ('apple_health','health_connect')
+       ORDER BY last_sync_at DESC NULLS LAST
+       LIMIT 1`,
+      [memberId],
+    );
 
     if (!result.rows[0]) return null;
     const row = result.rows[0];
@@ -118,7 +101,7 @@ export class PhoneHealthRepository {
       deviceId: meta.deviceId ?? null,
       hardwareId: meta.hardwareId ?? null,
       platform: meta.platform ?? null,
-      permissions: Array.isArray(meta.permissions) && meta.permissions.length > 0 ? meta.permissions : (Array.isArray(row.metrics_provided) ? row.metrics_provided : []),
+      permissions: meta.permissions ?? [],
       syncCursor: row.syncCursor,
       error: meta.error ?? null,
     };
@@ -127,7 +110,7 @@ export class PhoneHealthRepository {
   async updateSyncTimestamp(memberId, provider = null, syncCursor = null, client = this.pool) {
     let prov = 'apple_health';
     let cursor = syncCursor;
-    if (provider && typeof provider === 'string' && ['apple_health', 'health_connect', 'phone_pedometer'].includes(provider.toLowerCase())) {
+    if (provider && typeof provider === 'string' && ['apple_health', 'health_connect'].includes(provider.toLowerCase())) {
       prov = provider.toLowerCase();
     } else if (provider && typeof provider === 'string' && !syncCursor) {
       cursor = provider;

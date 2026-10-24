@@ -1,8 +1,8 @@
 import { withTransaction } from '../database/pool.js';
 import { globalCache } from '../cache/cache-manager.js';
 import { DocumentMapper } from '../mappers/index.js';
-import { ensurePatientAndConsent } from './helpers.js';
 
+/** Converts a float array or a string literal to a pgvector-compatible string. */
 const toVectorLiteral = (v) => (Array.isArray(v) ? `[${v.join(',')}]` : String(v));
 
 export class DocumentRepository {
@@ -29,7 +29,20 @@ export class DocumentRepository {
     provenanceId = null,
   }) {
     return withTransaction(this.pool, async (client) => {
-      await ensurePatientAndConsent(client, patientId);
+      await client.query(
+        `UPDATE members
+            SET health_consent_at = COALESCE(health_consent_at, now()),
+                health_consent_version = COALESCE(health_consent_version, '1.0'),
+                updated_at = now()
+          WHERE id = $1`,
+        [patientId]
+      ).catch(() => {});
+      await client.query(
+        `INSERT INTO patients (id, preferred_language, units_system, privacy_level)
+         VALUES ($1, 'en-IN', 'metric', 'standard')
+         ON CONFLICT (id) DO NOTHING`,
+        [patientId]
+      ).catch(() => {});
 
       const res = await client.query(
         `INSERT INTO health_documents (
@@ -134,10 +147,6 @@ export class DocumentRepository {
     const res = await this.pool.query(
       `SELECT id, patient_id AS "patientId", doc_type AS "docType",
               original_filename AS "originalFilename", storage_key AS "storageKey",
-              mime_type AS "mimeType", size_bytes AS "sizeBytes", sha256,
-              document_family_id AS "documentFamilyId",
-              visual_hash AS "visualHash", content_text_hash AS "contentTextHash",
-              content_fingerprint AS "contentFingerprint", revision_of AS "revisionOf",
               version_number AS "versionNumber", change_classification AS "changeClassification",
               diff_summary AS "diffSummary", summary,
               extraction_status AS "extractionStatus", created_at AS "createdAt"
@@ -158,6 +167,45 @@ export class DocumentRepository {
         WHERE id = $1
         RETURNING id, content_text_hash AS "contentTextHash"`,
       [documentId, textHash]
+    );
+    return res.rows[0];
+  }
+
+  async updateDocumentMetadata(documentId, updates = {}) {
+    const sets = [];
+    const values = [documentId];
+    let idx = 2;
+
+    if (updates.summary !== undefined) {
+      sets.push(`summary = $${idx++}`);
+      values.push(updates.summary);
+    }
+    if (updates.diffSummary !== undefined) {
+      sets.push(`diff_summary = $${idx++}`);
+      values.push(JSON.stringify(updates.diffSummary));
+    }
+    if (updates.changeClassification !== undefined) {
+      sets.push(`change_classification = $${idx++}`);
+      values.push(updates.changeClassification);
+    }
+    if (updates.visualHash !== undefined) {
+      sets.push(`visual_hash = $${idx++}`);
+      values.push(updates.visualHash);
+    }
+    if (updates.contentFingerprint !== undefined) {
+      sets.push(`content_fingerprint = $${idx++}`);
+      values.push(updates.contentFingerprint);
+    }
+
+    if (sets.length === 0) return null;
+    sets.push('updated_at = now()');
+
+    const res = await this.pool.query(
+      `UPDATE health_documents
+          SET ${sets.join(', ')}
+        WHERE id = $1
+        RETURNING id, summary, diff_summary AS "diffSummary", change_classification AS "changeClassification"`,
+      values
     );
     return res.rows[0];
   }
@@ -200,103 +248,39 @@ export class DocumentRepository {
   }
 
   async listDocuments(patientId, limit = 20) {
-    const cacheKey = `documents:${patientId}`;
-    return globalCache.coalesce(cacheKey, async () => {
-      const res = await this.pool.query(
-        `SELECT id, patient_id AS "patientId", doc_type AS "docType",
-                original_filename AS "originalFilename", storage_key AS "storageKey",
-                mime_type AS "mimeType", size_bytes AS "sizeBytes", sha256,
-                document_family_id AS "documentFamilyId", version_number AS "versionNumber",
-                visual_hash AS "visualHash", content_text_hash AS "contentTextHash",
-                content_fingerprint AS "contentFingerprint", revision_of AS "revisionOf",
-                change_classification AS "changeClassification", diff_summary AS "diffSummary",
-                summary,
-                extraction_status AS "extractionStatus", ocr_engine AS "ocrEngine",
-                ner_model AS "nerModel", error_code AS "errorCode",
-                processed_at AS "processedAt", created_at AS "createdAt"
-           FROM health_documents
-          WHERE patient_id = $1 AND deleted_at IS NULL
-          ORDER BY created_at DESC
-          LIMIT $2`,
-        [patientId, limit]
-      );
-      return res.rows.map(DocumentMapper.toDto);
-    }, 10_000);
+    const res = await this.pool.query(
+      `SELECT id, patient_id AS "patientId", doc_type AS "docType",
+              original_filename AS "originalFilename", storage_key AS "storageKey",
+              mime_type AS "mimeType", document_family_id AS "documentFamilyId",
+              version_number AS "versionNumber", change_classification AS "changeClassification",
+              summary, extraction_status AS "extractionStatus",
+              created_at AS "createdAt"
+         FROM health_documents
+        WHERE patient_id = $1 AND deleted_at IS NULL
+        ORDER BY created_at DESC
+        LIMIT $2`,
+      [patientId, limit]
+    );
+    return res.rows.map(DocumentMapper.toDto);
   }
 
-  async updateExtractionStatus(documentId, status, errorCode = null, ocrEngine = null, nerModel = null) {
+  async updateExtractionStatus(documentId, status, { ocrEngine = null, nerModel = null, errorCode = null } = {}) {
     return withTransaction(this.pool, async (client) => {
       const res = await client.query(
         `UPDATE health_documents
             SET extraction_status = $2,
-                error_code = $3,
-                ocr_engine = COALESCE($4, ocr_engine),
-                ner_model = COALESCE($5, ner_model),
-                processed_at = CASE WHEN $2 IN ('complete', 'failed') THEN now() ELSE processed_at END,
+                ocr_engine = COALESCE($3, ocr_engine),
+                ner_model = COALESCE($4, ner_model),
+                error_code = COALESCE($5, error_code),
+                processed_at = CASE WHEN $2 IN ('done', 'review_needed', 'failed') THEN now() ELSE processed_at END,
                 updated_at = now()
           WHERE id = $1
-          RETURNING id, extraction_status AS "extractionStatus", error_code AS "errorCode", processed_at AS "processedAt"`,
-        [documentId, status, errorCode, ocrEngine, nerModel]
-      );
-      globalCache.invalidatePrefix(`document:`);
-      globalCache.invalidatePrefix(`documents:`);
-      globalCache.invalidatePrefix(`api:`);
-      return res.rows[0];
-    });
-  }
-
-  async updateDocumentDocType(documentId, docType) {
-    return withTransaction(this.pool, async (client) => {
-      const res = await client.query(
-        `UPDATE health_documents
-            SET doc_type = $2,
-                updated_at = now()
-          WHERE id = $1
-          RETURNING id, doc_type AS "docType"`,
-        [documentId, docType]
+          RETURNING id, extraction_status AS "extractionStatus"`,
+        [documentId, status, ocrEngine, nerModel, errorCode]
       );
       globalCache.invalidatePrefix(`document:`);
       globalCache.invalidatePrefix(`api:`);
       return res.rows[0];
-    });
-  }
-
-  async updateDocumentMetadata(documentId, metadata = {}) {
-    return withTransaction(this.pool, async (client) => {
-      const updates = [];
-      const values = [documentId];
-      let idx = 2;
-
-      if (metadata.summary !== undefined) {
-        updates.push(`summary = $${idx++}`);
-        values.push(metadata.summary);
-      }
-      if (metadata.contentFingerprint !== undefined) {
-        updates.push(`content_fingerprint = $${idx++}`);
-        values.push(metadata.contentFingerprint);
-      }
-      if (metadata.visualHash !== undefined) {
-        updates.push(`visual_hash = $${idx++}`);
-        values.push(metadata.visualHash);
-      }
-      if (metadata.changeClassification !== undefined) {
-        updates.push(`change_classification = $${idx++}`);
-        values.push(metadata.changeClassification);
-      }
-      if (metadata.diffSummary !== undefined) {
-        updates.push(`diff_summary = $${idx++}`);
-        values.push(JSON.stringify(metadata.diffSummary));
-      }
-
-      if (updates.length > 0) {
-        updates.push('updated_at = now()');
-        await client.query(
-          `UPDATE health_documents SET ${updates.join(', ')} WHERE id = $1`,
-          values
-        );
-      }
-      globalCache.invalidatePrefix(`document:`);
-      globalCache.invalidatePrefix(`api:`);
     });
   }
 

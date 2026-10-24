@@ -1,3 +1,13 @@
+/**
+ * GeminiClient — integration layer for Google Gemini API.
+ *
+ * Responsibilities:
+ *  - generateContent: text-only completion requests.
+ *  - transcribeImage: multimodal OCR for image buffers.
+ *
+ * All network I/O for Gemini lives here. Services call this client;
+ * they do NOT construct fetch() calls themselves.
+ */
 import { logger } from '../logger.js';
 
 const DEFAULT_TIMEOUT_MS = 25_000;
@@ -5,7 +15,12 @@ const FALLBACK_MODEL = 'gemini-flash-lite-latest';
 const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 export class GeminiClient {
-
+  /**
+   * @param {object} opts
+   * @param {string} [opts.apiKey]      - Gemini API key (defaults to GEMINI_API_KEY env var)
+   * @param {string} [opts.model]       - Model name (defaults to GEMINI_MODEL env var)
+   * @param {number} [opts.timeoutMs]   - Request timeout in ms
+   */
   constructor({
     apiKey = process.env.GEMINI_API_KEY || '',
     model = process.env.GEMINI_MODEL || 'gemini-flash-lite-latest',
@@ -16,10 +31,19 @@ export class GeminiClient {
     this.timeoutMs = timeoutMs;
   }
 
+  /** Build the endpoint URL for a given model and action. */
   #url(model, action = 'generateContent') {
     return `${BASE_URL}/${model}:${action}?key=${this.apiKey}`;
   }
 
+  /**
+   * Send a generateContent request to Gemini.
+   * Retries automatically on 503/429 using the fallback model.
+   *
+   * @param {object[]} contents  - Gemini `contents` array
+   * @param {string}   [systemInstruction] - Optional system prompt text
+   * @returns {Promise<string>}  - Extracted text from first candidate
+   */
   async generateContent(contents, systemInstruction = '', generationConfig = null) {
     if (!this.apiKey) return '';
 
@@ -33,6 +57,7 @@ export class GeminiClient {
 
     let response = await this.#fetchWithTimeout(this.#url(this.model), body);
 
+    // Auto-fallback on overload / quota
     if (!response.ok && (response.status === 503 || response.status === 429)) {
       logger.warn('Gemini primary model busy, falling back', {
         status: response.status,
@@ -50,6 +75,13 @@ export class GeminiClient {
     return data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
   }
 
+  /**
+   * Transcribe all visible text in an image buffer using Gemini Vision.
+   *
+   * @param {Buffer} buffer   - Raw image bytes
+   * @param {string} mimeType - MIME type (e.g. 'image/jpeg')
+   * @returns {Promise<string>} - Extracted OCR text, or '' on failure
+   */
   async transcribeImage(buffer, mimeType) {
     if (!this.apiKey || !buffer?.length) return '';
 
@@ -58,11 +90,8 @@ export class GeminiClient {
       parts: [
         { inline_data: { mime_type: mimeType, data: b64 } },
         {
-          text: 'You are an expert clinical pharmacist and medical OCR specialist. '
-              + 'Carefully transcribe ALL text in this medical document, especially doctor handwriting, cursive prescription notes, clinic headers, and lab reports. '
-              + 'Decipher doctors\' cursive handwriting and standard medical abbreviations (e.g., Rx, Tab, Cap, Syr, Inj, OD, BD, TDS, QID, HS, SOS, stat, AC, PC, mg, mcg, ml, x days). '
-              + 'Identify and clearly transcribe every medicine name, its strength/dose, frequency/dosage schedule, and duration. '
-              + 'Preserve all clinical sections, patient vitals, diagnosis, doctor name, clinic/hospital details, and dates accurately.',
+          text: 'Transcribe all visible text in this document accurately, '
+              + 'preserving clinical sections, findings, medications, and diagnoses.',
         },
       ],
     }];
@@ -78,6 +107,10 @@ export class GeminiClient {
     }
   }
 
+  /**
+   * Generate vector embedding for text using Google Gemini text-embedding-004.
+   * Returns array of 768 floats.
+   */
   async embedContent(text) {
     if (!this.apiKey || !text) return new Array(768).fill(0.01);
     try {
@@ -100,6 +133,7 @@ export class GeminiClient {
     return new Array(768).fill(0.01);
   }
 
+  /** Internal: fetch with AbortController timeout. */
   async #fetchWithTimeout(url, body) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
@@ -119,5 +153,5 @@ export class GeminiClient {
   }
 }
 
+/** Singleton for convenience — used by DocumentProcessorService */
 export const globalGeminiClient = new GeminiClient();
-
