@@ -581,6 +581,45 @@ export const api = {
 
   // Phone health sample sync
   getSystemHealth: () => request('/health'),
+
+  // ── AI Health Notification System (4 Streams: Emergency, Circadian, MediBot Regimen, Sleep Guard) ──
+  getNotifications: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return request(`/v1/notifications${q ? `?${q}` : ''}`);
+  },
+  getNotificationStats: (days = 7) => request(`/v1/notifications/stats?days=${days}`),
+  getStreamsSummary: () => request('/v1/notifications/streams/summary'),
+  recordNotificationEngagement: (id, eventType) =>
+    request(`/v1/notifications/${id}/engage`, {
+      method: 'POST',
+      body: { eventType },
+    }),
+  executeNotificationAction: (id, actionLabel, payload = {}) =>
+    request(`/v1/notifications/${id}/action`, {
+      method: 'POST',
+      body: { actionLabel, payload },
+    }),
+  simulateNotificationStream: (streamKey, options = {}) =>
+    request('/v1/notifications/simulate-stream', {
+      method: 'POST',
+      body: { streamKey, options },
+    }),
+  createChronoRegimen: (payload = {}) =>
+    request('/v1/notifications/chrono-regimen', {
+      method: 'POST',
+      body: payload,
+    }),
+  getNotificationPreferences: () => request('/v1/notifications/preferences'),
+  updateNotificationPreference: (category, pref) =>
+    request(`/v1/notifications/preferences/${category}`, {
+      method: 'PUT',
+      body: pref,
+    }),
+  registerDeviceToken: (data) =>
+    request('/v1/notifications/tokens', {
+      method: 'POST',
+      body: data,
+    }),
 };
 
 export { wearableApi, getSteps, getSleepAndWorkouts, connectOAuthProvider } from './wearableApi.js';

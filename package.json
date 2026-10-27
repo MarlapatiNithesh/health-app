@@ -8,7 +8,9 @@
     "dev": "node --env-file=.env --watch src/server.js",
     "dev:nodemon": "nodemon --env-file=.env src/server.js",
     "db:migrate": "node --env-file=.env src/database/migrations/run-wellness-migrations.js",
-    "api:client": "node --env-file=.env scripts/api-client.js"
+    "api:client": "node --env-file=.env scripts/api-client.js",
+    "test": "node test-notification-system.js",
+    "test:notifications": "node test-notification-system.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1143.0",

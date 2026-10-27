@@ -13,11 +13,25 @@ import { MediBotScreen } from './components/screens/MediBotScreen';
 import { VaultScreen } from './components/screens/VaultScreen';
 import { Patient360Screen } from './components/screens/Patient360Screen';
 import { WearablesScreen } from './components/screens/WearablesScreen';
+import { NotificationCenterModal } from './components/screens/NotificationCenterModal';
 import { isNative, toNative } from './native/nativeBridge';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 // All screen content — shared between native and browser views
-function AppScreens({ currentTab, setCurrentTab, showMediBot, setShowMediBot, showVault, setShowVault, showPatient360, setShowPatient360, showWearables, setShowWearables }) {
+function AppScreens({
+  currentTab,
+  setCurrentTab,
+  showMediBot,
+  setShowMediBot,
+  showVault,
+  setShowVault,
+  showPatient360,
+  setShowPatient360,
+  showWearables,
+  setShowWearables,
+  showNotifications,
+  setShowNotifications,
+}) {
   return (
     <>
       {currentTab === 'home' && (
@@ -26,6 +40,7 @@ function AppScreens({ currentTab, setCurrentTab, showMediBot, setShowMediBot, sh
           openPatient360Modal={() => setShowPatient360(true)}
           openMediBotModal={() => setShowMediBot(true)}
           openVaultModal={() => setShowVault(true)}
+          openNotificationsModal={() => setShowNotifications(true)}
         />
       )}
       {currentTab === 'habits' && <HabitsScreen />}
@@ -38,10 +53,19 @@ function AppScreens({ currentTab, setCurrentTab, showMediBot, setShowMediBot, sh
           openPatient360Modal={() => setShowPatient360(true)}
         />
       )}
-      {showMediBot && <MediBotScreen onClose={() => setShowMediBot(false)} />}
+      {showMediBot && (
+        <MediBotScreen
+          onClose={() => setShowMediBot(false)}
+          openNotificationsModal={() => setShowNotifications(true)}
+        />
+      )}
       {showVault && <VaultScreen onClose={() => setShowVault(false)} />}
       {showPatient360 && <Patient360Screen onClose={() => setShowPatient360(false)} />}
       {showWearables && <WearablesScreen onClose={() => setShowWearables(false)} />}
+      <NotificationCenterModal
+        isOpen={showNotifications}
+        onClose={() => setShowNotifications(false)}
+      />
     </>
   );
 }
@@ -53,6 +77,7 @@ export default function App() {
   const [showVault, setShowVault] = useState(false);
   const [showPatient360, setShowPatient360] = useState(false);
   const [showWearables, setShowWearables] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   if (!isAuthenticated) {
     return <AuthScreen />;
@@ -64,6 +89,7 @@ export default function App() {
     showVault, setShowVault,
     showPatient360, setShowPatient360,
     showWearables, setShowWearables,
+    showNotifications, setShowNotifications,
   };
 
   return (
@@ -74,6 +100,7 @@ export default function App() {
       openVaultModal={() => setShowVault(true)}
       openPatient360Modal={() => setShowPatient360(true)}
       openPhoneHealthModal={() => setShowWearables(true)}
+      openNotificationsModal={() => setShowNotifications(true)}
     >
       <ErrorBoundary>
         <AppScreens {...screenProps} />

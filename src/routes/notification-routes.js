@@ -11,9 +11,14 @@ export function createNotificationRouter(notificationController, jwtSecret, memb
   router.get ('/preferences',           auth, wrap(notificationController.listPreferences));
   router.put ('/preferences/:category', auth, wrap(notificationController.updatePreference));
 
+  router.get ('/streams/summary',       auth, wrap(notificationController.getStreamsSummary));
+  router.post('/simulate-stream',       auth, wrap(notificationController.simulateStream));
+  router.post('/chrono-regimen',        auth, wrap(notificationController.createChronoRegimen));
+
   router.get ('/',                      auth, wrap(notificationController.listNotifications));
   router.get ('/stats',                 auth, wrap(notificationController.getStats));
   router.post('/:id/engage',            auth, wrap(notificationController.recordEngagement));
+  router.post('/:id/action',            auth, wrap(notificationController.executeAction));
 
   router.post('/test',                  auth, wrap(notificationController.sendTestNotification));
 
