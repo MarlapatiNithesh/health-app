@@ -175,7 +175,7 @@ function BotStructuredMessage({ content, onSelectQuestion }) {
   );
 }
 
-export function MediBotScreen({ onClose }) {
+export function MediBotScreen({ onClose, openNotificationsModal }) {
   const { member } = useAuth();
   const patientId = member?.id || 'me';
 
@@ -829,11 +829,12 @@ export function MediBotScreen({ onClose }) {
 
             {/* Notification Bell */}
             <button 
-              className="w-10 h-10 rounded-full border border-white/10 glass-subcard bg-slate-900/80 flex items-center justify-center text-cyan-300 hover:border-cyan-400/40 transition shadow-2xs relative cursor-pointer"
-              title="Notifications"
+              onClick={openNotificationsModal}
+              className="w-10 h-10 rounded-full border border-white/10 glass-subcard bg-slate-900/80 flex items-center justify-center text-cyan-300 hover:border-cyan-400/40 transition shadow-2xs relative cursor-pointer active:scale-95"
+              title="Health Notifications & Emergency Protocols"
             >
               <Bell size={19} />
-              <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-emerald-600"></span>
+              <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
             </button>
 
             {/* Close Button */}

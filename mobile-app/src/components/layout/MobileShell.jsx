@@ -28,6 +28,7 @@ export function MobileShell({
   openVaultModal, 
   openPatient360Modal,
   openPhoneHealthModal,
+  openNotificationsModal,
   children 
 }) {
   const { member, livaPoints } = useAuth();
@@ -221,6 +222,17 @@ export function MobileShell({
             >
               <Watch size={13} className="text-blue-400" />
               <span>Vitals Sync</span>
+            </button>
+
+            {/* Health Notifications Center */}
+            <button
+              onClick={openNotificationsModal}
+              className="flex items-center gap-1.5 px-2.5 py-1 bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 rounded-full text-[11px] font-semibold transition active:scale-95 relative"
+              title="Health Notifications & Emergency Protocols"
+            >
+              <Bell size={13} className="text-rose-400" />
+              <span>Alerts</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-ping"></span>
             </button>
           </div>
         </div>

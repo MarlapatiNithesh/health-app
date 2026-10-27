@@ -54,7 +54,7 @@ import {
 import HealthPermissionModal from '../common/HealthPermissionModal';
 import VitalsDetailModal from '../common/VitalsDetailModal';
 
-export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMediBotModal, openVaultModal }) {
+export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMediBotModal, openVaultModal, openNotificationsModal }) {
   const {
     member,
     token,
@@ -1529,10 +1529,14 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
           </div>
 
           {/* Notification Bell */}
-          <div className="relative p-2 glass-pill text-slate-300 hover:text-white transition cursor-pointer">
+          <button
+            onClick={openNotificationsModal}
+            className="relative p-2 glass-pill text-slate-300 hover:text-white transition cursor-pointer active:scale-95"
+            title="Open AI Health Notifications"
+          >
             <Bell size={18} />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(6,182,212,0.9)]"></span>
-          </div>
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(6,182,212,0.9)] animate-pulse"></span>
+          </button>
         </div>
       </div>
 
