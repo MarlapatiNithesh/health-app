@@ -499,7 +499,8 @@ export function MediBotScreen({ onClose, openNotificationsModal }) {
 
       // Trigger automatic clinical triage analysis of uploaded file
       setIsTyping(true);
-      const extractedCount = doc.extractedFields?.length || 0;
+      const extractedList = doc.extractions || doc.extractedFields || [];
+      const extractedCount = extractedList.length;
       const prompt = `I uploaded a ${docType}: ${file.name}. It has ${extractedCount} extracted clinical entities. Please evaluate findings and check for interactions.`;
       
       try {
@@ -517,7 +518,7 @@ export function MediBotScreen({ onClose, openNotificationsModal }) {
             content: triageRes.content || `I've analyzed and verified your uploaded ${docType.replace('_', ' ')} (${file.name}). Found ${extractedCount} clinical entities and automatically committed them to your Patient 360 chart!`,
             triageLevel: triageRes.riskLevel || 'low',
             autoCommitted: true,
-            extractedFields: doc.extractedFields || [],
+            extractedFields: extractedList,
             screeningLatencyMs: triageRes.latencyMs ?? null,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           }
@@ -531,7 +532,7 @@ export function MediBotScreen({ onClose, openNotificationsModal }) {
             content: `Your ${docType.replace('_', ' ')} (${file.name}) has been uploaded and analyzed. All ${extractedCount} extracted clinical entities have been automatically committed to your Patient 360 chart!`,
             triageLevel: 'low',
             autoCommitted: true,
-            extractedFields: doc.extractedFields || [],
+            extractedFields: extractedList,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           }
         ]);
@@ -1019,7 +1020,7 @@ export function MediBotScreen({ onClose, openNotificationsModal }) {
                           </span>
                         </div>
                         <p className="text-[10px] text-slate-500">
-                          {doc.extractedFields?.length || 0} entities • Auto-committed
+                          {(doc.extractions || doc.extractedFields)?.length || 0} entities • Auto-committed
                         </p>
                       </div>
                       <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
@@ -1278,7 +1279,7 @@ export function MediBotScreen({ onClose, openNotificationsModal }) {
                       {isBot && m.autoCommitted && (
                         <div className="mt-2 p-2 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl flex items-center gap-1.5 text-[11px] font-semibold">
                           <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
-                          <span>✅ Auto-committed to Patient 360 chart ({m.extractedFields?.length || 0} entities)</span>
+                          <span>✅ Auto-committed to Patient 360 chart ({(m.extractions || m.extractedFields)?.length || 0} entities)</span>
                         </div>
                       )}
 
@@ -1679,7 +1680,7 @@ export function MediBotScreen({ onClose, openNotificationsModal }) {
                           </span>
                         </div>
                         <p className="text-[10px] text-slate-500">
-                          {doc.extractedFields?.length || 0} entities • Auto-committed to chart
+                          {(doc.extractions || doc.extractedFields)?.length || 0} entities • Auto-committed to chart
                         </p>
                       </div>
                       <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">

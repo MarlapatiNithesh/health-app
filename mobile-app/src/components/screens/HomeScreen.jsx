@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Bell,
+  AlertTriangle,
   Flame,
   Footprints,
   Moon,
@@ -88,6 +89,42 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
       });
   }, [member?.id, token, refreshKey]);
 
+  // Active Health Notifications & Emergency Banner State
+  const [activeNotifications, setActiveNotifications] = useState([]);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+
+  const loadActiveNotifications = async () => {
+    if (!token) return;
+    try {
+      const res = await api.getNotifications({ limit: 20 });
+      const notifs = res?.notifications || [];
+      setActiveNotifications(notifs);
+      const unreadList = notifs.filter((n) => n.status !== 'read' && n.status !== 'dismissed');
+      setUnreadNotifCount(unreadList.length);
+
+      if (unreadList.length > 0) {
+        const top = unreadList[0];
+        const lastSeen = sessionStorage.getItem('last_seen_pop_notif');
+        if (lastSeen !== top.id) {
+          sessionStorage.setItem('last_seen_pop_notif', top.id);
+          window.dispatchEvent(new CustomEvent('newLiveNotification', { detail: top }));
+        }
+      }
+    } catch {
+      // quiet fail
+    }
+  };
+
+  useEffect(() => {
+    loadActiveNotifications();
+    const interval = setInterval(loadActiveNotifications, 20000);
+    return () => clearInterval(interval);
+  }, [token, refreshKey]);
+
+  const criticalAlert = activeNotifications.find(
+    (n) => (n.priority === 'critical' || n.category === 'emergency_protocol') && n.status !== 'dismissed'
+  );
+
   // Modals for Fitsure features
   const [showHraModal, setShowHraModal] = useState(false);
   const [showHealthPermissionsModal, setShowHealthPermissionsModal] = useState(false);
@@ -133,12 +170,12 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
   const [pairedDeviceList, setPairedDeviceList] = useState(() => {
     try {
       const list = localStorage.getItem('wellness_paired_devices');
-      if (list) {
+      if (list && list !== '[object Object]') {
         const parsed = JSON.parse(list);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
       const saved = localStorage.getItem('wellness_paired_device');
-      if (saved) return [JSON.parse(saved)];
+      if (saved && saved !== '[object Object]') { try { return [JSON.parse(saved)]; } catch {} }
     } catch {}
     return [];
   });
@@ -150,7 +187,7 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
         if (Array.isArray(parsed) && parsed.length > 0) return parsed[0];
       }
       const saved = localStorage.getItem('wellness_paired_device');
-      return saved ? JSON.parse(saved) : null;
+      return (saved && saved !== '[object Object]') ? JSON.parse(saved) : null;
     } catch {
       return null;
     }
@@ -196,7 +233,7 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
   const [bleBattery, setBleBattery] = useState(() => {
     try {
       const saved = localStorage.getItem('wellness_paired_device');
-      return saved ? (JSON.parse(saved).battery ?? null) : null;
+      return (saved && saved !== '[object Object]') ? (JSON.parse(saved).battery ?? null) : null;
     } catch {
       return null;
     }
@@ -1535,10 +1572,66 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
             title="Open AI Health Notifications"
           >
             <Bell size={18} />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(6,182,212,0.9)] animate-pulse"></span>
+            {unreadNotifCount > 0 ? (
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-rose-500 text-white rounded-full text-[10px] font-black flex items-center justify-center shadow-[0_0_8px_rgba(244,63,94,0.9)] animate-pulse">
+                {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+              </span>
+            ) : (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(6,182,212,0.9)] animate-pulse"></span>
+            )}
           </button>
         </div>
       </div>
+
+      {/* 1.5. Critical Clinical Emergency Banner (0s Protocol) */}
+      {criticalAlert && (
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-rose-950/90 via-red-900/80 to-rose-950/90 border-2 border-rose-500/70 p-4 shadow-2xl shadow-rose-950/60 animate-pulse-slow">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-rose-500/30 border border-rose-400 flex items-center justify-center text-rose-300 shrink-0 shadow-lg shadow-rose-500/30">
+                <AlertTriangle size={20} className="animate-bounce" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-500 text-slate-950 shadow-sm shadow-rose-500/40">
+                    🚨 0s Emergency Protocol
+                  </span>
+                  <span className="text-[10px] text-rose-300/80 font-mono">Immediate Bypass</span>
+                </div>
+                <h4 className="text-sm font-black text-white mt-1.5 tracking-tight">{criticalAlert.title}</h4>
+                <p className="text-xs text-rose-200/90 mt-1 leading-relaxed">{criticalAlert.body}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                api.recordNotificationEngagement(criticalAlert.id, 'dismissed');
+                setActiveNotifications((prev) => prev.filter((n) => n.id !== criticalAlert.id));
+              }}
+              className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-rose-300 hover:text-white transition cursor-pointer"
+              title="Dismiss Alert"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          {criticalAlert.action_label && (
+            <div className="mt-3 pt-3 border-t border-rose-500/30 flex items-center gap-2">
+              <button
+                onClick={openNotificationsModal}
+                className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-rose-500 to-amber-500 hover:opacity-95 text-slate-950 font-black text-xs shadow-lg flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+              >
+                <Zap size={14} />
+                <span>{criticalAlert.action_label}</span>
+              </button>
+              <button
+                onClick={openNotificationsModal}
+                className="py-2 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs cursor-pointer"
+              >
+                Open Protocol
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 2. Signature Activity & Telemetry Matrix */}
       <div className="glass-card p-5 text-white space-y-4">
@@ -1689,7 +1782,7 @@ export function HomeScreen({ openPhoneHealthModal, openPatient360Modal, openMedi
                 {syncFeedback.message || (
                   (syncFeedback.count != null && syncFeedback.count > 0)
                     ? `Synced ${syncFeedback.count.toLocaleString()} health readings to your account via ${syncFeedback.provider}.`
-                    : `All health data is up to date (${(steps || 1863).toLocaleString()} steps) via ${syncFeedback.provider}.`
+                    : `All health data is up to date (${(steps || 0).toLocaleString()} steps) via ${syncFeedback.provider}.`
                 )}
               </span>
             </div>

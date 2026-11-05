@@ -38,7 +38,7 @@ export class WearableRepository {
          updated_at       AS "updatedAt"
        FROM wearable_links
        WHERE member_id = $1
-         AND provider NOT IN ('apple_health','health_connect')
+         AND provider NOT IN ('apple_health','health_connect','phone_pedometer')
        ORDER BY created_at DESC`,
       [memberId],
     );
@@ -160,7 +160,7 @@ export class WearableRepository {
          updated_at       AS "updatedAt"
        FROM wearable_links
        WHERE member_id = $1 AND id = $2
-         AND provider NOT IN ('apple_health','health_connect')`,
+         AND provider NOT IN ('apple_health','health_connect','phone_pedometer')`,
       [memberId, deviceId],
     );
 

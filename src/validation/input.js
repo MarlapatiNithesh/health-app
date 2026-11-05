@@ -2,11 +2,12 @@ import { ApplicationError } from '../errors/application-error.js';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-const PHONE_PROVIDERS = new Set(['apple_health', 'health_connect']);
+const PHONE_PROVIDERS = new Set(['apple_health', 'health_connect', 'phone_pedometer']);
 
 const ALL_PROVIDERS = new Set([
   'apple_health',
   'health_connect',
+  'phone_pedometer',
   'whoop',
   'garmin',
   'oura',
@@ -162,8 +163,8 @@ export function validatePhoneConnection(connection = {}) {
   const provider = requireText(connection.provider, 'provider', { maxLength: 50 }).toLowerCase();
 
   if (!PHONE_PROVIDERS.has(provider)) {
-    validationError('provider must be apple_health or health_connect',
-      [{ field: 'provider', message: 'Only local phone health stores are supported.' }]);
+    validationError('provider must be apple_health, health_connect, or phone_pedometer',
+      [{ field: 'provider', message: 'Only local phone health stores and sensors are supported.' }]);
   }
   if (!Array.isArray(connection.permissions)) {
     validationError('permissions must be an array',
@@ -255,7 +256,21 @@ export function validateHealthSample(sample = {}, index = 0) {
     ? requireText(sample.deviceId, `${fieldPrefix}.deviceId`, { maxLength: 255 })
     : null;
 
-  return { provider, metric, externalId, recordedAt: new Date(timestamp).toISOString(), unit, value: sample.value, deviceId };
+  const rawAgg = sample.aggregation;
+  const aggregation = typeof rawAgg === 'string' && ['daily_total', 'interval', 'instant', 'total', 'average', 'latest'].includes(rawAgg)
+    ? rawAgg
+    : (['steps', 'calories', 'distance'].includes(metric) && (externalId.includes('-today-') || externalId.includes('-history-') || externalId.includes('steps-today') || externalId.includes('steps-history')) ? 'daily_total' : null);
+
+  return {
+    provider,
+    metric,
+    externalId,
+    recordedAt: new Date(timestamp).toISOString(),
+    unit,
+    value: sample.value,
+    deviceId,
+    ...(aggregation ? { aggregation } : {}),
+  };
 }
 
 export function validateIdempotencyKey(value) {

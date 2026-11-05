@@ -14,6 +14,8 @@ import { VaultScreen } from './components/screens/VaultScreen';
 import { Patient360Screen } from './components/screens/Patient360Screen';
 import { WearablesScreen } from './components/screens/WearablesScreen';
 import { NotificationCenterModal } from './components/screens/NotificationCenterModal';
+import { HeadsUpNotificationBanner } from './components/notifications/HeadsUpNotificationBanner';
+import { api } from './services/api';
 import { isNative, toNative } from './native/nativeBridge';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 
@@ -62,6 +64,16 @@ function AppScreens({
       {showVault && <VaultScreen onClose={() => setShowVault(false)} />}
       {showPatient360 && <Patient360Screen onClose={() => setShowPatient360(false)} />}
       {showWearables && <WearablesScreen onClose={() => setShowWearables(false)} />}
+      <HeadsUpNotificationBanner
+        onOpenNotificationCenter={() => setShowNotifications(true)}
+        onActionClick={async (notif, label) => {
+          try {
+            await api.executeNotificationAction(notif.id, label);
+          } catch (e) {
+            console.warn('Action error:', e);
+          }
+        }}
+      />
       <NotificationCenterModal
         isOpen={showNotifications}
         onClose={() => setShowNotifications(false)}

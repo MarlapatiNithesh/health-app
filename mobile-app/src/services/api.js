@@ -19,13 +19,19 @@ async function request(endpoint, options = {}) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  if (options.body && !(options.body instanceof FormData) && !headers['Content-Type']) {
+  let body = options.body;
+  if (body !== undefined && body !== null && !(body instanceof FormData) && typeof body !== 'string') {
+    body = JSON.stringify(body);
+  }
+
+  if (body && !(body instanceof FormData) && !headers['Content-Type']) {
     headers['Content-Type'] = 'application/json';
   }
 
   const response = await fetch(`${BASE_URL}${endpoint}`, {
     ...options,
     headers,
+    ...(body !== undefined ? { body } : {}),
   });
 
   const contentType = response.headers.get('content-type') || '';

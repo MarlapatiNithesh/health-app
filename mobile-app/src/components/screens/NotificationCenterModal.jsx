@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   Play,
   RotateCcw,
+  RefreshCw,
   Sparkles,
   ShieldAlert,
   ChevronDown,
@@ -32,8 +33,7 @@ export function NotificationCenterModal({ isOpen, onClose }) {
   const [notifications, setNotifications] = useState([]);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [showSimulator, setShowSimulator] = useState(false);
-  const [simulating, setSimulating] = useState(null);
+  const [syncingLive, setSyncingLive] = useState(false);
   const [feedbackToast, setFeedbackToast] = useState(null);
 
   // Special Interactive Modals
@@ -151,18 +151,23 @@ export function NotificationCenterModal({ isOpen, onClose }) {
     }
   };
 
-  // Trigger stream simulation
-  const handleSimulate = async (streamKey) => {
+  // Sync live member telemetry & prescriptions
+  const handleSyncLive = async () => {
     try {
-      setSimulating(streamKey);
-      const res = await api.simulateNotificationStream(streamKey);
-      setFeedbackToast(res?.message || `Dispatched ${streamKey}`);
-      setTimeout(() => setFeedbackToast(null), 3500);
-      await loadNotifications();
+      setSyncingLive(true);
+      const res = await api.syncLiveNotifications();
+      if (res?.notifications) {
+        setNotifications(res.notifications);
+      } else {
+        await loadNotifications();
+      }
+      setFeedbackToast('Synced live sensor telemetry and prescription regimens!');
+      setTimeout(() => setFeedbackToast(null), 3000);
     } catch (err) {
-      console.error('Simulation failed:', err);
+      console.warn('Sync live failed:', err);
+      await loadNotifications();
     } finally {
-      setSimulating(null);
+      setSyncingLive(false);
     }
   };
 
@@ -274,16 +279,13 @@ export function NotificationCenterModal({ isOpen, onClose }) {
 
           <div className="flex items-center gap-1.5">
             <button
-              onClick={() => setShowSimulator(!showSimulator)}
-              className={`p-2 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
-                showSimulator
-                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                  : 'bg-white/5 hover:bg-white/10 text-slate-300 border border-white/5'
-              }`}
-              title="Team Lead Simulation Deck"
+              onClick={handleSyncLive}
+              disabled={syncingLive}
+              className="p-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 cursor-pointer"
+              title="Sync live telemetry and prescriptions"
             >
-              <Zap size={14} className={showSimulator ? 'text-cyan-400' : ''} />
-              <span className="text-[11px] hidden sm:inline">Simulate</span>
+              <RefreshCw size={13} className={syncingLive ? 'animate-spin text-cyan-400' : 'text-cyan-400'} />
+              <span className="text-[11px] font-semibold">{syncingLive ? 'Syncing…' : 'Sync Live'}</span>
             </button>
             <button
               onClick={onClose}
@@ -293,97 +295,6 @@ export function NotificationCenterModal({ isOpen, onClose }) {
             </button>
           </div>
         </div>
-
-        {/* 2. Team Lead Verification & Stream Trigger Deck (Collapsible) */}
-        {showSimulator && (
-          <div className="px-4 py-3 bg-slate-900/90 border-b border-cyan-500/20 text-xs shrink-0 animate-fade-in space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-cyan-300 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
-                Executive Verification Deck (One-Tap Trigger)
-              </span>
-              <span className="text-[10px] text-slate-400">Team Lead Review Mode</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-1.5 pt-1">
-              {/* Stream 1 */}
-              <button
-                disabled={simulating !== null}
-                onClick={() => handleSimulate('stream1_hypoglycemia')}
-                className="px-2.5 py-1.5 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 rounded-xl text-left font-bold text-[11px] flex items-center gap-1.5 transition cursor-pointer"
-              >
-                <AlertTriangle size={13} className="text-rose-400 shrink-0" />
-                <span className="truncate">⚡ Hypo 62 mg/dL (0s)</span>
-              </button>
-
-              <button
-                disabled={simulating !== null}
-                onClick={() => handleSimulate('stream1_tachycardia')}
-                className="px-2.5 py-1.5 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 rounded-xl text-left font-bold text-[11px] flex items-center gap-1.5 transition cursor-pointer"
-              >
-                <Heart size={13} className="text-rose-400 shrink-0" />
-                <span className="truncate">💓 Tachy 135 bpm (0s)</span>
-              </button>
-
-              {/* Stream 2 */}
-              <button
-                disabled={simulating !== null}
-                onClick={() => handleSimulate('stream2_morning_hydration')}
-                className="px-2.5 py-1.5 bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 rounded-xl text-left font-bold text-[11px] flex items-center gap-1.5 transition cursor-pointer"
-              >
-                <Droplets size={13} className="text-cyan-400 shrink-0" />
-                <span className="truncate">🌅 07:15 Hydration (300ml)</span>
-              </button>
-
-              <button
-                disabled={simulating !== null}
-                onClick={() => handleSimulate('stream2_midday_pacing')}
-                className="px-2.5 py-1.5 bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 rounded-xl text-left font-bold text-[11px] flex items-center gap-1.5 transition cursor-pointer"
-              >
-                <Footprints size={13} className="text-cyan-400 shrink-0" />
-                <span className="truncate">🚶 14:30 Walk (+1,650)</span>
-              </button>
-
-              <button
-                disabled={simulating !== null}
-                onClick={() => handleSimulate('stream2_evening_trail')}
-                className="px-2.5 py-1.5 bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 rounded-xl text-left font-bold text-[11px] flex items-center gap-1.5 transition cursor-pointer"
-              >
-                <Compass size={13} className="text-cyan-400 shrink-0" />
-                <span className="truncate">📍 17:30 Trail (1.5 km)</span>
-              </button>
-
-              {/* Stream 3 */}
-              <button
-                disabled={simulating !== null}
-                onClick={() => handleSimulate('stream3_medibot_regimen')}
-                className="px-2.5 py-1.5 bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-300 rounded-xl text-left font-bold text-[11px] flex items-center gap-1.5 transition cursor-pointer"
-              >
-                <Pill size={13} className="text-purple-400 shrink-0" />
-                <span className="truncate">💊 5-Dose Med Chrono</span>
-              </button>
-
-              {/* Stream 4 */}
-              <button
-                disabled={simulating !== null}
-                onClick={() => handleSimulate('stream4_bedtime_taper')}
-                className="px-2.5 py-1.5 bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-indigo-300 rounded-xl text-left font-bold text-[11px] flex items-center gap-1.5 transition cursor-pointer"
-              >
-                <Moon size={13} className="text-indigo-400 shrink-0" />
-                <span className="truncate">🌙 21:30 Taper (150ml)</span>
-              </button>
-
-              <button
-                disabled={simulating !== null}
-                onClick={() => handleSimulate('stream4_step_suppression')}
-                className="px-2.5 py-1.5 bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-indigo-300 rounded-xl text-left font-bold text-[11px] flex items-center gap-1.5 transition cursor-pointer"
-              >
-                <VolumeX size={13} className="text-indigo-400 shrink-0" />
-                <span className="truncate">😴 22:00 Sleep Guard</span>
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* 3. Stream Filter Navigation Tabs */}
         <div className="px-3 py-2 bg-slate-950/40 border-b border-white/[0.06] flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
@@ -459,9 +370,9 @@ export function NotificationCenterModal({ isOpen, onClose }) {
               <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-500 mb-3">
                 <Bell size={24} />
               </div>
-              <h4 className="text-sm font-bold text-slate-200">No Notifications in this Stream</h4>
+              <h4 className="text-sm font-bold text-slate-200">All Caught Up!</h4>
               <p className="text-xs text-slate-400 mt-1 max-w-xs">
-                Use the <b>Simulate</b> deck above to test immediate 0s emergency bypass, circadian pacing, or prescription regimens.
+                Your notifications are 100% telemetry-driven. Live step pacing, vitals, and genuine prescription reminders appear automatically as your health records update.
               </p>
             </div>
           ) : (
@@ -521,7 +432,9 @@ export function NotificationCenterModal({ isOpen, onClose }) {
                       {streamBadge}
                     </span>
                     <span className="text-[10px] text-slate-400 font-mono">
-                      {new Date(notif.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {notif.createdAt || notif.created_at
+                        ? new Date(notif.createdAt || notif.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : 'Just now'}
                     </span>
                   </div>
 
@@ -560,10 +473,10 @@ export function NotificationCenterModal({ isOpen, onClose }) {
                   )}
 
                   {/* Action CTA Button */}
-                  {notif.action_label && (
+                  {(notif.actionLabel || notif.action_label) && (
                     <div className="mt-3 pt-2.5 border-t border-white/[0.08] flex items-center justify-between gap-2">
                       <button
-                        onClick={() => handleAction(notif, notif.action_label)}
+                        onClick={() => handleAction(notif, notif.actionLabel || notif.action_label)}
                         className={`flex-1 py-2 px-3 rounded-xl font-black text-xs transition active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer shadow-md ${
                           isCritical
                             ? 'bg-gradient-to-r from-rose-500 to-amber-500 hover:opacity-95 text-slate-950 shadow-rose-500/20'
@@ -575,7 +488,7 @@ export function NotificationCenterModal({ isOpen, onClose }) {
                         }`}
                       >
                         {isCritical ? <Zap size={14} /> : isChrono ? <Pill size={14} /> : <CheckCircle2 size={14} />}
-                        <span>{notif.action_label}</span>
+                        <span>{notif.actionLabel || notif.action_label}</span>
                       </button>
 
                       <div className="flex items-center gap-1">

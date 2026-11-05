@@ -6,11 +6,17 @@
   "scripts": {
     "start": "node --env-file=.env src/server.js",
     "dev": "node --env-file=.env --watch src/server.js",
-    "dev:nodemon": "nodemon --env-file=.env src/server.js",
+    "dev:nodemon": "nodemon --watch src --env-file=.env src/server.js",
     "db:migrate": "node --env-file=.env src/database/migrations/run-wellness-migrations.js",
     "api:client": "node --env-file=.env scripts/api-client.js",
     "test": "node test-notification-system.js",
-    "test:notifications": "node test-notification-system.js"
+    "test:notifications": "node test-notification-system.js",
+    "mobile": "npm --prefix mobile-app run dev",
+    "build:mobile": "npm --prefix mobile-app run build",
+    "expo": "node scripts/sync-dev-ip.js && npm --prefix expo-mobile start",
+    "expo:android": "node scripts/sync-dev-ip.js && npm --prefix expo-mobile run android",
+    "expo:ios": "node scripts/sync-dev-ip.js && npm --prefix expo-mobile run ios",
+    "expo:web": "npm --prefix expo-mobile run web"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1143.0",

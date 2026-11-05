@@ -13,6 +13,7 @@ export function createNotificationRouter(notificationController, jwtSecret, memb
 
   router.get ('/streams/summary',       auth, wrap(notificationController.getStreamsSummary));
   router.post('/simulate-stream',       auth, wrap(notificationController.simulateStream));
+  router.post('/sync-live',             auth, wrap(notificationController.syncLiveTelemetry));
   router.post('/chrono-regimen',        auth, wrap(notificationController.createChronoRegimen));
 
   router.get ('/',                      auth, wrap(notificationController.listNotifications));

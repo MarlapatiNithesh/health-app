@@ -81,7 +81,7 @@ export class PhoneHealthRepository {
          updated_at   AS "updatedAt"
        FROM wearable_links
        WHERE member_id = $1
-         AND provider IN ('apple_health','health_connect')
+         AND provider IN ('apple_health','health_connect','phone_pedometer')
        ORDER BY last_sync_at DESC NULLS LAST
        LIMIT 1`,
       [memberId],
@@ -110,7 +110,7 @@ export class PhoneHealthRepository {
   async updateSyncTimestamp(memberId, provider = null, syncCursor = null, client = this.pool) {
     let prov = 'apple_health';
     let cursor = syncCursor;
-    if (provider && typeof provider === 'string' && ['apple_health', 'health_connect'].includes(provider.toLowerCase())) {
+    if (provider && typeof provider === 'string' && ['apple_health', 'health_connect', 'phone_pedometer'].includes(provider.toLowerCase())) {
       prov = provider.toLowerCase();
     } else if (provider && typeof provider === 'string' && !syncCursor) {
       cursor = provider;

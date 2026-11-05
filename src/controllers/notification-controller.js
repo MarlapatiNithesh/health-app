@@ -13,6 +13,9 @@ export class NotificationController {
 
   registerToken = async (req, res) => {
     const memberId = req.memberId;
+    if (this.dispatch?.evaluateRealMemberTelemetry) {
+      await this.dispatch.evaluateRealMemberTelemetry(memberId).catch(() => {});
+    }
     const { platform, token, appVersion, deviceModel } = req.body ?? {};
 
     if (!platform || !VALID_PLATFORMS.includes(platform)) {
@@ -30,6 +33,9 @@ export class NotificationController {
 
   deregisterToken = async (req, res) => {
     const memberId = req.memberId;
+    if (this.dispatch?.evaluateRealMemberTelemetry) {
+      await this.dispatch.evaluateRealMemberTelemetry(memberId).catch(() => {});
+    }
     const { token } = req.params;
 
     const removed = await this.repo.deactivateToken(memberId, decodeURIComponent(token));
@@ -40,6 +46,9 @@ export class NotificationController {
 
   listPreferences = async (req, res) => {
     const memberId = req.memberId;
+    if (this.dispatch?.evaluateRealMemberTelemetry) {
+      await this.dispatch.evaluateRealMemberTelemetry(memberId).catch(() => {});
+    }
     const rows = await this.repo.getPreferences(memberId);
 
     const configured = new Map(rows.map((r) => [r.category, r]));
@@ -51,6 +60,9 @@ export class NotificationController {
 
   updatePreference = async (req, res) => {
     const memberId = req.memberId;
+    if (this.dispatch?.evaluateRealMemberTelemetry) {
+      await this.dispatch.evaluateRealMemberTelemetry(memberId).catch(() => {});
+    }
     const { category } = req.params;
 
     if (!Object.values(NOTIFICATION_CATEGORIES).includes(category)) {
@@ -75,7 +87,13 @@ export class NotificationController {
 
   listNotifications = async (req, res) => {
     const memberId = req.memberId;
+    if (this.dispatch?.evaluateRealMemberTelemetry) {
+      await this.dispatch.evaluateRealMemberTelemetry(memberId).catch(() => {});
+    }
     const { status, category, stream, limit = '50', offset = '0' } = req.query;
+    if (this.dispatch?.evaluateRealMemberTelemetry) {
+      await this.dispatch.evaluateRealMemberTelemetry(memberId).catch(() => {});
+    }
 
     const notifications = await this.repo.listForMember(memberId, {
       status:   status ?? null,
@@ -103,6 +121,9 @@ export class NotificationController {
 
   getStats = async (req, res) => {
     const memberId = req.memberId;
+    if (this.dispatch?.evaluateRealMemberTelemetry) {
+      await this.dispatch.evaluateRealMemberTelemetry(memberId).catch(() => {});
+    }
     const days = parseInt(req.query.days, 10) || 7;
     const stats = await this.repo.getDeliveryStats(memberId, days);
     res.json({ stats, periodDays: days });
@@ -110,6 +131,9 @@ export class NotificationController {
 
   recordEngagement = async (req, res) => {
     const memberId = req.memberId;
+    if (this.dispatch?.evaluateRealMemberTelemetry) {
+      await this.dispatch.evaluateRealMemberTelemetry(memberId).catch(() => {});
+    }
     const { id: notificationId } = req.params;
     const { eventType } = req.body ?? {};
 
@@ -123,6 +147,9 @@ export class NotificationController {
 
   executeAction = async (req, res) => {
     const memberId = req.memberId;
+    if (this.dispatch?.evaluateRealMemberTelemetry) {
+      await this.dispatch.evaluateRealMemberTelemetry(memberId).catch(() => {});
+    }
     const { id: notificationId } = req.params;
     const { actionLabel, payload = {} } = req.body ?? {};
 
@@ -136,6 +163,9 @@ export class NotificationController {
 
   simulateStream = async (req, res) => {
     const memberId = req.memberId;
+    if (this.dispatch?.evaluateRealMemberTelemetry) {
+      await this.dispatch.evaluateRealMemberTelemetry(memberId).catch(() => {});
+    }
     const { streamKey, options = {} } = req.body ?? {};
 
     if (!streamKey) {
@@ -153,6 +183,9 @@ export class NotificationController {
 
   createChronoRegimen = async (req, res) => {
     const memberId = req.memberId;
+    if (this.dispatch?.evaluateRealMemberTelemetry) {
+      await this.dispatch.evaluateRealMemberTelemetry(memberId).catch(() => {});
+    }
     const { date, prescriptionId } = req.body ?? {};
 
     const results = await this.dispatch.createChronoRegimenFromPrescription(memberId, { date, prescriptionId });
@@ -163,8 +196,24 @@ export class NotificationController {
     });
   };
 
+  syncLiveTelemetry = async (req, res) => {
+    const memberId = req.memberId;
+    if (this.dispatch?.evaluateRealMemberTelemetry) {
+      await this.dispatch.evaluateRealMemberTelemetry(memberId).catch(() => {});
+    }
+    const notifications = await this.repo.listForMember(memberId, { limit: 50 });
+    res.json({
+      success: true,
+      message: 'Live member telemetry and prescriptions synced successfully',
+      notifications: notifications.map(this.#mapNotification),
+    });
+  };
+
   getStreamsSummary = async (req, res) => {
     const memberId = req.memberId;
+    if (this.dispatch?.evaluateRealMemberTelemetry) {
+      await this.dispatch.evaluateRealMemberTelemetry(memberId).catch(() => {});
+    }
     const notifications = await this.repo.listForMember(memberId, { limit: 100 });
     const mapped = notifications.map(this.#mapNotification);
 
@@ -211,6 +260,9 @@ export class NotificationController {
 
   sendTestNotification = async (req, res) => {
     const memberId = req.memberId;
+    if (this.dispatch?.evaluateRealMemberTelemetry) {
+      await this.dispatch.evaluateRealMemberTelemetry(memberId).catch(() => {});
+    }
     const {
       category = 'medibot_ping',
       title    = '🧪 Test Notification',
@@ -277,6 +329,8 @@ export class NotificationController {
       deliveredAt:    n.delivered_at,
       readAt:         n.read_at,
       createdAt:      n.created_at,
+      created_at:     n.created_at,
+      action_label:   n.action_label,
     };
   }
 

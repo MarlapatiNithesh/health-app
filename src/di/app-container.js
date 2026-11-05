@@ -106,7 +106,11 @@ export function createAppContainer(config = {}) {
   else container.registerClass('clinicalRulesService', ClinicalRulesService, ['clinicalRepo']);
 
   if (config.llmService) container.registerInstance('llmService', config.llmService);
-  else container.register('llmService', () => new LLMService({ geminiApiKey: config.geminiApiKey || process.env.GEMINI_API_KEY || '' }));
+  else container.register('llmService', () => new LLMService({
+    geminiApiKey: config.geminiApiKey || process.env.GEMINI_API_KEY || '',
+    baseUrl: config.geminiBaseUrl || process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta',
+    defaultModel: config.geminiModel || process.env.GEMINI_MODEL || 'gemini-flash-lite-latest',
+  }));
 
   // Symptom priority service (singleton — stateless, safe to share)
   if (config.symptomPriorityService) container.registerInstance('symptomPriorityService', config.symptomPriorityService);

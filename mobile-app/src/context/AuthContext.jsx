@@ -196,7 +196,7 @@ export function AuthProvider({ children }) {
       'blood_pressure_diastolic', 'blood_glucose', 'spo2'
     ];
     try {
-      const saved = JSON.parse(localStorage.getItem(storageKeys.selected) || '[]');
+      const raw = localStorage.getItem(storageKeys.selected); const saved = (raw && raw !== '[object Object]') ? JSON.parse(raw) : [];
       if (Array.isArray(saved) && saved.length > 0) selectedPermissions = saved;
     } catch {}
     toNative('LOGIN_SUCCESS', { token, memberId, permissions: selectedPermissions });

@@ -138,7 +138,7 @@ export function HealthPermissionsModal({
   const [selected, setSelected] = useState(() => {
     try {
       const saved = localStorage.getItem(storageKeys.selected);
-      if (saved) return JSON.parse(saved);
+      if (saved && saved !== '[object Object]') return JSON.parse(saved);
     } catch {}
     return AVAILABLE_PERMISSIONS.filter((p) => p.defaultChecked).map((p) => p.id);
   });
@@ -149,7 +149,7 @@ export function HealthPermissionsModal({
   useEffect(() => {
     try {
       const saved = localStorage.getItem(storageKeys.selected);
-      setSelected(saved ? JSON.parse(saved) : AVAILABLE_PERMISSIONS.filter((p) => p.defaultChecked).map((p) => p.id));
+      setSelected(saved && saved !== '[object Object]' ? JSON.parse(saved) : AVAILABLE_PERMISSIONS.filter((p) => p.defaultChecked).map((p) => p.id));
     } catch {
       setSelected(AVAILABLE_PERMISSIONS.filter((p) => p.defaultChecked).map((p) => p.id));
     }
