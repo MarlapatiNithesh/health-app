@@ -161,8 +161,9 @@ export class PhoneVerificationRepository {
       const memberResult = await client.query(
         `INSERT INTO members (phone, phone_e164, phone_verified, phone_verified_at, status, health_consent_at, health_consent_version)
          VALUES ($1, $1, true, now(), 'active', now(), '1.0')
-         ON CONFLICT (phone)
+         ON CONFLICT (phone_e164)
          DO UPDATE SET
+           phone             = COALESCE(members.phone, EXCLUDED.phone),
            phone_e164        = EXCLUDED.phone_e164,
            phone_verified    = true,
            phone_verified_at = now(),
