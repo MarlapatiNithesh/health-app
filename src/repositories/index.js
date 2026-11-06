@@ -9,6 +9,7 @@ import { ClinicalRecordRepository } from './clinical-record-repository.js';
 import { EncounterRepository } from './encounter-repository.js';
 import { DocumentRepository } from './document-repository.js';
 import { NotificationRepository } from './notification-repository.js';
+import { MedicationRepository } from './medication-repository.js';
 
 export function createRepositories(pool) {
   const timeseriesRepo = new TimeseriesRepository(pool);
@@ -18,6 +19,8 @@ export function createRepositories(pool) {
   const clinicalRepo = new ClinicalRecordRepository(pool);
   const encounterRepo = new EncounterRepository(pool);
   const documentRepo = new DocumentRepository(pool);
+  const notificationRepo = new NotificationRepository(pool);
+  const medicationRepo = new MedicationRepository(pool);
 
   return {
     memberRepo: new MemberRepository(pool),
@@ -32,7 +35,8 @@ export function createRepositories(pool) {
     clinicalRepo,
     encounterRepo,
     documentRepo,
-    notificationRepo: new NotificationRepository(pool),
+    notificationRepo,
+    medicationRepo,
   };
 }
 
@@ -50,4 +54,5 @@ export {
   EncounterRepository,
   DocumentRepository,
   NotificationRepository,
+  MedicationRepository,
 };

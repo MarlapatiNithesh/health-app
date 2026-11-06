@@ -189,7 +189,7 @@ export class NotificationService {
 
     const decision = scheduledAt ? 'deferred' : 'allowed';
     logger.info(`[NotifRules] ${decision} id=${created.id} cat=${category} member=${memberId} bypass=${bypassAll}`);
-    return { notificationId: created.id, decision };
+    return { notificationId: created.id, decision, notification: created };
   }
 
   #isBedtimeSuppressionActive(tz = 'UTC') {
@@ -937,7 +937,20 @@ export class NotificationService {
       }
 
       default: {
-        response.feedbackToast = `Action "${actionLabel}" confirmed.`;
+        if (/^MARK\s+(.+)\s+TAKEN$/i.test(actionLabel)) {
+          const medName = actionLabel.replace(/^MARK\s+/i, '').replace(/\s+TAKEN$/i, '').trim();
+          response.feedbackToast = `💊 ${medName} confirmed taken. Exact adherence timing recorded.`;
+          response.medicationLog = { name: medName, takenAt: new Date().toISOString() };
+        } else if (/STRETCH/i.test(actionLabel)) {
+          response.feedbackToast = '🧘 10-minute gentle restorative stretch session begun. Calming heart rate.';
+        } else if (/WORKOUT/i.test(actionLabel)) {
+          response.feedbackToast = '🏃 Workout session tracking initiated. Pacing towards daily caloric burn target.';
+        } else if (/ELECTROLYTE/i.test(actionLabel)) {
+          response.feedbackToast = '💧 400ml electrolyte hydration logged. Core cooling restored.';
+          response.telemetryUpdate = { metric: 'water', value: 400, unit: 'ml' };
+        } else {
+          response.feedbackToast = `Action "${actionLabel}" confirmed.`;
+        }
         break;
       }
     }
