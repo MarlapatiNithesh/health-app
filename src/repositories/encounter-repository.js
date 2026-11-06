@@ -281,4 +281,30 @@ export class EncounterRepository {
       return EncounterMapper.toModelRunDto(res.rows[0]);
     });
   }
+
+  // ── RLHF Patient Feedback ──────────────────────────────────────────────────
+
+  async recordChatFeedback({ messageId, patientId, encounterId = null, rating, feedbackText = null, tags = [] }) {
+    if (!this.pool?.query) {
+      return {
+        id: `mock-feedback-${Date.now()}`,
+        messageId,
+        patientId,
+        encounterId,
+        rating,
+        feedbackText,
+        tags,
+        createdAt: new Date().toISOString(),
+      };
+    }
+
+    const res = await this.pool.query(
+      `INSERT INTO chat_feedback (message_id, patient_id, session_id, rating, feedback_text, tags)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, message_id AS "messageId", patient_id AS "patientId", session_id AS "encounterId",
+                 rating, feedback_text AS "feedbackText", tags, created_at AS "createdAt"`,
+      [messageId, patientId, encounterId, rating, feedbackText, tags]
+    );
+    return res.rows[0];
+  }
 }

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { logger } from '../logger.js';
+import { MediBotLLMFactory } from '../medibot/models/llm-factory.js';
 
 export const CLINICAL_TOOL_DEFINITIONS = [
   {
@@ -150,7 +151,7 @@ export class LLMService {
 
         if (response.ok) {
           const data = await response.json();
-          const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          const responseText = (data.candidates?.[0]?.content?.parts || []).map(p => p.text).filter(Boolean).join('');
           if (responseText) {
             return {
               content: responseText,
@@ -174,7 +175,7 @@ export class LLMService {
       }
     }
 
-    return this.#deterministicFallback(messages, promptHash, Date.now() - startTime);
+    return this.#deterministicFallback(messages, promptHash, Date.now() - startTime, systemPrompt);
   }
 
   // ── Tool Calling Loop ──────────────────────────────────────────────
@@ -211,7 +212,7 @@ export class LLMService {
       const requestBody = {
         contents,
         tools: [{ functionDeclarations: CLINICAL_TOOL_DEFINITIONS }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 1536 },
+        generationConfig: { temperature: 0.3, maxOutputTokens: 4096 },
       };
 
       if (systemPrompt) {
@@ -222,7 +223,7 @@ export class LLMService {
       if (!response.ok) {
         const errBody = await response.text().catch(() => '');
         logger.warn('Gemini endpoint returned error status during tool calling', { status: response.status, body: errBody });
-        return this.#deterministicFallback(currentMessages, promptHash, Date.now() - startTime);
+        return this.#deterministicFallback(currentMessages, promptHash, Date.now() - startTime, systemPrompt);
       }
 
       const data = await response.json();
@@ -256,7 +257,14 @@ export class LLMService {
         continue; // Loop: LLM sees all results and responds or calls more tools
       }
 
-      const text = candidate?.content?.parts?.[0]?.text || '';
+      const text = (candidate?.content?.parts || []).map(p => p.text).filter(Boolean).join('');
+      logger.info('Gemini raw candidate received', {
+        finishReason: candidate?.finishReason,
+        textLen: text.length,
+        partsCount: candidate?.content?.parts?.length,
+        usage: data.usageMetadata,
+        textSample: text.slice(-80),
+      });
       return {
         content: text,
         modelName: this.defaultModel,
@@ -620,16 +628,21 @@ Respond in valid JSON only.`;
     return new Float32Array(384).fill(0.01);
   }
 
-  #deterministicFallback(messages, promptHash, latencyMs) {
+  #deterministicFallback(messages, promptHash, latencyMs, systemPrompt = '') {
     const lastUserMessage = [...(messages || [])].reverse().find((m) => m.role === 'user')?.content || '';
-    const content = this.#generateDeterministicResponse(lastUserMessage);
+    let content = '';
+    if (systemPrompt && typeof MediBotLLMFactory?.generateSpecialistFallbackResponse === 'function') {
+      content = MediBotLLMFactory.generateSpecialistFallbackResponse(systemPrompt, lastUserMessage);
+    } else {
+      content = this.#generateDeterministicResponse(lastUserMessage);
+    }
     return {
       content,
       toolCalls: [],
-      modelName: 'medibot-rule-engine',
+      modelName: 'medibot-specialist-engine',
       modelVersion: '1.0.0',
       promptHash,
-      tokens: { input: 50, output: 50 },
+      tokens: { input: Math.round(((systemPrompt || '').length + lastUserMessage.length) / 4), output: Math.round(content.length / 4) },
       latencyMs,
     };
   }

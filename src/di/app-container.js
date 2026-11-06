@@ -131,6 +131,7 @@ export function createAppContainer(config = {}) {
       llmService: c.resolve('llmService'),
       symptomPriorityService: c.resolve('symptomPriorityService'),
       responseSafetyValidator: c.resolve('responseSafetyValidator'),
+      pool: c.resolve('pool'),
     }));
   }
 
@@ -158,6 +159,7 @@ export function createAppContainer(config = {}) {
       clinicalOrchestratorService: c.resolve('clinicalOrchestratorService'),
       clinicalRulesService: c.resolve('clinicalRulesService'),
       clinicalRepo: c.resolve('clinicalRepo'),
+      encounterRepo: c.resolve('encounterRepo'),
     }));
   }
 

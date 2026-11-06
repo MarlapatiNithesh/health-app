@@ -60,7 +60,12 @@ export function createMedibotRouter({
           document_service: 'active',
           clinical_rules: 'active',
           llm_orchestrator: 'active',
+          langchain_engine: 'active',
+          langgraph_state_machine: 'active',
+          rag_vector_pipeline: 'active',
         },
+        framework: 'langchain_langgraph',
+        rag_engine: 'langchain_pgvector_rag',
         timestamp: new Date().toISOString(),
       });
     }

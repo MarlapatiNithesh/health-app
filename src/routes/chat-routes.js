@@ -47,5 +47,21 @@ export function createChatRouter({
     orchestratorController.validateDrug
   );
 
+  router.post(
+    '/chat/feedback',
+    auth,
+    consent,
+    tagLogger('TAG: CLINICAL_CHAT_FEEDBACK'),
+    orchestratorController.submitFeedback
+  );
+
+  router.post(
+    '/feedback',
+    auth,
+    consent,
+    tagLogger('TAG: CLINICAL_CHAT_FEEDBACK'),
+    orchestratorController.submitFeedback
+  );
+
   return router;
 }

@@ -4,6 +4,7 @@ import { DocumentMapper } from '../mappers/document-mapper.js';
 import { globalS3Storage } from '../storage/s3-storage-service.js';
 import { globalGeminiClient } from '../integrations/gemini-client.js';
 import { ApplicationError } from '../errors/application-error.js';
+import { MediBotDocumentChunker, MediBotEmbeddings } from '../medibot/index.js';
 
 const MED_REGEX = /\b([A-Z][a-z]{3,20})\s+(\d+\s*(?:mg|ml|mcg|g))\s*(daily|twice daily|od|bd|tid)?\b/gi;
 const LAB_REGEX = /\b(HbA1c|Glucose|Cholesterol|Creatinine|Hemoglobin)\s*[:=]\s*(\d+(?:\.\d+)?)\s*(%|mg\/dL|g\/dL)?\b/gi;
@@ -378,14 +379,16 @@ export class DocumentService {
       await this.#commitFieldToClinicalRecords(patientId, documentId, f, provenance?.id, fields);
     }
 
-    const chunks = this.#chunkText(extractedText);
+    // LangChain document chunking & embeddings ingestion
+    const chunker = new MediBotDocumentChunker();
+    const chunks = await chunker.chunkText(extractedText, { patientId, documentId });
+    const embeddings = new MediBotEmbeddings();
+
     await Promise.all(
       chunks.map(async (chunk) => {
         try {
           if (typeof this.documentRepo?.storeEmbedding === 'function') {
-            const docEmbedding = typeof this.geminiClient?.embedContent === 'function'
-              ? await this.geminiClient.embedContent(chunk.content)
-              : new Array(768).fill(0.01);
+            const docEmbedding = await embeddings.embedQuery(chunk.content);
             await this.documentRepo.storeEmbedding(patientId, {
               documentId,
               clinicalRecordId: null,
