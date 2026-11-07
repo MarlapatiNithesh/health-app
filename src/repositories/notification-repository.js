@@ -25,11 +25,11 @@ export class NotificationRepository {
                 THEN jsonb_build_object(
                   'platform', elem->>'platform',
                   'token', elem->>'token',
-                  'appVersion', COALESCE($4, elem->>'appVersion'),
-                  'deviceModel', COALESCE($5, elem->>'deviceModel'),
+                  'appVersion', COALESCE($4::text, elem->>'appVersion'),
+                  'deviceModel', COALESCE($5::text, elem->>'deviceModel'),
                   'isActive', true,
-                  'lastSeenAt', $6,
-                  'createdAt', COALESCE(elem->>'createdAt', $6)
+                  'lastSeenAt', $6::text,
+                  'createdAt', COALESCE(elem->>'createdAt', $6::text)
                 )
                 ELSE elem
            END
@@ -176,8 +176,8 @@ export class NotificationRepository {
          (member_id, category, priority, title, body, image_url, deep_link,
           action_label, action_url, source_type, source_ref_id, rules_triggered,
           metadata, scheduled_at, expires_at, idempotency_key, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,
-               CASE WHEN $14 IS NOT NULL THEN 'scheduled' ELSE 'pending' END)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13::jsonb, $14::timestamptz, $15::timestamptz, $16,
+               CASE WHEN $14::timestamptz IS NOT NULL THEN 'scheduled' ELSE 'pending' END)
        ON CONFLICT (member_id, idempotency_key) DO NOTHING
        RETURNING *`,
       [

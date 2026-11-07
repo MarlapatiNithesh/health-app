@@ -17,13 +17,14 @@ export const DEVICE_TIERS = {
 
   apple_health: 3,
   health_connect: 3,
+  phone_pedometer: 3,
 };
 
 const DEFAULT_PRIORITY = {
   steps: [
     'garmin', 'whoop', 'oura',
     'apple_watch', 'samsung_health', 'fitbit', 'polar', 'coros', 'suunto',
-    'apple_health', 'health_connect',
+    'apple_health', 'health_connect', 'phone_pedometer',
   ],
   sleep: [
     'whoop', 'oura', 'garmin',
@@ -89,11 +90,11 @@ const DEFAULT_PRIORITY = {
   ],
   calories: [
     'garmin', 'whoop', 'apple_watch', 'samsung_health', 'fitbit',
-    'apple_health', 'health_connect',
+    'apple_health', 'health_connect', 'phone_pedometer',
   ],
   distance: [
     'garmin', 'apple_watch', 'coros', 'polar', 'suunto',
-    'apple_health', 'health_connect',
+    'apple_health', 'health_connect', 'phone_pedometer',
   ],
   hydration: [
     'apple_health', 'health_connect',
@@ -153,19 +154,63 @@ export function reconcileDailyMetrics(samples, priority = DEFAULT_PRIORITY) {
   return summary;
 }
 
+export function extractLocalDate(s) {
+  if (typeof s?.localDate === 'string' && s.localDate.length >= 10) {
+    return s.localDate.slice(0, 10);
+  }
+  if (s?.localDate instanceof Date) {
+    const y = s.localDate.getFullYear();
+    const m = String(s.localDate.getMonth() + 1).padStart(2, '0');
+    const d = String(s.localDate.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  if (typeof s?.recordedAt === 'string' && s.recordedAt.length >= 10) {
+    return s.recordedAt.slice(0, 10);
+  }
+  if (s?.recordedAt instanceof Date) {
+    const y = s.recordedAt.getFullYear();
+    const m = String(s.recordedAt.getMonth() + 1).padStart(2, '0');
+    const d = String(s.recordedAt.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  return 'today';
+}
+
 function aggregateProviderSamples(metric, provider, samples) {
   const sorted = [...samples].sort(
     (a, b) => Date.parse(b.recordedAt) - Date.parse(a.recordedAt),
   );
   const latest = sorted[0];
 
-  const dailyTotals = samples.filter((s) => s.aggregation === 'daily_total');
+  const isDailyMetric = (s) =>
+    s.aggregation === 'daily_total' ||
+    (typeof s.externalId === 'string' && (s.externalId.includes('-history-') || s.externalId.includes('-today-') || s.externalId.includes('steps-today') || s.externalId.includes('steps-history'))) ||
+    (typeof s.sourceRecordId === 'string' && (s.sourceRecordId.includes('-history-') || s.sourceRecordId.includes('-today-')));
+
+  const dailyTotals = samples.filter(isDailyMetric);
   let value;
 
   if (dailyTotals.length > 0) {
-    value = Math.max(...dailyTotals.map((s) => s.value));
+    const byDay = new Map();
+    for (const s of dailyTotals) {
+      const day = extractLocalDate(s);
+      const currentMax = byDay.get(day) || 0;
+      byDay.set(day, Math.max(currentMax, Number(s.value) || 0));
+    }
+    // For a daily summary calculation, resolve the latest day's daily total
+    const sortedDays = Array.from(byDay.keys()).sort().reverse();
+    const latestDay = sortedDays[0];
+    value = byDay.get(latestDay) || 0;
   } else if (CUMULATIVE_METRICS.has(metric)) {
-    const values = samples.map((s) => s.value);
+    const byRecord = new Map();
+    for (const s of samples) {
+      const day = extractLocalDate(s);
+      const key = s.externalId || s.sourceRecordId || `${day}:${s.recordedAt}`;
+      if (!byRecord.has(key) || byRecord.get(key).value < s.value) {
+        byRecord.set(key, s);
+      }
+    }
+    const values = Array.from(byRecord.values()).map((s) => s.value);
     value = values.reduce((sum, v) => sum + v, 0);
   } else if (AVERAGE_METRICS.has(metric)) {
     const values = samples.map((s) => s.value);

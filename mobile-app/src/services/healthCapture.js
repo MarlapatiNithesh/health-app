@@ -99,7 +99,7 @@ export class HealthQueue {
   async _load() {
     try {
       const val = await this.storage.getItem('health:queue');
-      return JSON.parse(val || '[]');
+      if (!val || val === "[object Object]") return []; try { return JSON.parse(val); } catch { return []; }
     } catch {
       return [];
     }
@@ -215,13 +215,13 @@ export function captureLiveHeartRate({ ble, queue, windowSec = 30 }) {
 export const defaultStorage = {
   getItem: async (key) => {
     if (typeof window !== 'undefined' && window.localStorage) {
-      return window.localStorage.getItem(key);
+      const val = window.localStorage.getItem(key); if (val === "[object Object]") { window.localStorage.removeItem(key); return null; } return val;
     }
     return null;
   },
   setItem: async (key, value) => {
     if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.setItem(key, String(value));
+      window.localStorage.setItem(key, typeof value === "string" ? value : JSON.stringify(value));
     }
   },
   removeItem: async (key) => {
@@ -253,7 +253,7 @@ export class WebPlatformHealth {
     try {
       const raw = await defaultStorage.getItem('health:consent');
       if (raw) {
-        const parsed = JSON.parse(raw);
+        if (!raw || raw === "[object Object]") return []; const parsed = JSON.parse(raw);
         if (Array.isArray(parsed.metrics)) return parsed.metrics;
       }
     } catch {}

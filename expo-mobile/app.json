@@ -21,6 +21,7 @@
     "android": {
       "package": "com.goqii.healthapp",
       "permissions": [
+        "android.permission.POST_NOTIFICATIONS",
         "android.permission.ACTIVITY_RECOGNITION",
         "android.permission.BLUETOOTH_SCAN",
         "android.permission.BLUETOOTH_CONNECT",
@@ -38,7 +39,9 @@
         "react-native-ble-plx",
         {
           "isBackgroundEnabled": false,
-          "modes": ["central"],
+          "modes": [
+            "central"
+          ],
           "bluetoothAlwaysPermission": "Used to connect to your smartwatch."
         }
       ],

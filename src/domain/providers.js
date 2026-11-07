@@ -40,6 +40,13 @@ export const PROVIDER_CAPABILITIES = {
     via: 'health_connect',
     tier: 3,
   },
+  phone_pedometer: {
+    name: 'Phone Motion Sensor',
+    type: 'phone_sdk',
+    connectionType: 'phone_sdk',
+    via: 'phone_pedometer',
+    tier: 3,
+  },
 
   inbody: {
     name: 'InBody',

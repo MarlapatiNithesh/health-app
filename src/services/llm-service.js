@@ -107,15 +107,18 @@ export class LLMService {
     geminiApiKey = process.env.GEMINI_API_KEY || '',
     openaiApiKey = process.env.OPENAI_API_KEY || '',
     huggingFaceApiKey = process.env.HUGGINGFACE_API_KEY || '',
-    defaultModel = process.env.GEMINI_MODEL || 'gemini-2.0-flash',
+    baseUrl = process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta',
+    defaultModel = process.env.GEMINI_MODEL || 'gemini-flash-lite-latest',
     endpointUrl = process.env.GEMINI_ENDPOINT_URL || '',
-    timeoutMs = parseInt(process.env.GEMINI_TIMEOUT_MS || '20000', 10),
+    timeoutMs = parseInt(process.env.GEMINI_TIMEOUT_MS || '25000', 10),
   } = {}) {
     this.geminiApiKey = geminiApiKey;
     this.openaiApiKey = openaiApiKey;
     this.huggingFaceApiKey = huggingFaceApiKey;
+    this.baseUrl = (baseUrl || 'https://generativelanguage.googleapis.com/v1beta').replace(/\/+$/, '');
     this.defaultModel = defaultModel;
-    this.endpointUrl = endpointUrl || `https://generativelanguage.googleapis.com/v1beta/models/${defaultModel}:generateContent`;
+    const modelsPrefix = this.baseUrl.endsWith('/models') ? this.baseUrl : `${this.baseUrl}/models`;
+    this.endpointUrl = endpointUrl || `${modelsPrefix}/${defaultModel}:generateContent`;
     this.timeoutMs = timeoutMs;
   }
 
@@ -192,6 +195,10 @@ export class LLMService {
           modelName: 'medgemma-2b (hf)',
           modelVersion: '1.0',
           promptHash,
+          tokens: {
+            input: Math.round(promptString.length / 4),
+            output: Math.round(hfResponse.length / 4),
+          },
           latencyMs: Date.now() - startTime,
         };
       }
@@ -213,15 +220,20 @@ export class LLMService {
 
       const response = await this.#callGemini(this.endpointUrl, requestBody);
       if (!response.ok) {
-        logger.warn('Gemini endpoint returned error status during tool calling', { status: response.status });
+        const errBody = await response.text().catch(() => '');
+        logger.warn('Gemini endpoint returned error status during tool calling', { status: response.status, body: errBody });
         return this.#deterministicFallback(currentMessages, promptHash, Date.now() - startTime);
       }
 
       const data = await response.json();
       const candidate = data.candidates?.[0];
-      const functionCalls = candidate?.content?.parts?.filter(p => p.functionCall).map(p => p.functionCall) || [];
+      const modelParts = candidate?.content?.parts || [];
+      const functionCalls = modelParts.filter(p => p.functionCall).map(p => p.functionCall);
 
       if (functionCalls.length > 0) {
+        // Retain the exact candidate parts to preserve thoughtSignature and call ID
+        currentMessages.push({ role: 'model', parts: modelParts });
+
         const toolPromises = functionCalls.map(async ({ name, args }) => {
           logger.info(`LLM invoked tool: ${name}`, { args });
           const toolResult = await toolHandlers[name]?.(args) ?? { error: 'Unknown tool' };
@@ -230,10 +242,16 @@ export class LLMService {
 
         const results = await Promise.all(toolPromises);
         
-        results.forEach(({ name, args, toolResult }) => {
-          currentMessages.push({ role: 'model', content: { functionCall: { name, args } } });
-          currentMessages.push({ role: 'tool', content: { functionResponse: { name, response: toolResult } } });
+        const toolResponseParts = results.map(({ name, toolResult }) => {
+          const formattedResponse =
+            toolResult !== null && typeof toolResult === 'object' && !Array.isArray(toolResult)
+              ? toolResult
+              : { result: toolResult };
+          return {
+            functionResponse: { name, response: formattedResponse }
+          };
         });
+        currentMessages.push({ role: 'user', parts: toolResponseParts });
         
         continue; // Loop: LLM sees all results and responds or calls more tools
       }
@@ -244,6 +262,10 @@ export class LLMService {
         modelName: this.defaultModel,
         modelVersion: 'v1beta',
         promptHash,
+        tokens: {
+          input: data.usageMetadata?.promptTokenCount ?? Math.round(promptString.length / 4),
+          output: data.usageMetadata?.candidatesTokenCount ?? Math.round(text.length / 4),
+        },
         latencyMs: Date.now() - startTime,
       };
     }
@@ -451,13 +473,18 @@ Respond in valid JSON only.`;
 
   #buildContents(messages) {
     const filtered = (messages || []).filter(
-      (m) => m && (typeof m.content === 'string' && m.content.trim() !== '' || typeof m.content === 'object')
+      (m) => m && (typeof m.content === 'string' && m.content.trim() !== '' || typeof m.content === 'object' || Array.isArray(m.parts))
     );
 
     const contents = [];
     for (const m of filtered) {
-      let role = m.role === 'assistant' ? 'model' : m.role === 'tool' ? 'user' : 'user';
-      if (m.content.functionCall || m.content.functionResponse) role = m.role === 'model' ? 'model' : 'user'; // functionCall is model, functionResponse is user
+      if (Array.isArray(m.parts) && m.parts.length > 0) {
+        contents.push({ role: m.role === 'assistant' || m.role === 'model' ? 'model' : 'user', parts: m.parts });
+        continue;
+      }
+
+      let role = m.role === 'assistant' || m.role === 'model' ? 'model' : 'user';
+      if (m.content?.functionCall || m.content?.functionResponse) role = m.role === 'model' ? 'model' : 'user';
       
       let part;
       if (typeof m.content === 'string') {
@@ -467,7 +494,7 @@ Respond in valid JSON only.`;
       }
 
       // Merge consecutive same-role text messages (Gemini requirement)
-      if (contents.length > 0 && contents[contents.length - 1].role === role && typeof m.content === 'string' && contents[contents.length - 1].parts[0].text) {
+      if (contents.length > 0 && contents[contents.length - 1].role === role && typeof m.content === 'string' && contents[contents.length - 1].parts[0]?.text) {
         contents[contents.length - 1].parts[0].text += '\n' + m.content.trim();
       } else {
         contents.push({ role, parts: [part] });
@@ -494,8 +521,9 @@ Respond in valid JSON only.`;
       // Auto-fallback on rate limit or overload
       if (!response.ok && (response.status === 503 || response.status === 429)) {
         logger.warn('Gemini primary endpoint busy, attempting fallback model', { status: response.status });
-        const fallbackModel = 'gemini-2.0-flash-lite';
-        const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/${fallbackModel}:generateContent`;
+        const fallbackModel = 'gemini-flash-lite-latest';
+        const modelsPrefix = this.baseUrl.endsWith('/models') ? this.baseUrl : `${this.baseUrl}/models`;
+        const fallbackUrl = `${modelsPrefix}/${fallbackModel}:generateContent`;
         try {
           response = await fetch(fallbackUrl, {
             method: 'POST',

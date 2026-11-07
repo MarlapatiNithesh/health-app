@@ -317,8 +317,8 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
         modelName: llmResult.modelName,
         modelVersion: llmResult.modelVersion,
         promptHash: llmResult.promptHash,
-        inputTokens: llmResult.tokens.input,
-        outputTokens: llmResult.tokens.output,
+        inputTokens: llmResult.tokens?.input ?? Math.round((finalContent || '').length / 4),
+        outputTokens: llmResult.tokens?.output ?? Math.round((finalContent || '').length / 4),
         latencyMs: llmResult.latencyMs,
       }),
       this.encounterRepo.appendMessage(encounterId, patientId, {
@@ -639,7 +639,13 @@ Do not wait. This is not a diagnosis, but your symptoms require professional cli
 
     // ── RAG evidence ────────────────────────────────────────────────────────────
     const docSummaries = (ragEvidence?.documents || [])
-      .map((d) => `  - [Doc ID: ${d.id}, File: ${d.originalFilename}, Type: ${d.docType}]: ${d.summary || 'Uploaded document'}`)
+      .map((d) => {
+        const extractionsList = d.extractions || d.extractedFields || [];
+        const extractionsText = extractionsList.length > 0
+          ? extractionsList.map((e) => `${e.fieldName}: ${e.normalizedValue || e.rawValue}`).join(', ')
+          : '';
+        return `  - [File: ${d.originalFilename}, Type: ${d.docType}]: ${d.summary || 'Uploaded document'}${extractionsText ? ` (Extracted Details: ${extractionsText})` : ''}`;
+      })
       .join('\n') || '  None uploaded';
 
     const chunkTexts = (ragEvidence?.vectorChunks || [])

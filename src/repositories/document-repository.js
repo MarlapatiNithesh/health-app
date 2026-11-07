@@ -249,15 +249,32 @@ export class DocumentRepository {
 
   async listDocuments(patientId, limit = 20) {
     const res = await this.pool.query(
-      `SELECT id, patient_id AS "patientId", doc_type AS "docType",
-              original_filename AS "originalFilename", storage_key AS "storageKey",
-              mime_type AS "mimeType", document_family_id AS "documentFamilyId",
-              version_number AS "versionNumber", change_classification AS "changeClassification",
-              summary, extraction_status AS "extractionStatus",
-              created_at AS "createdAt"
-         FROM health_documents
-        WHERE patient_id = $1 AND deleted_at IS NULL
-        ORDER BY created_at DESC
+      `SELECT d.id, d.patient_id AS "patientId", d.doc_type AS "docType",
+              d.original_filename AS "originalFilename", d.storage_key AS "storageKey",
+              d.mime_type AS "mimeType", d.document_family_id AS "documentFamilyId",
+              d.version_number AS "versionNumber", d.change_classification AS "changeClassification",
+              d.summary, d.extraction_status AS "extractionStatus",
+              d.created_at AS "createdAt",
+              COALESCE(
+                json_agg(
+                  json_build_object(
+                    'id', ef.id,
+                    'documentId', ef.document_id,
+                    'fieldName', ef.field_name,
+                    'rawValue', ef.raw_value,
+                    'normalizedValue', ef.normalized_value,
+                    'confidence', ef.confidence,
+                    'section', ef.section,
+                    'status', ef.status
+                  )
+                ) FILTER (WHERE ef.id IS NOT NULL),
+                '[]'::json
+              ) AS extractions
+         FROM health_documents d
+         LEFT JOIN extracted_fields ef ON ef.document_id = d.id
+        WHERE d.patient_id = $1 AND d.deleted_at IS NULL
+        GROUP BY d.id
+        ORDER BY d.created_at DESC
         LIMIT $2`,
       [patientId, limit]
     );

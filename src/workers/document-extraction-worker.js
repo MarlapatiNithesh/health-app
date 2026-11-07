@@ -52,7 +52,10 @@ Respond ONLY with the JSON array.`;
 
       try {
         const geminiApiKey = process.env.GEMINI_API_KEY;
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${geminiApiKey}`;
+        const geminiBaseUrl = (process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta').replace(/\/+$/, '');
+        const geminiModel = process.env.GEMINI_MODEL || 'gemini-flash-lite-latest';
+        const modelsPrefix = geminiBaseUrl.endsWith('/models') ? geminiBaseUrl : `${geminiBaseUrl}/models`;
+        const geminiUrl = `${modelsPrefix}/${geminiModel}:generateContent?key=${geminiApiKey}`;
         
         // In production, we would download the fileUrl, convert to base64, and send it in the inlineData.
         // For this architecture demo, we simulate the Vision API's structured output payload.

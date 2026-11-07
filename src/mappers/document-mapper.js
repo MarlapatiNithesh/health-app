@@ -35,6 +35,9 @@ export class DocumentMapper {
       extractions: Array.isArray(row.extractions)
         ? row.extractions.map(DocumentMapper.toExtractionDto)
         : [],
+      extractedFields: Array.isArray(row.extractions)
+        ? row.extractions.map(DocumentMapper.toExtractionDto)
+        : [],
     };
   }
 

@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   AppState,
   Linking,
+  LogBox,
   NativeModules,
   Platform,
   StyleSheet,
@@ -27,6 +28,81 @@ import {
 } from './health/healthService';
 import { uploadHealth } from './health/uploader';
 import * as ble from './health/bleService';
+
+LogBox.ignoreAllLogs(true);
+
+let Notifications = null;
+try {
+  Notifications = require('expo-notifications');
+  if (Notifications?.setNotificationHandler) {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        priority: Notifications.AndroidNotificationPriority?.MAX,
+      }),
+    });
+  }
+} catch (e) {
+  console.log('[App] expo-notifications load notice:', e?.message);
+}
+
+async function setupNotificationChannels() {
+  if (!Notifications || Platform.OS !== 'android') return;
+  try {
+    await Notifications.setNotificationChannelAsync('critical-health-alerts', {
+      name: 'Critical Health Alerts (Emergency 0s Bypass)',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#FF0055',
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+      bypassDnd: true,
+            enableVibrate: true,
+      showBadge: true,
+    });
+
+    await Notifications.setNotificationChannelAsync('pacing-health-alerts', {
+      name: 'Daily Pacing & Medication Reminders',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 200],
+      lightColor: '#00D1FF',
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+      bypassDnd: false,
+            enableVibrate: true,
+      showBadge: true,
+    });
+    console.log('[App] Notification channels configured');
+  } catch (e) {
+    console.log('[App] setupNotificationChannels err:', e?.message);
+  }
+}
+
+async function popHeadsUpNotification({ title, body, priority = 'normal', category = 'circadian_goal', data = {} }) {
+  if (!Notifications) {
+    console.log('[App] Notifications module not available for popup');
+    return;
+  }
+  try {
+    const isCritical = priority === 'critical' || category === 'emergency_protocol';
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: title || '⚡ Health Telemetry Update',
+        body: body || '',
+        data: data || {},
+                priority: Notifications.AndroidNotificationPriority.MAX,
+        color: isCritical ? '#FF0055' : '#00E5FF',
+      },
+      trigger: null,
+      channelId: isCritical ? 'critical-health-alerts' : 'pacing-health-alerts',
+    });
+    console.log('[App] Heads-up pop notification dispatched to OS lockscreen & tray:', title);
+  } catch (e) {
+    console.warn('[App] popHeadsUpNotification error:', e?.message);
+  }
+}
 
 const extractHost = (val) => {
   if (!val || typeof val !== 'string') return null;
@@ -516,6 +592,37 @@ function Shell() {
             push({ ...payload, databaseSync: { status: 'error', message: e?.message || 'Upload failed' } });
           }
         }
+        // ── Auto-Check Unread Server Notifications for Native Lockscreen / Heads-Up Popup ──
+        if (token.current && API_URL && Notifications) {
+          try {
+            const nRes = await fetch(`${API_URL}/v1/notifications?limit=5`, {
+              headers: { Authorization: `Bearer ${token.current}` },
+            });
+            if (nRes.ok) {
+              const nData = await nRes.json();
+              const unreadList = (nData?.notifications || []).filter(
+                (n) => n.status !== 'read' && n.status !== 'dismissed'
+              );
+              if (unreadList.length > 0) {
+                const top = unreadList[0];
+                const lastPopKey = memberStorageKey('last_native_pop_id', activeMemberId.current || 'unknown-member');
+                const lastPopId = await SecureStore.getItemAsync(lastPopKey).catch(() => null);
+                if (top.id !== lastPopId) {
+                  await SecureStore.setItemAsync(lastPopKey, top.id).catch(() => {});
+                  await popHeadsUpNotification({
+                    title: top.title,
+                    body: top.body,
+                    priority: top.priority,
+                    category: top.category,
+                    data: top,
+                  });
+                }
+              }
+            }
+          } catch (e) {
+            console.log('[Health] Notification server check notice:', e?.message);
+          }
+        }
       } catch (e) {
         console.log('[Health] sync error:', e?.message);
       } finally {
@@ -527,6 +634,35 @@ function Shell() {
   syncRef.current = sync;
 
   // ── Restore session and sync on startup ───────────────────────────────────
+  useEffect(() => {
+    setupNotificationChannels();
+    if (Notifications) {
+      (async () => {
+        try {
+          const { status: existingStatus } = await Notifications.getPermissionsAsync();
+          let finalStatus = existingStatus;
+          if (existingStatus !== 'granted') {
+            const { status } = await Notifications.requestPermissionsAsync();
+            finalStatus = status;
+          }
+          console.log('[App] Push notification permission status:', finalStatus);
+        } catch (err) {
+          console.log('[App] Push permission error:', err?.message);
+        }
+      })();
+
+      const responseSub = Notifications.addNotificationResponseReceivedListener?.((response) => {
+        const notifData = response?.notification?.request?.content?.data || {};
+        const js = `(function(){try{window.dispatchEvent(new CustomEvent('nativeNotificationTap',{detail:${JSON.stringify(notifData)}}));}catch(e){}}()); true;`;
+        web.current?.injectJavaScript(js);
+      });
+
+      return () => {
+        responseSub?.remove?.();
+      };
+    }
+  }, []);
+
   useEffect(() => {
     (async () => {
       try {
@@ -726,6 +862,11 @@ function Shell() {
 
       case 'WEB_CONSOLE_ERROR':
         console.error('[WebView JS Error]:', m.message, m.stack || '');
+        break;
+
+      case 'POP_NATIVE_NOTIFICATION':
+      case 'TRIGGER_HEADS_UP_NOTIFICATION':
+        popHeadsUpNotification(m.payload || {});
         break;
 
       case 'DOWNLOAD_PDF':

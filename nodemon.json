@@ -1,0 +1,17 @@
+{
+  "watch": [
+    "src"
+  ],
+  "ext": "js,mjs,cjs,json",
+  "ignore": [
+    "mobile-app/**",
+    "expo-mobile/**",
+    "uploads/**",
+    "scratch/**",
+    "node_modules/**",
+    "dist/**",
+    "*.log"
+  ],
+  "delay": 500
+}
+

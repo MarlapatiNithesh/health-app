@@ -38,9 +38,16 @@ export class TimeseriesRepository {
       const metric = (raw.metricType || raw.metric || raw.type || '').toLowerCase();
       const defaultAgg = getDefaultAggregation(metric) || 'instant';
 
-      let targetAgg = raw.aggregation || defaultAgg;
-      if (metric === 'steps') {
-        targetAgg = 'interval';
+      let targetAgg = raw.aggregation;
+      if (!targetAgg) {
+        const ext = String(raw.externalId || raw.sourceRecordId || raw.source_record_id || '');
+        if (metric === 'steps' && (ext.includes('-today-') || ext.includes('-history-') || ext.includes('steps-today') || ext.includes('steps-history'))) {
+          targetAgg = 'daily_total';
+        } else if (metric === 'steps') {
+          targetAgg = 'interval';
+        } else {
+          targetAgg = defaultAgg;
+        }
       }
 
       const mappedRow = mapTimeseriesRow(raw, rowProvider, rowMemberId, {
@@ -168,7 +175,7 @@ export class TimeseriesRepository {
          metric_type      AS metric,
          recorded_at      AS "recordedAt",
          ended_at         AS "endedAt",
-         local_date       AS "localDate",
+         local_date::text AS "localDate",
          value,
          unit,
          provider,

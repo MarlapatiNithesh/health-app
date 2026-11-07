@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5173",
     "start": "vite --host 0.0.0.0 --port 5173",
+    "android": "npm run expo:android",
     "expo": "node ../scripts/sync-dev-ip.js && npm --prefix ../expo-mobile start",
     "expo:android": "node ../scripts/sync-dev-ip.js && npm --prefix ../expo-mobile run android",
     "expo:ios": "node ../scripts/sync-dev-ip.js && npm --prefix ../expo-mobile run ios",

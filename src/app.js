@@ -1,4 +1,5 @@
 import express from 'express';
+import path from 'node:path';
 import { loadConfig } from './config/env.js';
 import { createDatabasePool } from './database/pool.js';
 import { createRepositories } from './repositories/index.js';
@@ -245,6 +246,24 @@ export function createApp(config = loadConfig()) {
   } else {
     logger.warn('NotificationRepository skipped: no DB pool available');
   }
+
+  // Serve built production mobile-app static assets directly on port 4000
+  const distPath = path.resolve(process.cwd(), 'mobile-app/dist');
+  app.use('/app', (_req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    next();
+  });
+  app.use('/app', express.static(distPath, { etag: false, lastModified: false }));
+  app.use('/assets', express.static(path.join(distPath, 'assets')));
+  app.use(express.static(distPath));
+  app.use('/app', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
 
   app.get('/', (_request, response) => {
     response.redirect('/docs');

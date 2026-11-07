@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { fileURLToPath } from 'node:url';
 
 function getLocalIp() {
   const ifaces = os.networkInterfaces();
@@ -43,7 +44,8 @@ function updateEnvFile(filePath, key, value) {
 }
 
 const localIp = getLocalIp();
-const rootDir = process.cwd();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const rootDir = path.resolve(__dirname, '..');
 const expoEnv = path.join(rootDir, 'expo-mobile', '.env');
 
 try {

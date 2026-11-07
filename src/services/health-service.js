@@ -1,4 +1,4 @@
-import { reconcileDailyMetrics } from '../domain/reconciliation.js';
+import { reconcileDailyMetrics, extractLocalDate } from '../domain/reconciliation.js';
 import { ApplicationError } from '../errors/application-error.js';
 import { validateHealthBatch, validateIdempotencyKey, validatePhoneConnection } from '../validation/input.js';
 import { withTransaction } from '../database/pool.js';
@@ -54,12 +54,20 @@ export class HealthService {
 
     const intraBatchDuplicates = samples.length - uniqueSamples.length;
 
+    const isPhoneProviderMatch = (prov) => {
+      if (!connection.provider) return true;
+      if (prov === connection.provider) return true;
+      if (prov === 'phone_pedometer' && ['health_connect', 'apple_health'].includes(connection.provider)) return true;
+      if (connection.provider === 'phone_pedometer' && ['health_connect', 'apple_health'].includes(prov)) return true;
+      return false;
+    };
+
     const connectionErrors = uniqueSamples.flatMap((sample, index) => {
       const errors = [];
-      if (connection.provider && sample.provider !== connection.provider) {
+      if (!isPhoneProviderMatch(sample.provider)) {
         errors.push({ field: `samples[${index}].provider`, message: `The active phone connection is ${connection.provider}.` });
       }
-      if (Array.isArray(connection.permissions) && connection.permissions.length > 0 && !connection.permissions.includes(sample.metric)) {
+      if (Array.isArray(connection.permissions) && connection.permissions.length > 0 && !connection.permissions.includes(sample.metric) && sample.provider !== 'phone_pedometer') {
         errors.push({ field: `samples[${index}].metric`, message: `Metric '${sample.metric}' is not granted by phone permissions.` });
       }
       return errors;
@@ -281,6 +289,34 @@ export class HealthService {
     validateDateRange(from, to);
     const samples = await this.healthSampleRepo.listSamples(memberId, from, to);
     const reconciled = reconcileDailyMetrics(samples);
+
+    // If querying general summary without strict date bounds, attach daily history for charting
+    if (!from && !to && Array.isArray(samples) && samples.length > 0) {
+      const samplesByDay = new Map();
+      for (const s of samples) {
+        const day = extractLocalDate(s);
+        const list = samplesByDay.get(day) || [];
+        list.push(s);
+        samplesByDay.set(day, list);
+      }
+      const sortedDays = Array.from(samplesByDay.keys()).sort().reverse();
+      const history = [];
+      for (const day of sortedDays) {
+        const daySamples = samplesByDay.get(day);
+        const recDay = reconcileDailyMetrics(daySamples);
+        history.push({
+          date: day,
+          steps: recDay.steps?.value || 0,
+          calories: recDay.calories?.value || 0,
+          distance: recDay.distance?.value || 0,
+          heartRate: recDay.heart_rate?.value || null,
+          spo2: recDay.spo2?.value || null,
+          sleep: recDay.sleep?.value || null,
+        });
+      }
+      reconciled.history = history;
+    }
+
     return HealthSampleMapper.toDailySummaryDto(reconciled);
   }
 

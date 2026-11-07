@@ -33,12 +33,12 @@ CREATE INDEX IF NOT EXISTS idx_notifications_status_scheduled ON notifications (
 CREATE INDEX IF NOT EXISTS idx_notifications_category_date ON notifications (member_id, category, created_at);
 
 CREATE OR REPLACE FUNCTION touch_notifications_updated_at()
-RETURNS TRIGGER LANGUAGE plpgsql AS $
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
   NEW.updated_at = now();
   RETURN NEW;
 END;
-$;
+$$;
 
 DROP TRIGGER IF EXISTS trg_notifications_updated_at ON notifications;
 CREATE TRIGGER trg_notifications_updated_at

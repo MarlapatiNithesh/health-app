@@ -12,28 +12,32 @@ import { logger } from '../logger.js';
 
 const DEFAULT_TIMEOUT_MS = 25_000;
 const FALLBACK_MODEL = 'gemini-flash-lite-latest';
-const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
+const DEFAULT_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 
 export class GeminiClient {
   /**
    * @param {object} opts
    * @param {string} [opts.apiKey]      - Gemini API key (defaults to GEMINI_API_KEY env var)
    * @param {string} [opts.model]       - Model name (defaults to GEMINI_MODEL env var)
+   * @param {string} [opts.baseUrl]     - Base URL (defaults to GEMINI_BASE_URL env var)
    * @param {number} [opts.timeoutMs]   - Request timeout in ms
    */
   constructor({
     apiKey = process.env.GEMINI_API_KEY || '',
     model = process.env.GEMINI_MODEL || 'gemini-flash-lite-latest',
+    baseUrl = process.env.GEMINI_BASE_URL || DEFAULT_BASE_URL,
     timeoutMs = parseInt(process.env.GEMINI_TIMEOUT_MS || String(DEFAULT_TIMEOUT_MS), 10),
   } = {}) {
     this.apiKey = apiKey;
     this.model = model;
+    this.baseUrl = (baseUrl || DEFAULT_BASE_URL).replace(/\/+$/, '');
     this.timeoutMs = timeoutMs;
   }
 
   /** Build the endpoint URL for a given model and action. */
   #url(model, action = 'generateContent') {
-    return `${BASE_URL}/${model}:${action}?key=${this.apiKey}`;
+    const modelsPrefix = this.baseUrl.endsWith('/models') ? this.baseUrl : `${this.baseUrl}/models`;
+    return `${modelsPrefix}/${model}:${action}?key=${this.apiKey}`;
   }
 
   /**
@@ -114,7 +118,8 @@ export class GeminiClient {
   async embedContent(text) {
     if (!this.apiKey || !text) return new Array(768).fill(0.01);
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${this.apiKey}`;
+      const modelsPrefix = this.baseUrl.endsWith('/models') ? this.baseUrl : `${this.baseUrl}/models`;
+      const url = `${modelsPrefix}/text-embedding-004:embedContent?key=${this.apiKey}`;
       const body = {
         model: 'models/text-embedding-004',
         content: { parts: [{ text: String(text).slice(0, 2048) }] },

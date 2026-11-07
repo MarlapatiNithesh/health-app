@@ -125,6 +125,30 @@ export class DocumentService {
     return hash;
   }
 
+  #extractTextFromPdf(buffer) {
+    if (!buffer || buffer.length === 0) return '';
+    try {
+      const raw = buffer.toString('latin1');
+      const textPieces = [];
+      const tjRegex = /\(([^)]+)\)\s*Tj/g;
+      let match;
+      while ((match = tjRegex.exec(raw)) !== null) {
+        if (match[1]) textPieces.push(match[1]);
+      }
+      const tjArrayRegex = /\[(.*?)\]\s*TJ/g;
+      while ((match = tjArrayRegex.exec(raw)) !== null) {
+        const inner = match[1];
+        const innerPieces = inner.match(/\(([^)]+)\)/g);
+        if (innerPieces) {
+          textPieces.push(innerPieces.map(p => p.slice(1, -1)).join(''));
+        }
+      }
+      return textPieces.join(' ').replace(/\\[nrtbf]/g, ' ').replace(/\s+/g, ' ').trim();
+    } catch {
+      return '';
+    }
+  }
+
   #computeContentFingerprint(entities = [], normalizedText = '') {
     const sortedTokens = entities
       .map((e) => `${e.fieldName}:${(e.normalizedValue || e.rawValue || '').toLowerCase().trim()}`)
@@ -207,6 +231,14 @@ export class DocumentService {
         );
         if (extractedText) {
           ocrEngine = 'gemini_vision';
+        } else if (mimeType?.includes('pdf')) {
+          const pdfStreamText = this.#extractTextFromPdf(buffer);
+          if (pdfStreamText && pdfStreamText.length > 5) {
+            extractedText = pdfStreamText;
+            ocrEngine = 'pdf_stream_extractor';
+          } else {
+            extractedText = buffer.toString('utf8');
+          }
         } else if (mimeType?.startsWith('image/')) {
           try {
             const { createWorker } = await import('tesseract.js');
@@ -416,15 +448,26 @@ ${text}`
             ]
           }
         ];
-        const rawJson = await this.geminiClient.generateContent(prompt);
+        const rawJson = await this.geminiClient.generateContent(prompt, '', {
+          temperature: 0.1,
+          responseMimeType: 'application/json',
+        });
         if (rawJson) {
-          const cleaned = rawJson.replace(/```json/gi, '').replace(/```/g, '').trim();
+          let cleaned = rawJson.replace(/```json/gi, '').replace(/```/g, '').trim();
+          const arrayMatch = cleaned.match(/\[\s*\{[\s\S]*\}\s*\]/);
+          if (arrayMatch) {
+            cleaned = arrayMatch[0];
+          }
           let parsed;
           try {
             parsed = JSON.parse(cleaned);
           } catch {
             const sanitized = cleaned.replace(/\\([^"\\\/bfnrtu]|u(?![\da-fA-F]{4}))/g, '\\\\$1');
             parsed = JSON.parse(sanitized);
+          }
+          if (!Array.isArray(parsed) && parsed && typeof parsed === 'object') {
+            const foundArray = Object.values(parsed).find(v => Array.isArray(v));
+            if (foundArray) parsed = foundArray;
           }
           const ALLOWED_FIELDS = new Set([
             'medication_name', 'dose', 'frequency', 'route',
