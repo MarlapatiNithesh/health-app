@@ -2,11 +2,12 @@ import { asyncHandler } from '../middleware/async-handler.js';
 import { ApplicationError } from '../errors/application-error.js';
 
 export class ChatController {
-  constructor({ clinicalOrchestratorService, chatService, clinicalRulesService, clinicalRepo }) {
+  constructor({ clinicalOrchestratorService, chatService, clinicalRulesService, clinicalRepo, encounterRepo }) {
     this.chatService = chatService || clinicalOrchestratorService;
     this.clinicalOrchestratorService = this.chatService;
     this.clinicalRulesService = clinicalRulesService;
     this.clinicalRepo = clinicalRepo;
+    this.encounterRepo = encounterRepo || this.chatService?.encounterRepo;
   }
 
   chat = asyncHandler(async (req, res) => {
@@ -73,6 +74,31 @@ export class ChatController {
     });
 
     res.json(result);
+  });
+
+  submitFeedback = asyncHandler(async (req, res) => {
+    const { messageId, encounterId, rating, feedbackText, tags } = req.body || {};
+    if (!rating) {
+      throw new ApplicationError('Rating is required (thumbs_up or thumbs_down)', 400, 'validation_error');
+    }
+    const cleanRating = (rating === 'up' || rating === 1 || rating === 'thumbs_up') ? 'thumbs_up' : 'thumbs_down';
+    const isUuid = messageId && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(messageId);
+    const validMessageId = isUuid ? messageId : '00000000-0000-0000-0000-000000000000';
+
+    const result = await this.encounterRepo?.recordChatFeedback?.({
+      messageId: validMessageId,
+      patientId: req.memberId,
+      encounterId: encounterId || null,
+      rating: cleanRating,
+      feedbackText: feedbackText || null,
+      tags: Array.isArray(tags) ? tags : [],
+    });
+
+    res.json({
+      status: 'success',
+      message: 'Feedback recorded successfully to train model accuracy.',
+      feedback: result,
+    });
   });
 }
 

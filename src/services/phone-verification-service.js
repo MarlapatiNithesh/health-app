@@ -70,7 +70,7 @@ export class PhoneVerificationService {
       } catch (parseErr) {
       }
 
-      if (msg.includes('verified tester') || msg.includes('21608')) {
+      if (msg.includes('verified tester') || msg.includes('21608') || (process.env.ALLOW_DEV_OTP === 'true' && msg.includes('not configured'))) {
         isTrialDevFallback = true;
         result = { sid: 'trial-dev-fallback', status: 'pending' };
       } else {

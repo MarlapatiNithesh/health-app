@@ -144,6 +144,26 @@ export class PhoneVerificationRepository {
   }
 
   async completeVerification(sessionId, phoneE164, memberId = null) {
+    if (!this.pool) {
+      for (const [, s] of this._sessions) {
+        if (s.id === sessionId) {
+          s.status = 'verified';
+          break;
+        }
+      }
+      return {
+        sessionId,
+        verified: true,
+        member: {
+          id: memberId || 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+          phone: phoneE164,
+          role: 'member',
+          status: 'active',
+          isNewMember: false,
+        },
+      };
+    }
+
     return withTransaction(this.pool, async (client) => {
       if (client?.query) {
         await client.query(

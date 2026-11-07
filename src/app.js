@@ -55,6 +55,15 @@ import { NotificationController } from './controllers/notification-controller.js
 import { createNotificationRouter } from './routes/notification-routes.js';
 import { NotificationSchedulerWorker } from './workers/notification-worker.js';
 
+// ── Advanced Medication Chronotherapy, OCR & Metabolic Pacing ──
+import { MedicationRepository } from './repositories/medication-repository.js';
+import { MedicationScheduleService } from './services/medication-schedule-service.js';
+import { MedicationOcrService } from './services/medication-ocr-service.js';
+import { TelemetryAnomalyService } from './services/telemetry-anomaly-service.js';
+import { MetabolicPacingService } from './services/metabolic-pacing-service.js';
+import { MedicationWellnessController } from './controllers/medication-wellness-controller.js';
+import { createMedicationWellnessRouter } from './routes/medication-wellness-routes.js';
+
 export function createApp(config = loadConfig()) {
   if (!config.jwtSecret) throw new Error('JWT_SECRET is required');
 
@@ -245,6 +254,53 @@ export function createApp(config = loadConfig()) {
     app.locals.notificationService = notificationService;
   } else {
     logger.warn('NotificationRepository skipped: no DB pool available');
+  }
+
+  // ── Register Advanced Medication Chronotherapy, OCR & Metabolic Pacing ──
+  const medicationRepo = repositories.medicationRepo ?? (pool ? new MedicationRepository(pool) : null);
+  if (medicationRepo) {
+    const notificationService = app.locals.notificationService || config.notificationService || null;
+    const medicationScheduleService = new MedicationScheduleService({
+      medicationRepo,
+      notificationService,
+      clinicalRepo,
+    });
+    const medicationOcrService = new MedicationOcrService({
+      medicationScheduleService,
+    });
+    const telemetryAnomalyService = new TelemetryAnomalyService({
+      notificationService,
+      medicationRepo,
+      clinicalRepo,
+    });
+    const metabolicPacingService = new MetabolicPacingService({
+      medicationRepo,
+      notificationService,
+      clinicalRepo,
+      wearableRepo,
+    });
+
+    const medicationWellnessController = new MedicationWellnessController({
+      medicationScheduleService,
+      medicationOcrService,
+      telemetryAnomalyService,
+      metabolicPacingService,
+    });
+
+    const medWellnessRouter = createMedicationWellnessRouter(
+      medicationWellnessController,
+      config.jwtSecret,
+      memberRepo,
+    );
+
+    app.use('/', medWellnessRouter);
+    app.use('/v1', medWellnessRouter);
+    logger.info('Medication & Metabolic Pacing routes registered at /medications and /wellness');
+
+    app.locals.medicationScheduleService = medicationScheduleService;
+    app.locals.medicationOcrService = medicationOcrService;
+    app.locals.telemetryAnomalyService = telemetryAnomalyService;
+    app.locals.metabolicPacingService = metabolicPacingService;
   }
 
   // Serve built production mobile-app static assets directly on port 4000
