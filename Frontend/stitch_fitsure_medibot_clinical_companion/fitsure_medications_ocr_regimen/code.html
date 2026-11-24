@@ -1,0 +1,358 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>FitSure - Medications Chrono-Regimen &amp; OCR</title>
+<!-- Tailwind CSS v3 with Forms & Container Plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Font: Plus Jakarta Sans -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<script data-purpose="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              lime: '#B4E858',
+              limeLight: '#E8F8CE',
+              limeDark: '#79B31E',
+              dark: '#14171A',
+              cardBg: '#FFFFFF',
+              surfaceBg: '#F8FAF7',
+              pillAmber: '#FFF4E5',
+              amberText: '#D97706',
+              pillPurple: '#F3E8FF',
+              purpleText: '#7E22CE',
+            }
+          },
+          boxShadow: {
+            'soft': '0 4px 20px -2px rgba(18, 22, 28, 0.04)',
+            'card': '0 8px 30px -4px rgba(22, 34, 18, 0.06)',
+            'nav': '0 -6px 25px rgba(0, 0, 0, 0.04)',
+            'scanner': '0 10px 25px -5px rgba(132, 204, 22, 0.25)',
+          }
+        }
+      }
+    }
+  </script>
+<style data-purpose="base-resets">
+    body {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      background-color: #ECEEE9;
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+    }
+    /* Hide scrollbars */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+<style data-purpose="animations">
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.9; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(1.08); }
+    }
+    .scan-beam {
+      animation: scanMovement 2.4s ease-in-out infinite;
+    }
+    @keyframes scanMovement {
+      0%, 100% { transform: translateY(0%); }
+      50% { transform: translateY(180%); }
+    }
+  </style>
+</head>
+<body class="flex justify-center items-center min-h-screen p-0 sm:py-6">
+<!-- Mobile Frame Container (iPhone 16 Pro dimensions) -->
+<main class="w-full max-w-[400px] h-[874px] bg-[#F7F9F5] rounded-[48px] overflow-hidden flex flex-col relative shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] border-black border-4" style="width: 390px; max-width: 390px; height: 844px; max-height: 844px; border: 4px solid rgb(0, 0, 0); border-radius: 48px; overflow: hidden; display: flex; flex-direction: column;">
+<!-- BEGIN: TopStatusBar -->
+<div class="w-full h-11 pt-3 px-8 flex justify-between items-center z-30 shrink-0" data-purpose="ios-status-bar">
+<span class="text-sm font-bold text-gray-900 tracking-tight">9:41</span>
+<!-- Dynamic Island pill representation -->
+<div class="w-24 h-5 bg-black rounded-full mx-auto -ml-3"></div>
+<div class="flex items-center space-x-1.5 text-gray-900">
+<!-- Cellular Signal -->
+<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 19.4c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l1.9-1.9C9.23 19.66 10.57 20 12 20c4.97 0 9-4.03 9-9s-4.03-9-9-9zm0 15c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+<!-- Wifi -->
+<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 4C7.31 4 3.07 5.9 0 8.98L12 21 24 8.98C20.93 5.9 16.69 4 12 4zm0 3.5c3.55 0 6.77 1.42 9.15 3.73L12 18.41 2.85 11.23C5.23 8.92 8.45 7.5 12 7.5z"></path></svg>
+<!-- Battery -->
+<div class="w-5 h-2.5 border border-black rounded-sm p-0.5 flex items-center">
+<div class="h-full bg-black rounded-[1px] w-3/4"></div>
+</div>
+</div>
+</div>
+<!-- END: TopStatusBar -->
+<!-- BEGIN: NavigationHeader -->
+<header class="px-5 pt-1 pb-3 flex items-center justify-between shrink-0"><button aria-label="Go Back" class="w-10 h-10 rounded-full bg-white border border-gray-100 shadow-sm flex items-center justify-center text-gray-700 active:scale-95 transition-transform">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M15 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+</svg>
+</button>
+<h1 class="text-base font-bold text-gray-900 tracking-tight">Care plan</h1>
+<button aria-label="Emergency SOS" class="px-3 py-1.5 rounded-full bg-rose-500 hover:bg-rose-500 active:scale-95 text-white font-bold text-xs shadow-sm flex items-center space-x-1 transition-transform">
+<svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+<span>SOS</span>
+</button></header>
+<!-- END: NavigationHeader -->
+<!-- Scrollable Content View -->
+<div class="flex-1 overflow-y-auto px-5 pb-28 pt-1 no-scrollbar space-y-4"><!-- 1. Urgent Refill Alert Banner -->
+<div class="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 flex items-center justify-between shadow-2xs gap-2">
+<div class="flex items-start space-x-2.5 flex-1">
+<div class="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5">
+<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+</svg>
+</div>
+<div>
+<p class="text-xs font-bold text-gray-900 leading-tight">Refill alert</p>
+<p class="text-[11px] text-amber-800 leading-snug mt-0.5">Atorvastatin runs out in 6 days · Request a refill before Thursday's visit.</p>
+</div>
+</div>
+<button class="px-3 py-1.5 bg-gray-900 hover:bg-black active:scale-95 text-white font-bold text-xs rounded-full shrink-0 shadow-sm transition-transform">
+Refill
+</button>
+</div>
+
+<!-- 2. Today's Medication Schedule -->
+<section class="space-y-2.5">
+<div class="flex items-center justify-between px-1">
+<div>
+<h2 class="text-sm font-extrabold text-gray-900 tracking-tight">Today's medication</h2>
+<p class="text-[11px] font-semibold text-gray-500">1 of 4 taken</p>
+</div>
+<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+25% Done
+</span>
+</div>
+
+<!-- Dose 1: Metformin 500 mg (Taken) -->
+<div class="bg-white rounded-2xl p-3.5 border border-gray-100 shadow-soft flex items-center justify-between">
+<div class="flex items-center space-x-3">
+<div class="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
+<svg class="w-5 h-5 text-emerald-600 -rotate-45" fill="currentColor" viewBox="0 0 24 24">
+<path d="M6 3a6 6 0 0 0-6 6v6a6 6 0 0 0 12 0V9a6 6 0 0 0-6-6zm4 9H2V9a4 4 0 0 1 8 0v3z"></path>
+</svg>
+</div>
+<div>
+<div class="flex items-center space-x-1.5">
+<span class="text-xs font-bold text-gray-900">08:00</span>
+<span class="text-gray-300 font-normal">·</span>
+<span class="text-xs font-bold text-gray-800">Metformin 500 mg</span>
+</div>
+<p class="text-[11px] text-gray-400 font-medium">With breakfast</p>
+</div>
+</div>
+<span class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold shrink-0">
+<svg class="w-3 h-3 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+<path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path>
+</svg>
+<span>Taken 08:04</span>
+</span>
+</div>
+
+<!-- Dose 2: Amlodipine 5 mg (Due now - active card with CTAs) -->
+<div class="bg-white rounded-2xl p-3.5 border-2 border-lime-400 shadow-soft space-y-3 relative overflow-hidden">
+<div class="flex items-center justify-between">
+<div class="flex items-center space-x-3">
+<div class="w-10 h-10 rounded-xl bg-lime-50 border border-lime-200 flex items-center justify-center shrink-0">
+<svg class="w-5 h-5 text-lime-700" fill="currentColor" viewBox="0 0 24 24">
+<circle cx="12" cy="12" r="9"></circle>
+</svg>
+</div>
+<div>
+<div class="flex items-center space-x-1.5">
+<span class="text-xs font-bold text-gray-900">09:00</span>
+<span class="text-gray-300 font-normal">·</span>
+<span class="text-xs font-bold text-gray-900">Amlodipine 5 mg</span>
+</div>
+<p class="text-[11px] text-gray-500 font-medium">For blood pressure · <span class="text-lime-700 font-bold">due now</span></p>
+</div>
+</div>
+<span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-lime-100 text-lime-800 border border-lime-300 text-[10px] font-bold">
+<span class="w-1.5 h-1.5 rounded-full bg-lime-500 animate-pulse"></span>
+<span>Due now</span>
+</span>
+</div>
+<!-- Action buttons -->
+<div class="flex items-center space-x-2 pt-0.5">
+<button class="flex-1 py-2 px-3 bg-[#B4E858] hover:brightness-105 active:scale-95 text-gray-950 font-bold text-xs rounded-xl shadow-xs flex items-center justify-center space-x-1.5 transition-all">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
+</svg>
+<span>Mark as taken</span>
+</button>
+<button class="py-2 px-3 bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-700 font-semibold text-xs rounded-xl flex items-center justify-center space-x-1 transition-all">
+<svg class="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span>Snooze 15 min</span>
+</button>
+</div>
+</div>
+
+<!-- Dose 3: Metformin 500 mg (Upcoming) -->
+<div class="bg-white rounded-2xl p-3.5 border border-gray-100 shadow-soft flex items-center justify-between opacity-90">
+<div class="flex items-center space-x-3">
+<div class="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0 text-gray-500">
+<svg class="w-5 h-5 -rotate-45" fill="currentColor" viewBox="0 0 24 24">
+<path d="M6 3a6 6 0 0 0-6 6v6a6 6 0 0 0 12 0V9a6 6 0 0 0-6-6zm4 9H2V9a4 4 0 0 1 8 0v3z"></path>
+</svg>
+</div>
+<div>
+<div class="flex items-center space-x-1.5">
+<span class="text-xs font-bold text-gray-700">20:00</span>
+<span class="text-gray-300 font-normal">·</span>
+<span class="text-xs font-bold text-gray-800">Metformin 500 mg</span>
+</div>
+<p class="text-[11px] text-gray-400 font-medium">With dinner</p>
+</div>
+</div>
+<span class="px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[10px] font-semibold">
+Upcoming
+</span>
+</div>
+
+<!-- Dose 4: Atorvastatin 20 mg (Upcoming) -->
+<div class="bg-white rounded-2xl p-3.5 border border-gray-100 shadow-soft flex items-center justify-between opacity-90">
+<div class="flex items-center space-x-3">
+<div class="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0 text-gray-500">
+<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"></path>
+</svg>
+</div>
+<div>
+<div class="flex items-center space-x-1.5">
+<span class="text-xs font-bold text-gray-700">22:00</span>
+<span class="text-gray-300 font-normal">·</span>
+<span class="text-xs font-bold text-gray-800">Atorvastatin 20 mg</span>
+</div>
+<p class="text-[11px] text-gray-400 font-medium">Before bed</p>
+</div>
+</div>
+<span class="px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[10px] font-semibold">
+Upcoming
+</span>
+</div>
+</section><div class="bg-white rounded-2xl p-4 border border-lime-200 shadow-soft space-y-3"><div class="flex items-start justify-between"><div class="flex items-center space-x-2.5"><div class="w-10 h-10 rounded-xl bg-lime-100 border border-lime-300 flex items-center justify-center text-lime-800 shrink-0"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path><circle cx="12" cy="13" r="3"></circle></svg></div><div><h3 class="text-xs font-bold text-gray-900 leading-snug">Smart Medication OCR &amp; Verification</h3><p class="text-[11px] text-gray-500 font-medium">Scan pill strips or prescription to auto-verify dosage</p></div></div><span class="px-2 py-0.5 rounded-full bg-lime-50 text-lime-800 border border-lime-200 text-[9px] font-extrabold uppercase tracking-wider">AI OCR</span></div><div class="grid grid-cols-2 gap-2 pt-0.5"><button class="py-2 px-3 bg-[#B4E858] hover:brightness-105 active:scale-95 text-gray-950 font-bold text-xs rounded-xl shadow-xs flex items-center justify-center space-x-1.5 transition-all"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 012-2h2m10 0h2a2 2 0 012 2v2m0 10v2a2 2 0 01-2 2h-2m-10 0H5a2 2 0 01-2-2v-2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>Scan Pill / RX</span></button><button class="py-2 px-3 bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-700 font-semibold text-xs rounded-xl flex items-center justify-center space-x-1 transition-all"><svg class="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>Add Medicine</span></button></div></div>
+
+<!-- 3. Appointments Section -->
+<section class="space-y-2.5 pt-1">
+<div class="flex items-center justify-between px-1">
+<h2 class="text-sm font-extrabold text-gray-900 tracking-tight">Appointments</h2>
+<button class="text-xs font-bold text-lime-700 hover:text-lime-800 flex items-center space-x-1 active:scale-95 transition-transform">
+<span>+ Add</span>
+</button>
+</div>
+
+<!-- Appointment 1: NOV 12 Dr. K. Weber -->
+<div class="bg-white rounded-2xl p-3.5 border border-gray-100 shadow-soft flex items-start space-x-3">
+<div class="w-11 h-12 rounded-xl bg-lime-100 border border-lime-200 flex flex-col items-center justify-center shrink-0 text-center">
+<span class="text-[9px] font-extrabold text-lime-800 uppercase tracking-wider">NOV</span>
+<span class="text-sm font-extrabold text-gray-900 leading-none">12</span>
+</div>
+<div class="flex-1">
+<div class="flex items-center justify-between">
+<h3 class="text-xs font-bold text-gray-900 leading-snug">Dr. K. Weber</h3>
+<span class="text-xs font-bold text-gray-900">10:30</span>
+</div>
+<p class="text-[11px] text-gray-500 font-medium">Endocrinology</p>
+<div class="mt-1.5 flex items-center space-x-1 text-[10px] text-gray-500 bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">
+<svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span>Reminders: day before, 2 hours before</span>
+</div>
+</div>
+</div>
+
+<!-- Appointment 2: DEC Yearly eye screening -->
+<div class="bg-white rounded-2xl p-3.5 border border-dashed border-gray-200 shadow-soft flex items-start space-x-3">
+<div class="w-11 h-12 rounded-xl bg-gray-100 border border-gray-200 flex flex-col items-center justify-center shrink-0 text-center text-gray-600">
+<span class="text-[9px] font-extrabold text-gray-600 uppercase tracking-wider">DEC</span>
+<span class="text-sm font-extrabold text-gray-700 leading-none">—</span>
+</div>
+<div class="flex-1">
+<div class="flex items-center justify-between">
+<h3 class="text-xs font-bold text-gray-900 leading-snug">Yearly eye screening</h3>
+<span class="text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">not booked yet</span>
+</div>
+<p class="text-[11px] text-gray-500 font-medium mt-0.5">Due by December</p>
+</div>
+</div>
+</section>
+
+<!-- 4. Escalation Protocol: If a dose is missed -->
+<section class="bg-white rounded-2xl p-3.5 border border-gray-100 shadow-soft space-y-2.5"><div class="flex items-center space-x-2"><div class="w-6 h-6 rounded-lg bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-800 shrink-0"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></div><h2 class="text-xs font-bold text-gray-900 tracking-tight">Missed dose protocol</h2></div><div class="space-y-2 text-xs text-gray-700 pt-0.5"><div class="flex items-start space-x-2 bg-gray-50 p-2.5 rounded-xl border border-gray-100"><span class="w-2 h-2 rounded-full bg-rose-500 mt-1 shrink-0"></span><p class="text-[11px] leading-snug text-gray-700 font-medium"><span class="font-bold text-gray-900">If a dose is missed:</span> 30-min push notification followed by CloseOne Guardian beacon.</p></div></div></section></div>
+<!-- BEGIN: BottomNavigationBar -->
+<!-- Exact floating rounded bar layout with center elevated button from IMAGE_29 & IMAGE_26 -->
+<nav class="absolute bottom-4 inset-x-4 bg-white/95 backdrop-blur-xl border border-gray-200/80 rounded-[32px] px-3 py-2 shadow-card flex items-center justify-between z-40"><!-- 1. Today -->
+<a class="flex flex-col items-center justify-center py-1 text-gray-400 hover:text-gray-900 transition-colors flex-1" href="#today">
+<svg class="w-5 h-5 stroke-[1.8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="text-[9px] font-medium mt-1">Today</span>
+</a>
+<!-- 2. Records -->
+<a class="flex flex-col items-center justify-center py-1 text-gray-400 hover:text-gray-900 transition-colors flex-1" href="#records">
+<svg class="w-5 h-5 stroke-[1.8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="text-[9px] font-medium mt-1">Records</span>
+</a>
+<!-- 3. Care (Active) -->
+<a class="flex flex-col items-center justify-center py-1 text-gray-900 transition-colors flex-1 relative" href="#care">
+<span class="w-1.5 h-1.5 rounded-full bg-lime-500 absolute -top-0.5"></span>
+<svg class="w-5 h-5 text-lime-700" fill="currentColor" viewBox="0 0 24 24">
+<path d="M4.5 10.5C3.67 10.5 3 11.17 3 12s.67 1.5 1.5 1.5h6c.83 0 1.5-.67 1.5-1.5s-.67-1.5-1.5-1.5h-6zm9 0c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5h6c.83 0 1.5-.67 1.5-1.5s-.67-1.5-1.5-1.5h-6z"></path>
+</svg>
+<span class="text-[9px] font-bold text-gray-900 mt-1">Care</span>
+</a>
+<!-- 4. Vitals -->
+<a class="flex flex-col items-center justify-center py-1 text-gray-400 hover:text-gray-900 transition-colors flex-1" href="#vitals">
+<svg class="w-5 h-5 stroke-[1.8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="text-[9px] font-medium mt-1">Vitals</span>
+</a>
+<!-- 5. Medibot -->
+<a class="flex flex-col items-center justify-center py-1 text-gray-700 hover:text-gray-900 transition-colors flex-1 relative -top-3" href="#medibot"><div class="w-10 h-10 rounded-full bg-[#B4E858] border-2 border-white shadow-md flex items-center justify-center text-gray-950"><svg class="w-5 h-5 stroke-[2]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" stroke-linecap="round" stroke-linejoin="round"></path></svg></div><span class="text-[9px] font-bold text-gray-800 mt-0.5">MediBot</span></a>
+<!-- 6. More -->
+<a class="flex flex-col items-center justify-center py-1 text-gray-400 hover:text-gray-900 transition-colors flex-1" href="#more">
+<svg class="w-5 h-5 stroke-[1.8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="text-[9px] font-medium mt-1">More</span>
+</a></nav>
+<!-- END: BottomNavigationBar -->
+<!-- iOS Home Indicator bar -->
+<div class="absolute bottom-1 inset-x-0 flex justify-center z-50 pointer-events-none">
+<div class="w-32 h-1 bg-black/30 rounded-full"></div>
+</div>
+</main>
+<script data-purpose="card-micro-interactions">
+    document.addEventListener('DOMContentLoaded', () => {
+      // Micro-interaction handlers for dosage actions
+      const buttons = document.querySelectorAll('button:not([disabled])');
+      buttons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+        });
+      });
+    });
+  </script>
+
+
+
+
+
+
+
+
+</body></html>

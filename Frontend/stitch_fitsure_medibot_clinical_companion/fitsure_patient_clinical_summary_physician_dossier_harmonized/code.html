@@ -1,0 +1,742 @@
+<!DOCTYPE html><html lang="en" style="width: 390px; height: 844px; overflow: hidden; position: relative; margin: 0px auto; background-color: rgb(0, 0, 0);"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport">
+<meta content="mobile_tab" name="shell-type">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            lime: {
+              50: '#f7fee7',
+              100: '#ecfccb',
+              200: '#d9f99d',
+              300: '#bef264',
+              400: '#a3e635',
+              500: '#84cc16',
+              600: '#65a30d',
+              900: '#365314',
+            },
+            fitsure: {
+              accent: '#97E432',
+              accentHover: '#84cc16',
+              softMint: '#f0fdf4',
+              slateDark: '#0f172a',
+              slateMuted: '#64748b',
+              borderLight: '#e4f4d2',
+              cardBg: '#ffffff',
+              subtleBg: '#f8fafc',
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    @layer base {
+      html, body {
+        width: 100vw;
+        margin: 0;
+        padding: 0;
+        background-color: #f8fafc;
+        color: #0f172a;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+      }
+      .pb-safe {
+        padding-bottom: env(safe-area-inset-bottom, 16px);
+      }
+      .pt-safe {
+        padding-top: env(safe-area-inset-top, 16px);
+      }
+    }
+    ::-webkit-scrollbar { display: none; }
+  </style>
+</head>
+<body class="bg-[#f8fafc] text-slate-900 flex flex-col min-h-screen relative antialiased selection:bg-[#bef264]/40" style="width: 390px; height: 844px; max-height: 844px; border: 4px solid rgb(0, 0, 0); border-radius: 48px; overflow: hidden; display: flex; flex-direction: column; position: relative; box-sizing: border-box; margin: 0px auto; background-color: rgb(248, 250, 252);"><div class="w-full pt-3 px-7 flex items-center justify-between text-slate-900 text-[14px] font-semibold bg-white/90 backdrop-blur-md z-50 flex-shrink-0 select-none"><span>9:41</span><div class="w-24 h-4 bg-slate-950 rounded-full mx-auto -mt-1"></div><div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[16px]">signal_cellular_4_bar</span><span class="material-symbols-outlined text-[16px]">wifi</span><span class="material-symbols-outlined text-[18px]">battery_full</span></div></div>
+<!-- TOP HEADER -->
+<header class="w-full z-40 bg-white/90 backdrop-blur-md border-b border-slate-100 flex-shrink-0 shadow-xs">
+<div class="h-16 px-4 flex items-center justify-between gap-2 max-w-lg mx-auto">
+<div class="flex items-center gap-2.5 min-w-0">
+<div class="relative flex-shrink-0">
+<div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#84cc16] to-[#bef264] flex items-center justify-center shadow-sm text-slate-900 font-bold">
+<span class="material-symbols-outlined text-[20px]">person</span>
+</div>
+<span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#84cc16] ring-2 ring-white"></span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5">
+<span class="font-bold text-slate-900 text-[17px] leading-tight truncate">Clinical Dossier</span>
+
+</div>
+<div class="flex items-center gap-1 text-[11px] text-slate-500">
+<span>Dexcom &amp; Watch 2</span>
+<span class="w-1 h-1 rounded-full bg-slate-300"></span>
+
+</div>
+</div>
+</div>
+<div class="flex items-center gap-1 flex-shrink-0">
+<button class="w-9 h-9 rounded-full flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors">
+<span class="material-symbols-outlined text-[20px]">calendar_today</span>
+</button>
+<button class="relative w-9 h-9 rounded-full flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors">
+<span class="material-symbols-outlined text-[22px]">notifications</span>
+<span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white"></span>
+</button>
+<div class="w-7 h-7 rounded-xl bg-[#ecfccb] text-[#365314] flex items-center justify-center text-[12px] font-bold ml-0.5">
+          SR
+        </div>
+</div>
+</div>
+</header>
+<!-- MAIN SCROLLABLE CONTENT -->
+<main class="flex flex-col relative w-full px-4 pb-32 max-w-lg mx-auto flex-1" style="overflow-y: auto; scrollbar-width: none; padding-top: 0.75rem; padding-bottom: 7rem;">
+<div class="flex flex-col w-full space-y-3.5">
+<!-- TOP CLINICAL BADGE & CONTROLS -->
+<div class="flex items-center justify-between gap-2 pt-1">
+<div class="flex items-center gap-1.5 bg-[#f0fdf4] border border-[#d9f99d] text-[#365314] px-2.5 py-1 rounded-full shadow-2xs">
+
+
+</div>
+<!-- Density Switcher -->
+<div class="flex items-center bg-slate-100 rounded-full p-0.5 border border-slate-200/60">
+<button class="px-2.5 py-0.5 rounded-full bg-white text-slate-900 shadow-sm text-[11px] font-bold transition-all duration-200" id="viewDenseBtn">
+            Clinical
+          </button>
+<button class="px-2.5 py-0.5 rounded-full text-slate-500 text-[11px] font-semibold transition-all duration-200 hover:text-slate-900" id="viewConciseBtn">
+            Concise
+          </button>
+</div>
+</div>
+<!-- PATIENT IDENTITY DOSSIER CARD -->
+<div class="relative bg-white rounded-3xl p-4 border border-[#e4f4d2] shadow-sm overflow-hidden">
+<div class="absolute -right-8 -bottom-8 w-36 h-36 bg-[#ecfccb]/50 rounded-full blur-2xl pointer-events-none"></div>
+<div class="flex items-start gap-3.5 relative">
+<div class="relative flex-shrink-0">
+<img class="w-14 h-14 rounded-2xl object-cover ring-2 ring-[#bef264] shadow-sm" data-alt="Portrait of Sajibur Rahman, a 34-year-old male with a warm friendly expression" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDV9Y9SB4w-eNxzqSNuCmXvrNXJQwvr8N8e0C-rI3Dohkyb5zLb_zhH6OzVAmzAW3tX1uEaotN5a7E1CkXJUmENAWx6VTs5VwovvMtLWwLJbgjQYFmRVUMhKvzHWJwYWRk8l_g2WEMnWSAgRBtC8wRTrY3Cw0UWt09gsOVQyhMYylDoMeok7zTrEpMdaKxnmJ3Q2uNgaF808WIzBzT5HodiuBFR3CtDnMj2Pg4On0I">
+<span class="absolute -bottom-1 -right-1 w-5 h-5 bg-[#97E432] text-slate-950 rounded-full flex items-center justify-center ring-2 ring-white shadow">
+<span class="material-symbols-outlined text-[13px] font-bold">check</span>
+</span>
+</div>
+<div class="flex flex-col min-w-0 flex-1">
+<div class="flex items-center justify-between gap-1">
+<h2 class="text-[19px] font-extrabold text-slate-900 truncate">Sajibur Rahman</h2>
+<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">MRN #8420-SR</span>
+</div>
+<div class="flex items-center gap-2 mt-1">
+<span class="text-[12px] text-slate-600 font-medium">34 yrs · Male</span>
+<span class="w-1 h-1 rounded-full bg-slate-300"></span>
+<span class="text-[12px] font-bold text-[#365314] bg-[#ecfccb] px-1.5 py-0.2 rounded">Blood A+</span>
+<span class="w-1 h-1 rounded-full bg-slate-300"></span>
+<span class="text-[12px] text-slate-600 font-medium">BMI 24.1</span>
+</div>
+<div class="flex items-center gap-1.5 mt-2 pt-2 border-t border-slate-100">
+<span class="material-symbols-outlined text-[#65a30d] text-[16px]">stethoscope</span>
+<p class="text-[11px] text-slate-600 truncate">
+<span class="font-bold text-slate-900">Dr. Elena Chen, MD</span> · Primary Cardiometabolic
+              </p>
+</div>
+</div>
+</div>
+<div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-600">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-[#84cc16] animate-pulse"></span>
+<span>Dexcom G7 &amp; Apple Watch Ultra 2</span>
+</div>
+<span class="text-[#365314] font-bold bg-[#f7fee7] px-2 py-0.5 rounded-full border border-[#bef264]">Continuous Stream</span>
+</div>
+</div>
+<!-- CRITICAL ALLERGIES & CONTRAINDICATION BANNER -->
+<div class="bg-rose-50/70 border border-rose-200/80 rounded-2xl p-3 flex items-start gap-2.5">
+<div class="w-7 h-7 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[17px]">warning</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5">
+<span class="text-[11px] text-rose-700 font-extrabold tracking-tight">ALLERGY &amp; CONTRAINDICATION</span>
+<span class="px-1.5 py-0.2 rounded bg-rose-200/70 text-rose-800 text-[9px] font-bold">MODERATE</span>
+</div>
+<p class="text-[12px] text-slate-700 mt-0.5 leading-snug">
+<span class="font-bold text-slate-900">Penicillin</span> (cutaneous rash, urticaria). NSAIDs well-tolerated. No severe anaphylactic history.
+          </p>
+</div>
+</div>
+<!-- PATIENT HISTORY BENTO GRID (NEW COMPACT & ICONIC) -->
+<div>
+<div class="flex items-center justify-between mb-2 px-1">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[#65a30d] text-[18px]">clinical_notes</span>
+<h3 class="text-[15px] font-bold text-slate-900">Comprehensive Patient History</h3>
+</div>
+<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#ecfccb] text-[#365314]">4-Domain Bento</span>
+</div>
+<div class="grid grid-cols-2 gap-2.5">
+<!-- Bento 1: Surgical & Hospitalization -->
+<div class="bg-white rounded-2xl p-3 border border-[#e4f4d2] shadow-2xs flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<span class="text-[10px] font-bold uppercase tracking-wider text-[#365314] flex items-center gap-1">
+<span class="material-symbols-outlined text-[15px] text-[#65a30d]">healing</span>
+                  Surgical &amp; Inpatient
+                </span>
+<span class="w-1.5 h-1.5 rounded-full bg-[#84cc16]"></span>
+</div>
+<ul class="space-y-1.5 text-[11px] text-slate-700">
+<li class="flex items-start gap-1">
+<span class="font-bold text-slate-900">2019:</span>
+<span class="leading-tight">Arthroscopic ACL Repair (R knee, full recovery)</span>
+</li>
+<li class="flex items-start gap-1">
+<span class="font-bold text-slate-900">2016:</span>
+<span class="leading-tight">Appendectomy (Laparoscopic, uncompl.)</span>
+</li>
+</ul>
+</div>
+<div class="mt-2 pt-1.5 border-t border-slate-100 text-[10px] text-slate-500 font-medium">
+              Anesthesia: No malignant hyperthermia
+            </div>
+</div>
+<!-- Bento 2: Family Medical History -->
+<div class="bg-white rounded-2xl p-3 border border-[#e4f4d2] shadow-2xs flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<span class="text-[10px] font-bold uppercase tracking-wider text-[#365314] flex items-center gap-1">
+<span class="material-symbols-outlined text-[15px] text-[#65a30d]">family_history</span>
+                  Family Pedigree
+                </span>
+<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+</div>
+<div class="space-y-1.5 text-[11px]">
+<div class="flex items-center justify-between bg-[#f8fafc] px-1.5 py-1 rounded">
+<span class="text-slate-600 font-medium">Father (68)</span>
+<span class="font-bold text-rose-700 text-[10px] bg-rose-50 px-1 rounded">CAD / MI at 62</span>
+</div>
+<div class="flex items-center justify-between bg-[#f8fafc] px-1.5 py-1 rounded">
+<span class="text-slate-600 font-medium">Mother (65)</span>
+<span class="font-bold text-amber-700 text-[10px] bg-amber-50 px-1 rounded">Type 2 Diabetes</span>
+</div>
+<div class="flex items-center justify-between bg-[#f8fafc] px-1.5 py-1 rounded">
+<span class="text-slate-600 font-medium">Sister (31)</span>
+<span class="font-bold text-[#365314] text-[10px] bg-[#ecfccb] px-1 rounded">Healthy</span>
+</div>
+</div>
+</div>
+<div class="mt-2 pt-1.5 border-t border-slate-100 text-[10px] text-slate-500 font-medium">
+              Cardiometabolic screening prioritized
+            </div>
+</div>
+<!-- Bento 3: Social & Behavioral Health -->
+<div class="bg-white rounded-2xl p-3 border border-[#e4f4d2] shadow-2xs flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<span class="text-[10px] font-bold uppercase tracking-wider text-[#365314] flex items-center gap-1">
+<span class="material-symbols-outlined text-[15px] text-[#65a30d]">psychology</span>
+                  Social / Lifestyle
+                </span>
+<span class="w-1.5 h-1.5 rounded-full bg-[#84cc16]"></span>
+</div>
+<div class="space-y-1 text-[11px] text-slate-700">
+<div class="flex items-center justify-between">
+<span class="text-slate-500">Tobacco:</span>
+<span class="font-bold text-slate-900">Never Smoker</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-slate-500">Alcohol:</span>
+<span class="font-semibold text-slate-800">1–2 units/wk</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-slate-500">Sleep Avg:</span>
+<span class="font-bold text-[#365314]">7.2 hrs/night</span>
+</div>
+</div>
+</div>
+<div class="mt-2 pt-1.5 border-t border-slate-100 text-[10px] text-slate-600 truncate">
+              Job: Tech Lead · Moderate sitting
+            </div>
+</div>
+<!-- Bento 4: Immunizations & Vaccinations -->
+<div class="bg-white rounded-2xl p-3 border border-[#e4f4d2] shadow-2xs flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<span class="text-[10px] font-bold uppercase tracking-wider text-[#365314] flex items-center gap-1">
+<span class="material-symbols-outlined text-[15px] text-[#65a30d]">vaccines</span>
+                  Immunization
+                </span>
+<span class="text-[9px] font-bold text-[#365314] bg-[#ecfccb] px-1 rounded">Up to Date</span>
+</div>
+<div class="space-y-1 text-[11px]">
+<div class="flex items-center justify-between">
+<span class="text-slate-600">COVID Bivalent:</span>
+<span class="font-bold text-slate-900 text-[10px]">Nov 2023</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-slate-600">Influenza Quad:</span>
+<span class="font-bold text-slate-900 text-[10px]">Oct 2024</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-slate-600">Tdap Booster:</span>
+<span class="font-bold text-slate-900 text-[10px]">Aug 2021</span>
+</div>
+</div>
+</div>
+<div class="mt-2 pt-1.5 border-t border-slate-100 text-[10px] text-[#365314] font-semibold flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px] text-[#65a30d]">check_circle</span>
+              All records state-verified
+            </div>
+</div>
+</div>
+</div>
+<!-- MEDIBOT AI CLINICAL TRIAGE SYNTHESIS -->
+<div class="bg-white rounded-3xl p-4 border border-[#e4f4d2] shadow-sm relative overflow-hidden">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-xl bg-[#ecfccb] text-[#365314] flex items-center justify-center font-bold">
+<span class="material-symbols-outlined text-[20px] text-[#65a30d]">smart_toy</span>
+</div>
+<div>
+<h3 class="text-[15px] font-bold text-slate-900 leading-tight">MediBot Clinical Triage Synthesis</h3>
+<p class="text-[11px] text-slate-500">Continuous Longitudinal AI Ingestion</p>
+</div>
+</div>
+<span class="text-[10px] px-2 py-0.5 rounded-full bg-[#f7fee7] border border-[#bef264] text-[#365314] font-bold">Confidence 99.2%</span>
+</div>
+<div class="space-y-2">
+<div class="bg-[#f8fafc] border border-slate-100 rounded-2xl p-2.5 flex items-start gap-2.5">
+<div class="w-5 h-5 rounded-full bg-[#d9f99d] text-[#365314] flex items-center justify-center flex-shrink-0 mt-0.5 font-extrabold text-[11px]">1</div>
+<div class="text-slate-700 text-[12px] leading-snug">
+<span class="font-bold text-slate-900">Stage 1 Essential HTN:</span> Well-controlled on monotherapy (Telmisartan 40mg). 30-day mean ambulatory BP is 118/76 mmHg. No spikes or crises.
+            </div>
+</div>
+<div class="bg-[#f8fafc] border border-slate-100 rounded-2xl p-2.5 flex items-start gap-2.5">
+<div class="w-5 h-5 rounded-full bg-[#d9f99d] text-[#365314] flex items-center justify-center flex-shrink-0 mt-0.5 font-extrabold text-[11px]">2</div>
+<div class="text-slate-700 text-[12px] leading-snug">
+<span class="font-bold text-slate-900">Pre-Diabetes Trend Reversing:</span> HbA1c reduced from 5.9% to 5.4% (Quest 10/14). CGM shows 94% Time-in-Range with minimal glycemic variability.
+            </div>
+</div>
+<div class="bg-[#f8fafc] border border-slate-100 rounded-2xl p-2.5 flex items-start gap-2.5">
+<div class="w-5 h-5 rounded-full bg-[#d9f99d] text-[#365314] flex items-center justify-center flex-shrink-0 mt-0.5 font-extrabold text-[11px]">3</div>
+<div class="text-slate-700 text-[12px] leading-snug">
+<span class="font-bold text-slate-900">High Regimen Compliance:</span> 98% combined adherence over last 90 days. Zero adverse pharmacologic interactions detected via HL7 database.
+            </div>
+</div>
+</div>
+</div>
+<!-- ACTIVE DIAGNOSES (ICD-10) -->
+<div class="bg-white rounded-3xl p-4 border border-[#e4f4d2] shadow-sm">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#65a30d] text-[20px]">assignment</span>
+<h3 class="text-[15px] font-bold text-slate-900">Active Diagnoses</h3>
+</div>
+<span class="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">ICD-10 Coded</span>
+</div>
+<div class="space-y-2.5">
+<!-- Condition 1 -->
+<div class="p-3 rounded-2xl bg-[#f8fafc] border border-slate-100 flex items-start justify-between gap-3">
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5">
+<span class="text-[13px] font-bold text-slate-900 truncate">Essential Hypertension</span>
+<span class="px-1.5 py-0.2 rounded bg-slate-200/80 text-slate-700 text-[10px] font-bold">I10</span>
+</div>
+<span class="text-[11px] text-slate-500 mt-0.5">Diagnosed Mar 2023 · Etiology: Primary Essential</span>
+<div class="flex items-center gap-1 mt-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-[#84cc16]"></span>
+<span class="text-[11px] text-[#365314] font-semibold">Controlled · Target &lt;120/80 mmHg achieved</span>
+</div>
+</div>
+<div class="text-right flex-shrink-0">
+<span class="text-[17px] text-slate-900 font-extrabold leading-tight">118/76</span>
+<span class="block text-[10px] text-slate-400">30d Avg</span>
+</div>
+</div>
+<!-- Condition 2 -->
+<div class="p-3 rounded-2xl bg-[#f8fafc] border border-slate-100 flex items-start justify-between gap-3">
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5">
+<span class="text-[13px] font-bold text-slate-900 truncate">Impaired Fasting Glucose</span>
+<span class="px-1.5 py-0.2 rounded bg-slate-200/80 text-slate-700 text-[10px] font-bold">R73.01</span>
+</div>
+<span class="text-[11px] text-slate-500 mt-0.5">Onset Jan 2024 · Sub-type: Metabolic shift</span>
+<div class="flex items-center gap-1 mt-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-[#84cc16]"></span>
+<span class="text-[11px] text-[#365314] font-semibold">Remission Pathway · HbA1c 5.9% → 5.4%</span>
+</div>
+</div>
+<div class="text-right flex-shrink-0">
+<span class="text-[17px] text-[#65a30d] font-extrabold leading-tight">5.4%</span>
+<span class="block text-[10px] text-slate-400">HbA1c</span>
+</div>
+</div>
+</div>
+</div>
+<!-- PHYSIOLOGIC TELEMETRY GRID -->
+<div class="bg-white rounded-3xl p-4 border border-[#e4f4d2] shadow-sm">
+<div class="flex items-center justify-between mb-3">
+<div>
+<h3 class="text-[15px] font-bold text-slate-900">Physiologic Telemetry Grid</h3>
+<p class="text-[11px] text-slate-500">30-Day Aggregated Continuous Stream</p>
+</div>
+<div class="w-7 h-7 rounded-xl bg-[#ecfccb] flex items-center justify-center text-[#365314]">
+<span class="material-symbols-outlined text-[17px]">vital_signs</span>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-2.5">
+<!-- Metric 1: Glucose TIR -->
+<div class="bg-[#f8fafc] border border-slate-100 rounded-2xl p-3 flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="text-[11px] text-slate-500 font-semibold">CGM Glucose</span>
+<span class="material-symbols-outlined text-[#65a30d] text-[16px]">water_drop</span>
+</div>
+<div class="my-2">
+<div class="flex items-baseline gap-1">
+<span class="text-[26px] font-extrabold text-slate-900 leading-none">98</span>
+<span class="text-[11px] text-slate-500 font-medium">mg/dL</span>
+</div>
+<div class="w-full bg-slate-200 rounded-full h-1.5 mt-2 overflow-hidden">
+<div class="bg-[#84cc16] h-full rounded-full" style="width: 94%"></div>
+</div>
+</div>
+<span class="text-[11px] text-[#365314] font-bold">94% Time-in-Range</span>
+</div>
+<!-- Metric 2: Resting Heart Rate -->
+<div class="bg-[#f8fafc] border border-slate-100 rounded-2xl p-3 flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="text-[11px] text-slate-500 font-semibold">Resting HR</span>
+<span class="material-symbols-outlined text-rose-500 text-[16px]">favorite</span>
+</div>
+<div class="my-2">
+<div class="flex items-baseline gap-1">
+<span class="text-[26px] font-extrabold text-slate-900 leading-none">68</span>
+<span class="text-[11px] text-slate-500 font-medium">BPM</span>
+</div>
+<span class="text-[11px] text-slate-500 block mt-1">Range: 58–76 BPM</span>
+</div>
+<span class="text-[11px] text-[#365314] font-bold">Normal Sinus</span>
+</div>
+<!-- Metric 3: HRV -->
+<div class="bg-[#f8fafc] border border-slate-100 rounded-2xl p-3 flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="text-[11px] text-slate-500 font-semibold">HRV &amp; Recovery</span>
+<span class="material-symbols-outlined text-indigo-500 text-[16px]">ecg_heart</span>
+</div>
+<div class="my-2">
+<div class="flex items-baseline gap-1">
+<span class="text-[26px] font-extrabold text-slate-900 leading-none">54</span>
+<span class="text-[11px] text-slate-500 font-medium">ms</span>
+</div>
+<span class="text-[11px] text-slate-500 block mt-1">Sleep: 7h 24m avg</span>
+</div>
+<span class="text-[11px] text-[#365314] font-bold">Optimal Vagal Tone</span>
+</div>
+<!-- Metric 4: Ambulatory BP -->
+<div class="bg-[#f8fafc] border border-slate-100 rounded-2xl p-3 flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="text-[11px] text-slate-500 font-semibold">Cuff BP (Bilateral)</span>
+<span class="material-symbols-outlined text-teal-600 text-[16px]">speed</span>
+</div>
+<div class="my-2">
+<div class="flex items-baseline gap-1">
+<span class="text-[22px] font-extrabold text-slate-900 leading-none">118/76</span>
+</div>
+<span class="text-[11px] text-slate-500 block mt-1">MAP: 90 mmHg</span>
+</div>
+<span class="text-[11px] text-[#365314] font-bold">Normotensive Target</span>
+</div>
+</div>
+</div>
+<!-- ACTIVE MEDICATIONS & PHARMACOLOGY -->
+<div class="bg-white rounded-3xl p-4 border border-[#e4f4d2] shadow-sm">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#65a30d] text-[20px]">pill</span>
+<h3 class="text-[15px] font-bold text-slate-900">Active Pharmacology</h3>
+</div>
+<span class="text-[10px] text-[#365314] font-bold bg-[#ecfccb] px-2.5 py-0.5 rounded-full border border-[#bef264]">3 Active · 98% Adherent</span>
+</div>
+<div class="space-y-2">
+<!-- Med 1 -->
+<div class="p-2.5 rounded-2xl bg-[#f8fafc] border border-slate-100 flex items-center justify-between gap-3">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-9 h-9 rounded-xl bg-[#ecfccb] text-[#365314] flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-[19px]">medication</span>
+</div>
+<div class="min-w-0">
+<div class="flex items-center gap-1.5">
+<span class="text-[13px] font-bold text-slate-900 truncate">Telmisartan</span>
+<span class="text-[11px] font-semibold text-slate-500">40 mg</span>
+</div>
+<p class="text-[11px] text-slate-500 truncate">Morning · Oral tab · Vasodilation</p>
+</div>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-[#ecfccb] text-[#365314] text-[10px] font-bold flex-shrink-0">100% (30d)</span>
+</div>
+<!-- Med 2 -->
+<div class="p-2.5 rounded-2xl bg-[#f8fafc] border border-slate-100 flex items-center justify-between gap-3">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-[19px]">healing</span>
+</div>
+<div class="min-w-0">
+<div class="flex items-center gap-1.5">
+<span class="text-[13px] font-bold text-slate-900 truncate">Metformin XR</span>
+<span class="text-[11px] font-semibold text-slate-500">500 mg</span>
+</div>
+<p class="text-[11px] text-slate-500 truncate">Nightly w/ meal · Insulin sensitivity</p>
+</div>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-[#ecfccb] text-[#365314] text-[10px] font-bold flex-shrink-0">96% (30d)</span>
+</div>
+<!-- Med 3 -->
+<div class="p-2.5 rounded-2xl bg-[#f8fafc] border border-slate-100 flex items-center justify-between gap-3">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-9 h-9 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-[19px]">vaccines</span>
+</div>
+<div class="min-w-0">
+<div class="flex items-center gap-1.5">
+<span class="text-[13px] font-bold text-slate-900 truncate">Omega-3 EPA/DHA</span>
+<span class="text-[11px] font-semibold text-slate-500">1000 mg</span>
+</div>
+<p class="text-[11px] text-slate-500 truncate">Daily noon · Softgel · Lipid optimization</p>
+</div>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-semibold flex-shrink-0">Supplement</span>
+</div>
+</div>
+</div>
+<!-- VERIFIED CLINICAL LABS -->
+<div class="bg-white rounded-3xl p-4 border border-[#e4f4d2] shadow-sm">
+<div class="flex items-center justify-between mb-2">
+<div>
+<h3 class="text-[15px] font-bold text-slate-900">Verified Clinical Labs</h3>
+<p class="text-[11px] text-slate-500">Quest Diagnostics · Panel Oct 14, 2024</p>
+</div>
+<span class="material-symbols-outlined text-[#65a30d] text-[20px]">biotech</span>
+</div>
+<div class="divide-y divide-slate-100 text-[12px]">
+<div class="py-2 flex items-center justify-between">
+<div>
+<span class="font-bold text-slate-900">Hemoglobin A1c (HbA1c)</span>
+<span class="block text-[11px] text-slate-500">Standard ref: &lt;5.7% Non-diabetic</span>
+</div>
+<div class="text-right">
+<span class="text-[15px] font-extrabold text-[#65a30d]">5.4%</span>
+<span class="block text-[10px] font-bold text-[#365314]">Optimal</span>
+</div>
+</div>
+<div class="py-2 flex items-center justify-between">
+<div>
+<span class="font-bold text-slate-900">Fasting Blood Glucose</span>
+<span class="block text-[11px] text-slate-500">Standard ref: 70–99 mg/dL</span>
+</div>
+<div class="text-right">
+<span class="text-[15px] font-bold text-slate-900">92 mg/dL</span>
+<span class="block text-[10px] font-semibold text-[#365314]">In Range</span>
+</div>
+</div>
+<div class="py-2 flex items-center justify-between">
+<div>
+<span class="font-bold text-slate-900">eGFR (CKD-EPI)</span>
+<span class="block text-[11px] text-slate-500">Standard ref: &gt;90 mL/min/1.73m²</span>
+</div>
+<div class="text-right">
+<span class="text-[15px] font-bold text-slate-900">&gt;90 mL/min</span>
+<span class="block text-[10px] font-semibold text-[#365314]">Preserved Renal</span>
+</div>
+</div>
+<div class="py-2 flex items-center justify-between">
+<div>
+<span class="font-bold text-slate-900">Lipid: LDL / Total Chol</span>
+<span class="block text-[11px] text-slate-500">Triglycerides 110 | HDL 52 mg/dL</span>
+</div>
+<div class="text-right">
+<span class="text-[15px] font-bold text-slate-900">94 / 178</span>
+<span class="block text-[10px] font-semibold text-[#365314]">Low-Normal Risk</span>
+</div>
+</div>
+</div>
+</div>
+<!-- STREAMLINED LONGITUDINAL CARE ROADMAP (STEPPER) -->
+<div class="bg-white rounded-3xl p-4 border border-[#e4f4d2] shadow-sm">
+<div class="flex items-center justify-between mb-4">
+<div>
+<h3 class="text-[15px] font-bold text-slate-900">Care Milestone Stepper</h3>
+<p class="text-[11px] text-slate-500">20-Month Longitudinal Clinical Progression</p>
+</div>
+<span class="material-symbols-outlined text-[#65a30d] text-[20px]">timeline</span>
+</div>
+<div class="relative pl-7 space-y-4">
+<!-- Stepper vertical bar -->
+<div class="absolute left-3 top-2 bottom-2 w-0.5 bg-gradient-to-b from-[#84cc16] via-[#bef264] to-slate-200"></div>
+<!-- Step 1 (Current) -->
+<div class="relative">
+<div class="absolute -left-[23px] top-0.5 w-5 h-5 rounded-full bg-[#97E432] ring-4 ring-[#ecfccb] flex items-center justify-center text-slate-950 shadow-xs">
+<span class="material-symbols-outlined text-[12px] font-bold">check</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="text-[11px] font-bold text-[#365314] bg-[#f7fee7] px-2 py-0.2 rounded border border-[#bef264]">Nov 2024 (Active)</span>
+</div>
+<p class="text-[13px] font-bold text-slate-900 mt-1">Biomarker Normalization &amp; Telemetry Stream</p>
+<p class="text-[11px] text-slate-600 mt-0.5 leading-snug">Dexcom G7 + Watch Ultra streaming live with 94% TIR. Pre-diabetes reversal fully stabilized.</p>
+</div>
+<!-- Step 2 -->
+<div class="relative">
+<div class="absolute -left-[23px] top-0.5 w-5 h-5 rounded-full bg-white border-2 border-[#84cc16] flex items-center justify-center text-[#365314]">
+<span class="material-symbols-outlined text-[11px]">biotech</span>
+</div>
+<span class="text-[11px] font-bold text-slate-500">October 2024</span>
+<p class="text-[13px] font-bold text-slate-900 mt-0.5">Quest Comprehensive Metabolic Check</p>
+<p class="text-[11px] text-slate-600 mt-0.5 leading-snug">HbA1c reached 5.4% nadir. Lipid profile confirmed 18% decrease in atherogenic particles.</p>
+</div>
+<!-- Step 3 -->
+<div class="relative">
+<div class="absolute -left-[23px] top-0.5 w-5 h-5 rounded-full bg-white border-2 border-[#84cc16] flex items-center justify-center text-[#365314]">
+<span class="material-symbols-outlined text-[11px]">tune</span>
+</div>
+<span class="text-[11px] font-bold text-slate-500">June 2024</span>
+<p class="text-[13px] font-bold text-slate-900 mt-0.5">Medication De-escalation (Dr. Chen)</p>
+<p class="text-[11px] text-slate-600 mt-0.5 leading-snug">Metformin XR titrated down 50% (1000mg to 500mg) due to proven insulin sensitivity improvement.</p>
+</div>
+<!-- Step 4 -->
+<div class="relative">
+<div class="absolute -left-[23px] top-0.5 w-5 h-5 rounded-full bg-white border-2 border-slate-300 flex items-center justify-center text-slate-500">
+<span class="material-symbols-outlined text-[11px]">sensors</span>
+</div>
+<span class="text-[11px] font-bold text-slate-500">January 2024</span>
+<p class="text-[13px] font-bold text-slate-900 mt-0.5">FITsure Clinical Onboarding &amp; CGM Protocol</p>
+<p class="text-[11px] text-slate-600 mt-0.5 leading-snug">Initial HbA1c flagged 5.9%. Dexcom paired with MediBot continuous AI guidance.</p>
+</div>
+<!-- Step 5 -->
+<div class="relative">
+<div class="absolute -left-[23px] top-0.5 w-5 h-5 rounded-full bg-white border-2 border-slate-300 flex items-center justify-center text-slate-500">
+<span class="material-symbols-outlined text-[11px]">flag</span>
+</div>
+<span class="text-[11px] font-bold text-slate-500">March 2023</span>
+<p class="text-[13px] font-bold text-slate-900 mt-0.5">Essential Hypertension Diagnosis</p>
+<p class="text-[11px] text-slate-600 mt-0.5 leading-snug">Baseline BP 142/92 mmHg. Commenced Telmisartan 40mg monotherapy with dietary protocols.</p>
+</div>
+</div>
+</div>
+<!-- COMPLIANCE & LEGAL CERTIFICATION STAMP -->
+<div class="flex items-center justify-between p-3 rounded-2xl bg-white border border-[#e4f4d2] text-slate-600 text-[11px] shadow-2xs">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#65a30d] text-[18px]">lock</span>
+<div class="flex flex-col">
+<span class="font-bold text-slate-900">HIPAA &amp; SOC2 Type II Encrypted</span>
+<span class="text-[10px] text-slate-500">SHA-256 Validated · HL7 FHIR v4.0.1</span>
+</div>
+</div>
+<span class="text-[10px] font-bold text-[#365314] bg-[#ecfccb] px-2 py-0.5 rounded-md">256-bit AES</span>
+</div>
+<!-- PRIMARY & SECONDARY ACTION BUTTONS -->
+<div class="pt-2 pb-6 flex flex-col gap-2.5">
+<!-- Main Prominent Pastel Lime Export Button -->
+<button class="w-full h-13 py-3.5 px-5 rounded-full bg-gradient-to-r from-[#97E432] to-[#84cc16] hover:from-[#84cc16] hover:to-[#65a30d] text-slate-950 font-bold text-[14px] shadow-lg shadow-[#84cc16]/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2 border border-[#bef264]" id="exportPdfBtn">
+<span class="material-symbols-outlined text-[20px] text-slate-950">picture_as_pdf</span>
+<span>Export Clinical PDF Dossier (FHIR / HL7)</span>
+</button>
+<!-- Secondary Button -->
+<button class="w-full h-11 py-2 px-4 rounded-full bg-white hover:bg-slate-50 text-slate-800 font-semibold text-[13px] border border-slate-200/80 shadow-2xs active:scale-[0.98] transition-all flex items-center justify-center gap-2" id="shareLinkBtn">
+<span class="material-symbols-outlined text-[#65a30d] text-[18px]">share_location</span>
+<span>Share 24h Secure Access Link with Doctor</span>
+</button>
+</div>
+</div>
+</main>
+<!-- BOTTOM NAVIGATION BAR (5 ITEMS: Home/Today, Progress, MediBot Center Elevated, Meds, Records Active) -->
+<nav class="fixed bottom-0 inset-x-0 z-50 pb-safe pointer-events-none" style="position: absolute; bottom: 0px; left: 0px; right: 0px; pointer-events: none; z-index: 40;">
+<div class="max-w-md mx-auto px-4 pb-3">
+<div class="pointer-events-auto h-16 rounded-full bg-white/95 backdrop-blur-2xl border border-slate-200/70 shadow-[0_12px_32px_-6px_rgba(15,23,42,0.12)] px-2 flex items-center justify-between">
+<!-- Today / Home -->
+<a class="flex-1 flex flex-col items-center justify-center h-full text-slate-400 hover:text-slate-700 transition-colors" href="#">
+<span class="material-symbols-outlined text-[22px]">home_health</span>
+<span class="text-[10px] font-semibold tracking-tight mt-0.5">Today</span>
+</a>
+<!-- Progress / Metabolism -->
+<a class="flex-1 flex flex-col items-center justify-center h-full text-slate-400 hover:text-slate-700 transition-colors" href="#">
+<span class="material-symbols-outlined text-[22px]">local_fire_department</span>
+<span class="text-[10px] font-semibold tracking-tight mt-0.5">Progress</span>
+</a>
+<!-- Elevated MediBot Center Button -->
+<div class="flex-1 flex items-center justify-center">
+<a class="flex flex-col items-center justify-center w-12 h-12 -mt-5 rounded-full bg-gradient-to-tr from-[#84cc16] to-[#97E432] text-slate-950 shadow-lg shadow-[#84cc16]/35 active:scale-95 transition-transform duration-150 border-2 border-white" href="#">
+<span class="material-symbols-outlined text-[24px]">smart_toy</span>
+</a>
+</div>
+<!-- Meds -->
+<a class="flex-1 flex flex-col items-center justify-center h-full text-slate-400 hover:text-slate-700 transition-colors" href="#">
+<span class="material-symbols-outlined text-[22px]">medication</span>
+<span class="text-[10px] font-semibold tracking-tight mt-0.5">Meds</span>
+</a>
+<!-- Records (Active State in Signature Pastel Lime) -->
+<a class="flex-1 flex flex-col items-center justify-center h-full text-[#365314] transition-colors relative" href="#">
+<div class="w-8 h-8 rounded-full bg-[#ecfccb] flex items-center justify-center mb-0.5">
+<span class="material-symbols-outlined text-[20px] text-[#365314]">folder_shared</span>
+</div>
+<span class="text-[10px] font-extrabold tracking-tight">Records</span>
+</a>
+</div>
+</div>
+<div class="w-32 h-1 bg-slate-900/60 rounded-full mx-auto mb-2 pointer-events-none"></div></nav>
+<!-- Interactive Scripts -->
+<script>
+    (function() {
+      const viewDense = document.getElementById('viewDenseBtn');
+      const viewConcise = document.getElementById('viewConciseBtn');
+      const exportPdf = document.getElementById('exportPdfBtn');
+      const shareLink = document.getElementById('shareLinkBtn');
+
+      if (viewDense && viewConcise) {
+        viewDense.addEventListener('click', () => {
+          viewDense.classList.add('bg-white', 'text-slate-900', 'shadow-sm');
+          viewDense.classList.remove('text-slate-500');
+          viewConcise.classList.remove('bg-white', 'text-slate-900', 'shadow-sm');
+          viewConcise.classList.add('text-slate-500');
+        });
+
+        viewConcise.addEventListener('click', () => {
+          viewConcise.classList.add('bg-white', 'text-slate-900', 'shadow-sm');
+          viewConcise.classList.remove('text-slate-500');
+          viewDense.classList.remove('bg-white', 'text-slate-900', 'shadow-sm');
+          viewDense.classList.add('text-slate-500');
+        });
+      }
+
+      if (exportPdf) {
+        exportPdf.addEventListener('click', () => {
+          const originalText = exportPdf.innerHTML;
+          exportPdf.innerHTML = '<span class="material-symbols-outlined animate-spin text-[20px]">progress_activity</span><span>Compiling Clinical Record...</span>';
+          setTimeout(() => {
+            exportPdf.innerHTML = '<span class="material-symbols-outlined text-[20px]">check_circle</span><span>Dossier Downloaded (PDF)</span>';
+            setTimeout(() => {
+              exportPdf.innerHTML = originalText;
+            }, 2500);
+          }, 1200);
+        });
+      }
+
+      if (shareLink) {
+        shareLink.addEventListener('click', () => {
+          const original = shareLink.innerHTML;
+          shareLink.innerHTML = '<span class="material-symbols-outlined text-[#65a30d] text-[18px]">done</span><span>24h Link Copied to Clipboard</span>';
+          setTimeout(() => {
+            shareLink.innerHTML = original;
+          }, 2000);
+        });
+      }
+    })();
+  </script>
+
+
+
+
+
+
+</body></html>

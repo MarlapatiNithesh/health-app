@@ -1,306 +1,195 @@
 import React, { useState } from 'react';
-import { 
-  LayoutGrid, 
-  CheckCircle2, 
-  PlayCircle, 
-  Trophy, 
-  Star, 
-  User, 
-  Bell, 
-  Bot, 
-  FolderLock, 
-  FileHeart, 
-  Watch, 
-  Smartphone, 
-  Maximize2, 
-  Minimize2,
-  Sparkles,
-  Stethoscope,
-  Activity
-} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { isNative } from '../../native/nativeBridge';
 
-export function MobileShell({ 
-  currentTab, 
-  setCurrentTab, 
-  openMediBotModal, 
-  openVaultModal, 
-  openPatient360Modal,
-  openPhoneHealthModal,
+export function MobileShell({
+  currentTab,
+  setCurrentTab,
+  openSosModal,
   openNotificationsModal,
-  children 
+  children,
 }) {
-  const { member, livaPoints } = useAuth();
+  const { member } = useAuth();
   const [isSimulatorFrame, setIsSimulatorFrame] = useState(true);
-  const [showExpoQr, setShowExpoQr] = useState(false);
-  const [copied, setCopied] = useState(false);
 
-  const firstName = member?.firstName || member?.fullName?.split(' ')[0] || 'Member';
-
-  const expoDevUrl = typeof window !== 'undefined'
-    ? `exp://${window.location.hostname || 'localhost'}:8081`
-    : 'exp://localhost:8081';
-  const directBrowserUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/`
-    : 'http://localhost:5173/';
-
-  const copyUrl = (text) => {
-    navigator.clipboard?.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const getTitle = () => {
+    switch (currentTab) {
+      case 'today':
+      case 'home':
+        return 'Today';
+      case 'records':
+        return 'Records Vault';
+      case 'care':
+        return 'Care Plan';
+      case 'vitals':
+        return 'Vitals & Telemetry';
+      case 'medibot':
+        return 'Dr. MediBot';
+      case 'more':
+        return 'More & Safety';
+      default:
+        return 'Today';
+    }
   };
 
-  return (
-    <div className="min-h-screen bg-[#050811] flex flex-col items-center justify-center p-0 md:p-6 transition-colors duration-300 relative overflow-hidden select-none">
-      {/* Ambient Cyber Auroras for Pitch Visual Impact */}
-      <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-cyan-500/10 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute -bottom-32 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-purple-600/10 rounded-full blur-[140px] pointer-events-none" />
+  const isTodayActive = currentTab === 'today' || currentTab === 'home';
 
-      {/* Desktop Helper Toolbar */}
-      <div className="hidden md:flex items-center justify-between w-full max-w-[430px] mb-3 px-3.5 py-1.5 bg-slate-900/85 backdrop-blur-xl rounded-2xl border border-white/10 text-xs text-slate-300 shadow-xl">
-        <div className="flex items-center gap-2">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
-          </span>
-          <span className="font-semibold text-slate-200 tracking-wide">Fitsure Platform Active</span>
+  return (
+    <div className="min-h-screen bg-[#ECEEF2] flex flex-col items-center justify-center p-0 sm:py-6 select-none font-sans text-charcoal">
+      {/* Desktop Helper Toggle */}
+      <div className="hidden sm:flex items-center justify-between w-full max-w-[430px] mb-2 px-3 py-1 bg-white/90 backdrop-blur-md rounded-xl border border-slate-200 text-xs text-slate-700 shadow-sm">
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-[#97E432] animate-pulse"></span>
+          <span className="font-bold text-slate-800">FITsure Mobile Viewport</span>
         </div>
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={() => setShowExpoQr(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-cyan-500 via-teal-400 to-emerald-400 hover:opacity-95 text-slate-950 font-black rounded-lg shadow-sm transition active:scale-95 cursor-pointer"
-            title="Scan with Expo Go or Phone Camera"
-          >
-            <Smartphone size={13} />
-            <span>Mobile Preview</span>
-          </button>
-          <button 
-            onClick={() => setIsSimulatorFrame(!isSimulatorFrame)}
-            className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-200 border border-white/5 transition active:scale-95 cursor-pointer"
-            title="Toggle Phone Frame"
-          >
-            {isSimulatorFrame ? <Maximize2 size={13} /> : <Minimize2 size={13} />}
-            <span>{isSimulatorFrame ? 'Full' : 'Frame'}</span>
-          </button>
-        </div>
+        <button
+          onClick={() => setIsSimulatorFrame(!isSimulatorFrame)}
+          className="text-[11px] font-semibold text-slate-600 hover:text-slate-900 px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 transition cursor-pointer"
+        >
+          {isSimulatorFrame ? 'Expand Full View' : 'Frame View'}
+        </button>
       </div>
 
-      {/* Mobile QR & Telemetry Modal */}
-      {showExpoQr && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-xl z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="glass-card max-w-sm w-full p-6 text-slate-100 flex flex-col items-center text-center relative border border-white/15">
-            <button 
-              onClick={() => setShowExpoQr(false)}
-              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-300 transition"
-            >
-              ✕
-            </button>
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-purple-600 flex items-center justify-center text-white mb-3 shadow-lg shadow-cyan-500/25">
-              <Smartphone size={24} />
-            </div>
-            <h3 className="text-lg font-black text-white tracking-tight">Real-Time Mobile Device Sync</h3>
-            <p className="text-xs text-slate-400 mt-1 max-w-[280px]">
-              Access full hardware BLE telemetry, Google Health Connect & Apple HealthKit syncing.
-            </p>
-
-            {/* QR Image */}
-            <div className="my-4 p-3 bg-white rounded-2xl shadow-inner border border-white/20">
-              <img 
-                src="/expo-qr.png" 
-                alt="Expo Go QR Code" 
-                className="w-52 h-52 object-contain rounded-xl"
-              />
-            </div>
-
-            <div className="w-full glass-subcard p-3 rounded-2xl text-left space-y-2 text-xs">
-              <div>
-                <p className="font-bold text-cyan-300 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
-                  Option 1: Native Mobile (Expo Go)
-                </p>
-                <p className="text-[11px] text-slate-400 ml-3.5">
-                  Scan QR with <b>Expo Go</b> on Android or Camera app on iPhone.
-                </p>
-                <div className="ml-3.5 mt-1 font-mono text-[10px] text-cyan-200 bg-slate-950/60 p-1 rounded border border-white/10 break-all select-all">
-                  {expoDevUrl}
-                </div>
-              </div>
-
-              <div className="border-t border-white/10 pt-2">
-                <p className="font-bold text-emerald-400 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                  Option 2: Direct Phone Browser
-                </p>
-                <p className="text-[11px] text-slate-400 ml-3.5">
-                  Open Chrome / Safari on your phone (same Wi-Fi):
-                </p>
-                <div className="ml-3.5 mt-1 flex items-center justify-between font-mono text-[10px] text-slate-300 bg-slate-950/60 p-1.5 rounded border border-white/10">
-                  <span className="truncate mr-1">{directBrowserUrl}</span>
-                  <button 
-                    onClick={() => copyUrl(directBrowserUrl)}
-                    className="text-cyan-400 hover:text-cyan-300 font-sans font-bold text-[10px] ml-2 shrink-0"
-                  >
-                    {copied ? 'Copied!' : 'Copy'}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setShowExpoQr(false)}
-              className="mt-4 w-full py-2.5 bg-gradient-to-r from-cyan-500 via-teal-400 to-emerald-400 hover:opacity-95 text-slate-950 font-black rounded-xl text-xs transition shadow-lg shadow-cyan-500/20"
-            >
-              Done
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Main Container / Mobile Frame with Glassmorphic Chassis */}
-      <div 
-        className={`w-full bg-[#080c14] text-slate-100 flex flex-col overflow-hidden transition-all duration-300 relative glass-canvas ${
-          isSimulatorFrame 
-            ? 'max-w-[430px] h-[920px] max-h-[96vh] phone-case relative border-[8px] border-[#0f172a] shadow-2xl' 
-            : 'max-w-[500px] min-h-screen md:min-h-[900px] md:rounded-3xl shadow-2xl border border-white/10'
+      {/* Mobile Device Viewport Chassis */}
+      <main
+        className={`w-full max-w-[430px] bg-appBg flex flex-col overflow-hidden relative shadow-2xl transition-all duration-300 ${
+          isSimulatorFrame
+            ? 'min-h-screen sm:min-h-0 sm:h-[874px] sm:max-h-[94vh] rounded-none sm:rounded-[36px] border-x border-[#e2e8f0] sm:border-2 sm:border-slate-300'
+            : 'min-h-screen rounded-none sm:rounded-[36px] border-x border-[#e2e8f0] sm:border-2 sm:border-slate-300'
         }`}
       >
-        {/* Dynamic Island / Status Bar in High-Contrast Obsidian */}
-        {!isNative && (
-          <div className="bg-[#080c14]/85 backdrop-blur-xl sticky top-0 z-40 px-6 pt-3 pb-2 flex items-center justify-between border-b border-white/[0.06]">
-            <span className="text-[13px] font-bold text-slate-100 tracking-tight">9:41</span>
-            
-            {/* Dynamic Island Pill */}
-            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-slate-900/90 border border-white/10 rounded-full text-[11px] text-white shadow-inner">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
-              <span className="text-[10px] font-semibold text-cyan-200 tracking-wider">FITSURE LIVE</span>
+        {/* Global Header Bar with Patient Context & SOS Trigger */}
+        <section className="px-4 py-2 border-b border-neutral-100 bg-white/80 backdrop-blur-md z-20 shrink-0 flex items-center justify-between">
+          <div className="flex items-center space-x-2.5">
+            <div 
+              onClick={() => setCurrentTab('more')}
+              className="relative cursor-pointer"
+            >
+              <img
+                alt="Patient Avatar"
+                className="w-9 h-9 rounded-full object-cover ring-2 ring-emerald-500/30"
+                src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=120&q=80"
+              />
+              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-limeAccent border border-white rounded-full animate-pulse"></span>
             </div>
-
-            <div className="flex items-center gap-1.5 text-slate-200">
-              <span className="text-[11px] font-bold tracking-wider">5G</span>
-              <div className="w-5 h-2.5 border border-slate-400 rounded-sm p-[1px] flex items-center">
-                <div className="w-full h-full bg-cyan-400 rounded-[1px]"></div>
+            <div className="flex flex-col">
+              <div className="flex items-center space-x-1.5">
+                <h1 className="text-sm font-bold text-neutral-900 leading-tight">
+                  {getTitle()}
+                </h1>
+                <span className="text-[9px] font-bold text-emerald-700 uppercase tracking-wide bg-emerald-50 px-1.5 py-0.5 rounded-full">
+                  FITSURE
+                </span>
               </div>
+              <span className="text-[10px] text-neutral-500 leading-none">
+                Connected · Apple Watch Synced 1m ago
+              </span>
             </div>
           </div>
-        )}
 
-        {/* Global Clinical Ecosystem Header Strip */}
-        <div className="bg-slate-950/70 backdrop-blur-xl px-4 py-2.5 flex items-center justify-between text-white border-b border-white/[0.08]">
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full justify-between">
-            {/* Dr. MediBot */}
-            <button
-              onClick={openMediBotModal}
-              className="flex items-center gap-1.5 px-2.5 py-1 bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 rounded-full text-[11px] font-semibold transition active:scale-95 shadow-sm"
-            >
-              <Stethoscope size={13} className="text-cyan-400 animate-pulse" />
-              <span>Dr. MediBot</span>
-            </button>
-
-            {/* Health Locker */}
-            <button
-              onClick={openVaultModal}
-              className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 rounded-full text-[11px] font-semibold transition active:scale-95"
-            >
-              <FolderLock size={13} className="text-purple-400" />
-              <span>Health Locker</span>
-            </button>
-
-            {/* Patient 360 */}
-            <button
-              onClick={openPatient360Modal}
-              className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 rounded-full text-[11px] font-semibold transition active:scale-95"
-            >
-              <FileHeart size={13} className="text-emerald-400" />
-              <span>Patient 360</span>
-            </button>
-
-            {/* Phone health telemetry */}
-            <button
-              onClick={openPhoneHealthModal}
-              className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30 rounded-full text-[11px] font-semibold transition active:scale-95"
-            >
-              <Watch size={13} className="text-blue-400" />
-              <span>Vitals Sync</span>
-            </button>
-
-            {/* Health Notifications Center */}
+          <div className="flex items-center space-x-2">
+            {/* Notifications Alert Center Button */}
             <button
               onClick={openNotificationsModal}
-              className="flex items-center gap-1.5 px-2.5 py-1 bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 rounded-full text-[11px] font-semibold transition active:scale-95 relative"
-              title="Health Notifications & Emergency Protocols"
+              className="w-8 h-8 rounded-full bg-neutral-100 hover:bg-neutral-200 text-neutral-700 flex items-center justify-center relative active:scale-95 transition cursor-pointer"
+              title="Health Notifications & Alarms"
             >
-              <Bell size={13} className="text-rose-400" />
-              <span>Alerts</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-ping"></span>
+              <span className="material-symbols-outlined text-[18px]">notifications</span>
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 border border-white"></span>
+            </button>
+
+            {/* SOS Emergency Trigger Button */}
+            <button
+              onClick={openSosModal}
+              className="px-2.5 py-1 rounded-full bg-red-500 hover:bg-red-600 text-white font-bold text-[11px] shadow-sm flex items-center space-x-1 active:scale-95 transition cursor-pointer animate-pulse"
+              title="Emergency SOS Beacon"
+            >
+              <span className="material-symbols-outlined text-[13px]">emergency</span>
+              <span>SOS</span>
             </button>
           </div>
-        </div>
+        </section>
 
-        {/* Scrollable Screen Content */}
-        <div className="flex-1 overflow-y-auto no-scrollbar pb-24">
+        {/* Scrollable Screen Content Container */}
+        <div className="flex-1 overflow-y-auto relative no-scrollbar">
           {children}
         </div>
 
-        {/* Floating Glassmorphic Bottom Navigation Dock */}
-        <nav className="absolute bottom-3 left-3 right-3 glass-dock px-3 py-2 flex items-center justify-around z-30">
-          {/* Home */}
-          <button
-            onClick={() => setCurrentTab('home')}
-            className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all duration-200 relative cursor-pointer ${
-              currentTab === 'home' ? 'text-cyan-400' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <LayoutGrid size={20} strokeWidth={currentTab === 'home' ? 2.5 : 2} className={currentTab === 'home' ? 'drop-shadow-[0_0_8px_rgba(6,182,212,0.7)]' : ''} />
-            <span className={`text-[10px] mt-1 font-bold ${currentTab === 'home' ? 'text-cyan-300' : 'text-slate-400'}`}>
-              Home
-            </span>
-            {currentTab === 'home' && (
-              <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full mt-0.5 shadow-[0_0_6px_rgba(6,182,212,0.9)]"></span>
-            )}
-          </button>
+        {/* Pinned Interactive Bottom Navigation Dock with 6 Tabs */}
+        <div className="w-full bg-white/95 backdrop-blur-md border-t border-neutral-100/90 pt-1 pb-3 px-2 z-30 shrink-0 select-none">
+          <nav className="flex items-center justify-between relative">
+            
+            {/* Tab 1: Today */}
+            <button
+              onClick={() => setCurrentTab('today')}
+              className={`flex flex-col items-center justify-center flex-1 py-1 transition cursor-pointer ${
+                isTodayActive ? 'text-emerald-800 font-bold' : 'text-neutral-400 hover:text-neutral-700'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[20px]">home</span>
+              <span className="text-[9px] mt-0.5 font-bold">Today</span>
+            </button>
 
-          {/* Dr. MediBot Center Action Button */}
-          <button
-            onClick={openMediBotModal}
-            className="flex flex-col items-center justify-center -mt-3 py-1 px-2.5 rounded-xl transition-all duration-200 relative cursor-pointer group"
-          >
-            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-cyan-500 via-blue-600 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-cyan-500/35 border-2 border-white/20 group-hover:scale-105 active:scale-95 transition-transform">
-              <Stethoscope size={18} strokeWidth={2.4} />
+            {/* Tab 2: Records */}
+            <button
+              onClick={() => setCurrentTab('records')}
+              className={`flex flex-col items-center justify-center flex-1 py-1 transition cursor-pointer ${
+                currentTab === 'records' ? 'text-emerald-800 font-bold' : 'text-neutral-400 hover:text-neutral-700'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[20px]">folder_shared</span>
+              <span className="text-[9px] mt-0.5">Records</span>
+            </button>
+
+            {/* Tab 3: Care */}
+            <button
+              onClick={() => setCurrentTab('care')}
+              className={`flex flex-col items-center justify-center flex-1 py-1 transition cursor-pointer ${
+                currentTab === 'care' ? 'text-emerald-800 font-bold' : 'text-neutral-400 hover:text-neutral-700'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[20px]">medication</span>
+              <span className="text-[9px] mt-0.5">Care</span>
+            </button>
+
+            {/* Tab 4: Vitals */}
+            <button
+              onClick={() => setCurrentTab('vitals')}
+              className={`flex flex-col items-center justify-center flex-1 py-1 transition cursor-pointer ${
+                currentTab === 'vitals' ? 'text-emerald-800 font-bold' : 'text-neutral-400 hover:text-neutral-700'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[20px]">vital_signs</span>
+              <span className="text-[9px] mt-0.5">Vitals</span>
+            </button>
+
+            {/* Tab 5: MediBot (Center Floating Accent) */}
+            <div className="flex-1 flex flex-col items-center -mt-5">
+              <button
+                onClick={() => setCurrentTab('medibot')}
+                className="w-11 h-11 p-1 bg-[#97E432] hover:bg-limeAccent text-neutral-900 rounded-full shadow-glow-lime flex items-center justify-center transition-transform active:scale-95 border-2 border-white cursor-pointer"
+                title="Dr. MediBot AI Clinical Specialist"
+              >
+                <span className="material-symbols-outlined text-[22px]">smart_toy</span>
+              </button>
+              <span className="text-[9px] font-bold text-neutral-800 mt-0.5">MediBot</span>
             </div>
-            <span className="text-[10px] mt-1 font-bold text-cyan-300">
-              Dr. MediBot
-            </span>
-          </button>
 
-          {/* Wearables Hub */}
-          <button
-            onClick={openPhoneHealthModal}
-            className="flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all duration-200 relative cursor-pointer text-slate-400 hover:text-cyan-400"
-          >
-            <Watch size={20} strokeWidth={2} />
-            <span className="text-[10px] mt-1 font-bold text-slate-400 hover:text-cyan-400">
-              Wearables
-            </span>
-          </button>
+            {/* Tab 6: More */}
+            <button
+              onClick={() => setCurrentTab('more')}
+              className={`flex flex-col items-center justify-center flex-1 py-1 transition cursor-pointer ${
+                currentTab === 'more' ? 'text-emerald-800 font-bold' : 'text-neutral-400 hover:text-neutral-700'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[20px]">more_horiz</span>
+              <span className="text-[9px] mt-0.5">More</span>
+            </button>
 
-          {/* Profile */}
-          <button
-            onClick={() => setCurrentTab('profile')}
-            className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all duration-200 relative cursor-pointer ${
-              currentTab === 'profile' ? 'text-cyan-400' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <User size={20} strokeWidth={currentTab === 'profile' ? 2.5 : 2} className={currentTab === 'profile' ? 'drop-shadow-[0_0_8px_rgba(6,182,212,0.7)]' : ''} />
-            <span className={`text-[10px] mt-1 font-bold ${currentTab === 'profile' ? 'text-cyan-300' : 'text-slate-400'}`}>
-              Profile
-            </span>
-            {currentTab === 'profile' && (
-              <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full mt-0.5 shadow-[0_0_6px_rgba(6,182,212,0.9)]"></span>
-            )}
-          </button>
-        </nav>
-      </div>
+          </nav>
+          {/* iOS Home Indicator */}
+          <div className="w-28 h-1 bg-neutral-900 rounded-full mx-auto mt-2"></div>
+        </div>
+      </main>
     </div>
   );
 }
