@@ -1,0 +1,444 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport">
+<meta content="mobile_stack" name="shell-type">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "slate-deep": "#0f172a",
+            "lime-fitsure": "#97E432",
+            "lime-subtle": "#bef264",
+            "lime-soft": "#ecfccb",
+            "lime-tint": "#f7fee7",
+            "primary": "#006c49",
+            "primary-container": "#97E432",
+            "background": "#f8fafc",
+            "surface": "#ffffff"
+          },
+          fontFamily: {
+            sans: ["Plus Jakarta Sans", "sans-serif"]
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    @layer base {
+      html, body {
+        width: 100%;
+        min-height: 100%;
+        margin: 0;
+        padding: 0;
+        background-color: #0f172a;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+      }
+      .pb-safe {
+        padding-bottom: max(env(safe-area-inset-bottom, 0px), 24px);
+      }
+      .pt-safe {
+        padding-top: max(env(safe-area-inset-top, 0px), 16px);
+      }
+    }
+    ::-webkit-scrollbar {
+      display: none;
+    }
+  </style>
+</head>
+<body class="bg-slate-900 min-h-screen flex items-center justify-center p-0 sm:p-4 text-slate-900 antialiased selection:bg-[#97E432]/30 selection:text-slate-900">
+<!-- Outer Bezel Container with Solid Black Border -->
+<div class="relative w-full bg-[#f8fafc] border-[4px] border-black rounded-[42px] overflow-hidden flex flex-col shadow-2xl" style="width: 390px; height: 844px; max-height: 844px; box-sizing: border-box; border: 4px solid rgb(0, 0, 0); border-radius: 48px; overflow: hidden; display: flex; flex-direction: column; position: relative;">
+<!-- Ambient Pastel Lime & Cyan Glows -->
+<div class="absolute -top-20 -left-20 w-72 h-72 rounded-full bg-[#97E432]/15 blur-3xl pointer-events-none"></div>
+<div class="absolute top-[420px] -right-24 w-80 h-80 rounded-full bg-emerald-200/25 blur-3xl pointer-events-none"></div>
+<div class="absolute bottom-40 -left-16 w-64 h-64 rounded-full bg-[#bef264]/15 blur-3xl pointer-events-none"></div>
+<!-- Top App Bar / Header -->
+<header class="shrink-0 z-40 bg-[#f8fafc]/95 backdrop-blur-xl border-b border-slate-200/70 pt-2 px-4 pb-3">
+  <!-- iOS Status Bar & Dynamic Island -->
+  <div class="flex items-center justify-between h-7 px-1 text-[13px] font-semibold text-slate-900 select-none">
+    <span class="tracking-tight font-bold pl-1">9:41</span>
+    <div class="w-24 h-4 bg-black rounded-full mx-auto flex items-center justify-center">
+      <div class="w-2 h-2 rounded-full bg-[#1c1c1e] ml-auto mr-2"></div>
+    </div>
+    <div class="flex items-center gap-1.5 text-slate-900 pr-1">
+      <span class="material-symbols-outlined text-[15px]">signal_cellular_alt</span>
+      <span class="material-symbols-outlined text-[15px]">wifi</span>
+      <span class="material-symbols-outlined text-[18px]">battery_full</span>
+    </div>
+  </div>
+  <!-- Top App Bar Navigation -->
+  <div class="flex items-center justify-between h-11 mt-1">
+    <div class="flex items-center gap-2">
+      <button aria-label="Go back" class="w-9 h-9 rounded-full bg-white shadow-sm border border-slate-200/80 flex items-center justify-center text-slate-800 active:scale-95 transition-transform hover:bg-slate-50" onclick="history.back()">
+        <span class="material-symbols-outlined text-[20px]">arrow_back</span>
+      </button>
+      <div>
+        <h1 class="text-[17px] font-bold tracking-tight text-slate-900 leading-tight">Settings &amp; Security</h1>
+        <p class="text-[10px] font-medium text-slate-500">System Preferences &amp; Clinical Triage</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <button aria-label="Search Settings" class="w-9 h-9 rounded-full bg-white border border-slate-200/80 shadow-sm flex items-center justify-center text-slate-700 active:scale-95 transition-transform hover:bg-slate-50">
+        <span class="material-symbols-outlined text-[18px]">search</span>
+      </button>
+      <button aria-label="Clinical Support" class="w-9 h-9 rounded-full bg-white border border-slate-200/80 shadow-sm flex items-center justify-center text-slate-700 active:scale-95 transition-transform hover:bg-slate-50">
+        <span class="material-symbols-outlined text-[18px]">help_outline</span>
+      </button>
+    </div>
+  </div>
+</header>
+<!-- Scrollable Main Content -->
+<main class="relative z-10 flex-1 px-4 pt-2 pb-28 space-y-4 overflow-y-auto min-h-0" style="scrollbar-width: none; -webkit-overflow-scrolling: touch;">
+<!-- Live Mesh Status Pill Bar -->
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-2">
+<span class="relative flex h-2.5 w-2.5">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#97E432] opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#97E432]"></span>
+</span>
+<span class="text-[11px] font-bold uppercase tracking-wider text-emerald-800">Sensor Grid Online</span>
+</div>
+<div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#ecfccb] border border-[#bef264]/60 text-[#006c49] text-[11px] font-bold">
+<span class="material-symbols-outlined text-[13px]" style="font-variation-settings: 'FILL' 1;">cloud_sync</span>
+<span>99.98% Sync</span>
+</div>
+</div>
+<!-- 3. User Account Summary Card -->
+<div class="relative bg-white/95 backdrop-blur-md rounded-[28px] p-4 border border-slate-200/90 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.06)]">
+<div class="flex items-center gap-3.5">
+<div class="relative shrink-0">
+<img alt="Portrait of Sajibur Rahman" class="w-16 h-16 rounded-[22px] object-cover ring-2 ring-[#97E432]/60 ring-offset-2 ring-offset-white" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCz5WSOoiVbefXltDYm2AKtVqEfke9cchLjhWTVf84oC5oNShBcVgGWNfYu_i396A4WyfrNhuL3_dI2Ab_WMd3TTPBfdgVnYnng_sT9arH0kmhX2jLGHUBEcB3M_Wbj05buQ__8yh4Sjb7-pc8vEi_C6cHvWRBHRQYpslBO22d-cFXfqxfTp6fyxHmbaKmATIVnadHtACohxB8qJeiJnfUrt0RM4SauoNMaeIP10Z8">
+<div class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#97E432] border-2 border-white flex items-center justify-center text-slate-900 shadow-sm">
+<span class="material-symbols-outlined text-[12px] font-bold" style="font-variation-settings: 'FILL' 1;">verified</span>
+</div>
+</div>
+<div class="flex flex-col min-w-0 flex-1">
+<div class="flex items-center justify-between gap-1">
+<h2 class="text-[17px] font-bold text-slate-900 truncate">Sajibur Rahman</h2>
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#ecfccb] text-emerald-900 font-bold text-[10.5px] border border-[#bef264]/80 shrink-0">
+<span class="material-symbols-outlined text-[12px] text-[#006c49]" style="font-variation-settings: 'FILL' 1;">award_star</span>
+                Pro Clinical Tier
+              </span>
+</div>
+<p class="text-[12px] text-slate-500 font-medium truncate mt-0.5">sajibur.rahman@example.com</p>
+<div class="flex items-center gap-2 mt-2">
+<span class="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/60">ID: FIT-8849-SOC2</span>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#97E432]/25 text-emerald-900 text-[11px] font-bold">
+<span class="material-symbols-outlined text-[12px]">sync</span>
+                Active Sync
+              </span>
+</div>
+</div>
+</div>
+</div>
+<!-- 4a. Clinical & Telemetry Sync -->
+<section class="space-y-1.5">
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[#006c49] text-[18px]">ecg_heart</span>
+<span class="text-[12px] font-bold uppercase tracking-wider text-slate-600">Clinical &amp; Telemetry Sync</span>
+</div>
+<span class="text-[11px] font-bold text-emerald-700 bg-[#ecfccb] px-2 py-0.5 rounded-full border border-[#bef264]/70">Live (24/7)</span>
+</div>
+<div class="bg-white/95 backdrop-blur-md rounded-[26px] p-3.5 border border-slate-200/80 shadow-sm divide-y divide-slate-100">
+<!-- Real-time Sensor Stream -->
+<div class="flex items-center justify-between py-2 gap-3">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-10 h-10 rounded-2xl bg-[#f7fee7] border border-[#bef264]/50 flex items-center justify-center text-[#006c49] shrink-0">
+<span class="material-symbols-outlined text-[20px]">sensors</span>
+</div>
+<div class="min-w-0">
+<p class="text-[14px] font-semibold text-slate-900 truncate">Real-Time Sensor Stream</p>
+<p class="text-[12px] text-slate-500 truncate">Continuous vitals to physician cloud</p>
+</div>
+</div>
+<!-- Interactive Pastel Lime Toggle (Active) -->
+<button aria-checked="true" class="w-12 h-7 bg-[#97E432] rounded-full p-1 transition-colors relative flex items-center shadow-inner cursor-pointer shrink-0" role="switch">
+<span class="w-5 h-5 bg-white rounded-full shadow-md transform translate-x-5 transition-transform flex items-center justify-center">
+<span class="material-symbols-outlined text-[#006c49] text-[12px] font-extrabold">check</span>
+</span>
+</button>
+</div>
+<!-- Glucose Spike & Vitals Alerts -->
+<button class="w-full flex items-center justify-between py-2.5 gap-3 text-left hover:bg-slate-50/80 rounded-xl px-1 -mx-1 transition-colors">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+<span class="material-symbols-outlined text-[20px]">notifications_active</span>
+</div>
+<div class="min-w-0">
+<p class="text-[14px] font-semibold text-slate-900 truncate">Glucose Spike &amp; Vitals Alerts</p>
+<p class="text-[12px] text-slate-500 truncate">Push + Haptic · Urgent tier</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-slate-400 text-[20px]">chevron_right</span>
+</button>
+<!-- CloseOne Auto-Dispatch -->
+<button class="w-full flex items-center justify-between py-2.5 gap-3 text-left hover:bg-slate-50/80 rounded-xl px-1 -mx-1 transition-colors">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 shrink-0">
+<span class="material-symbols-outlined text-[20px]">e911_emergency</span>
+</div>
+<div class="min-w-0">
+<div class="flex items-center gap-1.5">
+<p class="text-[14px] font-semibold text-slate-900 truncate">CloseOne Auto-Dispatch</p>
+<span class="px-1.5 py-0.2 rounded-full bg-rose-100 text-rose-700 font-bold text-[10px] uppercase">Critical</span>
+</div>
+<p class="text-[12px] text-slate-500 truncate">Enabled: BP &gt; 160 or Glucose &lt; 55 mg/dL</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-slate-400 text-[20px]">chevron_right</span>
+</button>
+<!-- Wearables Sync Frequency -->
+<button class="w-full flex items-center justify-between py-2.5 gap-3 text-left hover:bg-slate-50/80 rounded-xl px-1 -mx-1 transition-colors">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-10 h-10 rounded-2xl bg-cyan-50 border border-cyan-100 flex items-center justify-center text-cyan-700 shrink-0">
+<span class="material-symbols-outlined text-[20px]">watch</span>
+</div>
+<div class="min-w-0">
+<p class="text-[14px] font-semibold text-slate-900 truncate">Wearables Sync Frequency</p>
+<p class="text-[12px] text-slate-500 truncate">Dexcom G7 &amp; Apple Watch</p>
+</div>
+</div>
+<div class="flex items-center gap-1 shrink-0">
+<span class="px-2 py-0.5 rounded-full bg-[#ecfccb] text-emerald-900 font-bold text-[11px] border border-[#bef264]/70">Continuous</span>
+<span class="material-symbols-outlined text-slate-400 text-[20px]">chevron_right</span>
+</div>
+</button>
+</div>
+</section>
+<!-- 4b. Security & Biometrics -->
+<section class="space-y-1.5">
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[#006c49] text-[18px]">security</span>
+<span class="text-[12px] font-bold uppercase tracking-wider text-slate-600">Security &amp; Biometrics</span>
+</div>
+<span class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-[#ecfccb] px-2 py-0.5 rounded-full border border-[#bef264]/70">
+<span class="material-symbols-outlined text-[13px]" style="font-variation-settings: 'FILL' 1;">shield</span>
+            Protected
+          </span>
+</div>
+<div class="bg-white/95 backdrop-blur-md rounded-[26px] p-3.5 border border-slate-200/80 shadow-sm divide-y divide-slate-100">
+<!-- Face ID / Biometric Lock -->
+<div class="flex items-center justify-between py-2 gap-3">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-10 h-10 rounded-2xl bg-[#f7fee7] border border-[#bef264]/50 flex items-center justify-center text-[#006c49] shrink-0">
+<span class="material-symbols-outlined text-[20px]">face</span>
+</div>
+<div class="min-w-0">
+<p class="text-[14px] font-semibold text-slate-900 truncate">Face ID / Biometric Lock</p>
+<p class="text-[12px] text-slate-500 truncate">Prompt upon backgrounding</p>
+</div>
+</div>
+<button aria-checked="true" class="w-12 h-7 bg-[#97E432] rounded-full p-1 transition-colors relative flex items-center shadow-inner cursor-pointer shrink-0" role="switch">
+<span class="w-5 h-5 bg-white rounded-full shadow-md transform translate-x-5 transition-transform flex items-center justify-center">
+<span class="material-symbols-outlined text-[#006c49] text-[12px] font-extrabold">check</span>
+</span>
+</button>
+</div>
+<!-- Master Passcode & Passkey -->
+<button class="w-full flex items-center justify-between py-2.5 gap-3 text-left hover:bg-slate-50/80 rounded-xl px-1 -mx-1 transition-colors">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-10 h-10 rounded-2xl bg-slate-100 border border-slate-200/60 flex items-center justify-center text-slate-700 shrink-0">
+<span class="material-symbols-outlined text-[20px]">key</span>
+</div>
+<div class="min-w-0">
+<p class="text-[14px] font-semibold text-slate-900 truncate">Master Passcode &amp; Passkey</p>
+<p class="text-[12px] text-slate-500 truncate">Updated 42 days ago</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-slate-400 text-[20px]">chevron_right</span>
+</button>
+<!-- Two-Factor Authentication -->
+<button class="w-full flex items-center justify-between py-2.5 gap-3 text-left hover:bg-slate-50/80 rounded-xl px-1 -mx-1 transition-colors">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-10 h-10 rounded-2xl bg-[#ecfccb] border border-[#bef264]/70 flex items-center justify-center text-[#006c49] shrink-0">
+<span class="material-symbols-outlined text-[20px]">phonelink_lock</span>
+</div>
+<div class="min-w-0">
+<p class="text-[14px] font-semibold text-slate-900 truncate">Two-Factor Authentication (2FA)</p>
+<p class="text-[12px] text-slate-500 truncate">Active via SMS &amp; Authenticator</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-slate-400 text-[20px]">chevron_right</span>
+</button>
+<!-- HIPAA End-to-End Encryption -->
+<div class="flex items-center justify-between py-2.5 gap-3">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700 shrink-0">
+<span class="material-symbols-outlined text-[20px]">verified_user</span>
+</div>
+<div class="min-w-0">
+<p class="text-[14px] font-semibold text-slate-900 truncate">HIPAA End-to-End Encryption</p>
+<p class="text-[12px] text-slate-500 truncate">AES-256 telemetry envelope</p>
+</div>
+</div>
+<span class="px-2.5 py-0.5 rounded-full bg-[#ecfccb] text-emerald-900 font-bold text-[11px] border border-[#bef264] shrink-0">Verified SOC2</span>
+</div>
+</div>
+</section>
+<!-- 4c. Notifications & MediBot AI -->
+<section class="space-y-1.5">
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[#006c49] text-[18px]">smart_toy</span>
+<span class="text-[12px] font-bold uppercase tracking-wider text-slate-600">Notifications &amp; MediBot AI</span>
+</div>
+</div>
+<div class="bg-white/95 backdrop-blur-md rounded-[26px] p-3.5 border border-slate-200/80 shadow-sm divide-y divide-slate-100">
+<!-- Medication Timing Chimes -->
+<button class="w-full flex items-center justify-between py-2 gap-3 text-left hover:bg-slate-50/80 rounded-xl px-1 -mx-1 transition-colors">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-10 h-10 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-700 shrink-0">
+<span class="material-symbols-outlined text-[20px]">medication</span>
+</div>
+<div class="min-w-0">
+<p class="text-[14px] font-semibold text-slate-900 truncate">Medication Timing Chimes</p>
+<p class="text-[12px] text-slate-500 truncate">Daily at 8:00 AM &amp; 8:00 PM</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-slate-400 text-[20px]">chevron_right</span>
+</button>
+<!-- MediBot Morning Synthesis -->
+<button class="w-full flex items-center justify-between py-2.5 gap-3 text-left hover:bg-slate-50/80 rounded-xl px-1 -mx-1 transition-colors">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-10 h-10 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-700 shrink-0">
+<span class="material-symbols-outlined text-[20px]">auto_awesome</span>
+</div>
+<div class="min-w-0">
+<p class="text-[14px] font-semibold text-slate-900 truncate">MediBot Morning Clinical Synthesis</p>
+<p class="text-[12px] text-slate-500 truncate">7:30 AM audio briefing</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-slate-400 text-[20px]">chevron_right</span>
+</button>
+<!-- Hydration & Movement Micro-Nudges -->
+<div class="flex items-center justify-between py-2 gap-3">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-10 h-10 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-700 shrink-0">
+<span class="material-symbols-outlined text-[20px]">water_drop</span>
+</div>
+<div class="min-w-0">
+<p class="text-[14px] font-semibold text-slate-900 truncate">Hydration &amp; Movement Micro-Nudges</p>
+<p class="text-[12px] text-slate-500 truncate">Adaptive prompts during active hours</p>
+</div>
+</div>
+<button aria-checked="true" class="w-12 h-7 bg-[#97E432] rounded-full p-1 transition-colors relative flex items-center shadow-inner cursor-pointer shrink-0" role="switch">
+<span class="w-5 h-5 bg-white rounded-full shadow-md transform translate-x-5 transition-transform flex items-center justify-center">
+<span class="material-symbols-outlined text-[#006c49] text-[12px] font-extrabold">check</span>
+</span>
+</button>
+</div>
+</div>
+</section>
+<!-- 4d. Data, FHIR Export & Legal -->
+<section class="space-y-1.5">
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[#006c49] text-[18px]">folder_zip</span>
+<span class="text-[12px] font-bold uppercase tracking-wider text-slate-600">Data, FHIR Export &amp; Legal</span>
+</div>
+</div>
+<div class="bg-white/95 backdrop-blur-md rounded-[26px] p-3.5 border border-slate-200/80 shadow-sm divide-y divide-slate-100">
+<!-- Export Health Records -->
+<button class="w-full flex items-center justify-between py-2 gap-3 text-left hover:bg-slate-50/80 rounded-xl px-1 -mx-1 transition-colors">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-10 h-10 rounded-2xl bg-[#f7fee7] border border-[#bef264]/50 flex items-center justify-center text-[#006c49] shrink-0">
+<span class="material-symbols-outlined text-[20px]">download_for_offline</span>
+</div>
+<div class="min-w-0">
+<p class="text-[14px] font-semibold text-slate-900 truncate">Export Health Records</p>
+<p class="text-[12px] text-slate-500 truncate">Clinical FHIR / HL7 PDF dossier</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-slate-400 text-[20px]">chevron_right</span>
+</button>
+<!-- Privacy Policy & Terms of Care -->
+<button class="w-full flex items-center justify-between py-2.5 gap-3 text-left hover:bg-slate-50/80 rounded-xl px-1 -mx-1 transition-colors">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-10 h-10 rounded-2xl bg-slate-100 border border-slate-200/60 flex items-center justify-center text-slate-700 shrink-0">
+<span class="material-symbols-outlined text-[20px]">policy</span>
+</div>
+<div class="min-w-0">
+<p class="text-[14px] font-semibold text-slate-900 truncate">Privacy Policy &amp; Terms of Care</p>
+<p class="text-[12px] text-slate-500 truncate">Version 4.12 · Updated Oct 2024</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-slate-400 text-[20px]">chevron_right</span>
+</button>
+</div>
+</section>
+<!-- 4e. Account Session & Security Actions -->
+<section class="space-y-2.5 pt-1">
+<!-- Log Out Button -->
+<button class="w-full bg-white hover:bg-slate-50 active:scale-[0.99] transition-all rounded-[22px] p-3.5 border border-slate-200/90 shadow-sm flex items-center justify-between text-slate-900">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-700 shrink-0">
+<span class="material-symbols-outlined text-[20px]">logout</span>
+</div>
+<div class="text-left">
+<p class="text-[14px] font-bold text-slate-900">Log Out</p>
+<p class="text-[12px] text-slate-500">End active session on this device</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-slate-400 text-[20px]">chevron_right</span>
+</button>
+<!-- Delete Account & Erase Telemetry (Warning Card) -->
+<button class="w-full bg-rose-50/60 hover:bg-rose-50 active:scale-[0.99] transition-all rounded-[22px] p-3.5 border border-rose-200/70 shadow-sm flex items-center justify-between text-left">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-2xl bg-rose-100/90 flex items-center justify-center text-rose-600 shrink-0">
+<span class="material-symbols-outlined text-[20px]">delete_forever</span>
+</div>
+<div>
+<p class="text-[14px] font-bold text-rose-700">Delete Account &amp; Erase Telemetry</p>
+<p class="text-[12px] text-rose-600/80">Irreversible erasure per HIPAA Right to be Forgotten</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-rose-400 text-[20px]">chevron_right</span>
+</button>
+</section>
+<!-- 5. Footer -->
+<footer class="pt-3 pb-safe flex flex-col items-center justify-center text-center gap-1">
+<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-slate-200 text-slate-600 text-[11px] font-semibold shadow-xs">
+<span class="w-2 h-2 rounded-full bg-[#97E432]"></span>
+<span>FITsure BioOS v4.12.8</span>
+<span class="text-slate-300">|</span>
+<span class="text-slate-500">Build 902</span>
+</div>
+<p class="text-[11px] font-medium text-slate-400 mt-0.5">Connected with Mount Sinai Clinical Telemetry Mesh</p>
+</footer>
+</main>
+<!-- 6. Bottom Navigation Bar -->
+<nav class="absolute bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-slate-200/80 px-6 pt-2 pb-2 flex flex-col gap-1.5 shrink-0 shadow-[0_-4px_16px_rgba(0,0,0,0.04)]">
+  <div class="flex items-center justify-around w-full">
+    <button class="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-700 transition-colors">
+      <span class="material-symbols-outlined text-[22px]">vital_signs</span>
+      <span class="text-[10px] font-semibold">Vitals</span>
+    </button>
+    <button class="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-700 transition-colors">
+      <span class="material-symbols-outlined text-[22px]">smart_toy</span>
+      <span class="text-[10px] font-semibold">MediBot</span>
+    </button>
+    <button class="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-700 transition-colors">
+      <span class="material-symbols-outlined text-[22px]">ecg_heart</span>
+      <span class="text-[10px] font-semibold">Telemetry</span>
+    </button>
+    <button class="flex flex-col items-center gap-0.5 text-slate-900 transition-colors relative">
+      <div class="w-10 h-7 rounded-full bg-[#ecfccb] border border-[#bef264] flex items-center justify-center text-[#006c49]">
+        <span class="material-symbols-outlined text-[19px]" style="font-variation-settings: 'FILL' 1;">settings</span>
+      </div>
+      <span class="text-[10px] font-bold text-slate-900">Settings</span>
+    </button>
+  </div>
+  <!-- iOS Home Indicator Bar -->
+  <div class="w-32 h-1 bg-slate-900/25 rounded-full mx-auto shrink-0"></div>
+</nav>
+</div>
+
+
+</body></html>

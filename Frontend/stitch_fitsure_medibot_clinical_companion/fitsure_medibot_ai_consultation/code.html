@@ -1,0 +1,166 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>FitSure - MediBot AI Clinical Specialist</title>
+<!-- Tailwind CSS v3 -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              lime: '#C7EE4B',
+              limeDark: '#99C717',
+              mintSoft: '#DDF4C7',
+              mintCard: '#EAF8DC',
+              mintLight: '#F3FAED',
+              blueSoft: '#DDF0F7',
+              bluePill: '#E8F5FA',
+              salmonSoft: '#FDEEE9',
+              dark: '#1C1E21',
+              muted: '#8A92A6',
+              bgLight: '#F7F9FB',
+              cardBg: '#FFFFFF'
+            }
+          },
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif'],
+          },
+          boxShadow: {
+            'soft': '0 8px 24px -4px rgba(34, 41, 47, 0.06)',
+            'nav': '0 12px 32px -4px rgba(0, 0, 0, 0.12)',
+            'btn-lime': '0 6px 18px rgba(153, 199, 23, 0.42)',
+          }
+        }
+      }
+    }
+  </script>
+<!-- Phosphor Icons for iOS-style clean health tech iconography -->
+<script src="https://unpkg.com/@phosphor-icons/web"></script><link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css"><link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/thin/style.css"><link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/light/style.css"><link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/bold/style.css"><link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/fill/style.css"><link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/duotone/style.css"><link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css"><link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/thin/style.css"><link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/light/style.css"><link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/bold/style.css"><link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/fill/style.css"><link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/duotone/style.css">
+<style data-purpose="base-styling">
+    body {
+      background-color: #ECEFF3;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+    }
+    /* Hide scrollbar for clean app feel */
+    ::-webkit-scrollbar {
+      display: none;
+    }
+    * {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+<style data-purpose="component-effects">
+    .ios-blur {
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+    .status-pulse {
+      animation: pulseGlow 2.5s infinite;
+    }
+    @keyframes pulseGlow {
+      0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.6); }
+      70% { box-shadow: 0 0 0 7px rgba(74, 222, 128, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+    }
+  </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-0 sm:py-6">
+<!-- BEGIN: PhoneFrameWrapper -->
+<!-- iPhone 15 Pro form container -->
+<main class="w-full max-w-[420px] bg-brand-bgLight h-[920px] sm:h-[890px] sm:rounded-[48px] shadow-2xl relative flex flex-col overflow-hidden border-4" style="height: 844px; max-height: 844px; border: 4px solid rgb(0, 0, 0); border-radius: 48px; overflow: hidden; display: flex; flex-direction: column; box-sizing: border-box;">
+<!-- BEGIN: iOSStatusBar -->
+<header class="w-full pt-3 px-7 pb-2 flex justify-between items-center z-30 select-none bg-brand-bgLight/90 ios-blur flex-shrink-0">
+<span class="text-sm font-semibold tracking-tight text-slate-900">9:41</span>
+<!-- Dynamic Island Simulator -->
+<div class="w-24 h-5 bg-black rounded-full flex items-center justify-end px-2 space-x-1">
+<span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+</div>
+<!-- Right Status Icons -->
+<div class="flex items-center space-x-1.5 text-slate-800 text-xs"><svg class="w-4 h-4 text-slate-800" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 18.25A.75.75 0 0 0 5 19.5h14a.75.75 0 0 0 .65-1.25l-.62-.64C20.26 16.07 21 14.12 21 12c0-4.97-4.03-9-9-9zm0 2c3.87 0 7 3.13 7 7 0 1.5-.47 2.89-1.28 4.03L12 10.3l-5.72 5.73A6.96 6.96 0 0 1 5 12c0-3.87 3.13-7 7-7z"></path></svg><svg class="w-4 h-4 text-slate-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"></path><path d="M1.42 9a16 16 0 0 1 21.16 0"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg><svg class="w-5 h-5 text-slate-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="16" height="10" rx="2" ry="2"></rect><line x1="22" y1="11" x2="22" y2="13"></line><rect x="4" y="9" width="10" height="6" fill="currentColor" stroke="none"></rect></svg></div>
+</header>
+<!-- END: iOSStatusBar -->
+<!-- BEGIN: MainNavHeader -->
+<nav class="px-5 pt-1 pb-3 flex items-center justify-between z-20 bg-brand-bgLight/90 ios-blur flex-shrink-0">
+<!-- Back Button -->
+<button aria-label="Go Back" class="w-10 h-10 rounded-full bg-white shadow-soft flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 transition-all" type="button"><svg class="w-5 h-5 stroke-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+<!-- Centered Dr. MediBot Header -->
+<div class="flex flex-col items-center">
+<div class="flex items-center space-x-1.5">
+<span class="text-[17px] font-bold tracking-tight text-slate-900">Dr. MediBot AI</span>
+<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-brand-mintSoft text-slate-800 tracking-wide">MD-GPT</span>
+</div>
+<div class="flex items-center space-x-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 status-pulse"></span>
+<span class="text-[11px] font-medium text-emerald-700">Active Real-Time Triage</span>
+</div>
+</div>
+<!-- Right SOS 911 Emergency Button -->
+<button aria-label="Emergency SOS 911" class="relative w-10 h-10 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 shadow-soft active:scale-95 transition-all" type="button"><svg class="w-5 h-5 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg><span class="absolute -top-1 -right-1 px-1.5 py-0.2 bg-rose-600 text-[9px] font-bold text-white rounded-full border-2 border-white leading-tight">911</span></button>
+</nav>
+<!-- END: MainNavHeader -->
+<!-- BEGIN: LiveTelemetryBar -->
+<section aria-label="Real-time Telemetry Stream" class="px-5 pt-1 pb-2 flex-shrink-0">
+<div class="bg-white/80 rounded-2xl p-2.5 shadow-sm border border-slate-100 flex items-center justify-between">
+<div class="flex items-center space-x-2">
+<div class="w-7 h-7 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center"><svg class="w-4 h-4 text-rose-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg></div>
+<div class="leading-tight">
+<span class="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">Vascular BP</span>
+<div class="flex items-baseline space-x-1">
+<span class="text-xs font-bold text-slate-800">162/98</span>
+<span class="text-[10px] font-semibold text-rose-600 bg-rose-100/70 px-1 py-0.2 rounded flex items-center">
+                ▲ Spiked
+              </span>
+</div>
+</div>
+</div>
+<div class="h-6 w-[1px] bg-slate-200"></div>
+<div class="flex items-center space-x-2">
+<div class="w-7 h-7 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center"><svg class="w-4 h-4 text-amber-600" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path></svg></div>
+<div class="leading-tight">
+<span class="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">Continuous Glucose</span>
+<div class="flex items-baseline space-x-1">
+<span class="text-xs font-bold text-slate-800">64 mg/dL</span>
+<span class="text-[10px] font-semibold text-amber-700 bg-amber-100/80 px-1 py-0.2 rounded flex items-center">
+                ▼ Low
+              </span>
+</div>
+</div>
+</div>
+<!-- Sync Icon -->
+<div class="pl-1">
+<span class="w-2 h-2 rounded-full bg-emerald-500 block"></span>
+</div>
+</div>
+</section>
+<!-- END: LiveTelemetryBar -->
+<!-- BEGIN: DoctorBadgeCard -->
+<section class="px-5 pb-2 flex-shrink-0">
+<div class="bg-gradient-to-r from-emerald-50/90 to-teal-50/70 border border-emerald-100/80 rounded-xl px-3 py-1.5 flex items-center justify-between text-[11px]">
+<div class="flex items-center space-x-2">
+<svg class="w-4 h-4 text-emerald-600 inline-block" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M12.516 2.17a.75.75 0 0 0-1.032 0 11.209 11.209 0 0 1-7.877 3.08.75.75 0 0 0-.722.515A12.74 12.74 0 0 0 2.25 9.75c0 5.942 4.064 10.933 9.563 12.348a.749.749 0 0 0 .374 0c5.499-1.415 9.563-6.406 9.563-12.348 0-1.39-.223-2.73-.635-3.985a.75.75 0 0 0-.722-.516l-.143.001c-2.996 0-5.717-1.17-7.734-3.08Zm3.094 8.016a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clip-rule="evenodd"></path></svg>
+<span class="text-slate-700 font-medium tracking-tight">Board-Certified Internal Medicine AI · <span class="font-semibold text-emerald-800">Protocol v4.2</span></span>
+</div>
+<span class="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full">Validated</span>
+</div>
+</section>
+<!-- END: DoctorBadgeCard -->
+<!-- BEGIN: ChatScrollStream -->
+<div class="flex-1 overflow-y-auto px-4 py-2 space-y-4 text-sm pb-28" data-purpose="chat-stream"><div class="text-center my-1"><span class="text-[11px] font-medium text-slate-400 bg-slate-100/80 px-3 py-1 rounded-full">Today 9:38 AM · Bio-sensor Sync Alert</span></div><div class="flex justify-end"><div class="max-w-[82%] bg-[#DCECF8] text-slate-800 rounded-3xl rounded-tr-md p-3.5 shadow-sm"><p class="text-[13px] leading-relaxed">I felt dizzy about 30 minutes ago after a light walk, and my hands feel slightly shaky.</p><span class="block text-right text-[10px] font-medium text-slate-400 mt-1">9:39 AM</span></div></div><div class="flex items-start space-x-2.5 max-w-[95%]"><div class="w-8 h-8 rounded-full bg-brand-lime flex-shrink-0 flex items-center justify-center text-slate-900 font-bold text-xs shadow-sm mt-0.5"><svg class="w-4 h-4 text-slate-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"></path><path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"></path><circle cx="20" cy="10" r="2"></circle></svg></div><div class="space-y-2.5 w-full"><div class="bg-white rounded-3xl rounded-tl-md p-3.5 shadow-soft border border-slate-100 text-slate-800"><p class="text-[13px] leading-relaxed mb-2">Based on your real-time telemetry stream, your blood glucose dropped to <strong class="text-amber-600 font-semibold">64 mg/dL</strong> while systolic BP spiked to <strong class="text-rose-600 font-semibold">162 mmHg</strong>.</p><p class="text-[13px] leading-relaxed font-medium text-slate-700">Multi-Axial Check: Did the shakiness start abruptly? Any cold sweat or chest tightness?</p><span class="block text-[10px] font-medium text-slate-400 mt-1.5">9:40 AM</span></div></div></div><div class="flex justify-end"><div class="max-w-[82%] bg-[#DCECF8] text-slate-800 rounded-3xl rounded-tr-md p-3.5 shadow-sm"><p class="text-[13px] leading-relaxed">Started abruptly. Cold sweat on forehead, no chest tightness.</p><span class="block text-right text-[10px] font-medium text-slate-400 mt-1">9:40 AM</span></div></div><div class="flex items-start space-x-2.5"><div class="w-8 h-8 rounded-full bg-brand-lime flex-shrink-0 flex items-center justify-center text-slate-900 font-bold text-xs shadow-sm mt-0.5"><svg class="w-4 h-4 text-slate-900" viewBox="0 0 24 24" fill="currentColor"><path d="M10.5 4.5a1.5 1.5 0 0 0-3 0v1.5H6a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-9a3 3 0 0 0-3-3h-1.5V4.5a1.5 1.5 0 0 0-3 0V6h-3V4.5Zm-2 6a.75.75 0 0 1 .75-.75h5.5a.75.75 0 0 1 0 1.5h-5.5a.75.75 0 0 1-.75-.75Zm0 4a.75.75 0 0 1 .75-.75h5.5a.75.75 0 0 1 0 1.5h-5.5a.75.75 0 0 1-.75-.75Z"></path></svg></div><div class="flex-1 space-y-2"><div class="bg-brand-mintCard rounded-3xl rounded-tl-md p-4 shadow-sm border border-brand-mintSoft/80"><div class="flex items-center justify-between pb-2 border-b border-brand-limeDark/20"><div class="flex items-center space-x-1.5"><span class="text-sm font-extrabold text-slate-900 flex items-center gap-1"><svg class="w-4 h-4 text-amber-600 inline" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003ZM12 8.25a.75.75 0 0 1 .75.75v3.75a.75.75 0 0 1-1.5 0V9a.75.75 0 0 1 .75-.75Zm0 8.25a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z" clip-rule="evenodd"></path></svg> Immediate Rule-of-15 Protocol</span></div><span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white text-emerald-800 shadow-xs">Step 1 of 3</span></div><ol class="mt-3 space-y-2 text-[12.5px] text-slate-800 leading-snug"><li class="flex items-start space-x-2"><span class="w-5 h-5 rounded-full bg-brand-lime text-slate-900 flex items-center justify-center font-bold text-[11px] flex-shrink-0 mt-0.5">1</span><span><strong>Consume 15g fast carbs now</strong> (4 oz fruit juice or 3 glucose tablets).</span></li><li class="flex items-start space-x-2"><span class="w-5 h-5 rounded-full bg-brand-lime text-slate-900 flex items-center justify-center font-bold text-[11px] flex-shrink-0 mt-0.5">2</span><span><strong>Rest in semi-recumbent posture</strong> to assist blood pressure leveling.</span></li><li class="flex items-start space-x-2"><span class="w-5 h-5 rounded-full bg-brand-lime text-slate-900 flex items-center justify-center font-bold text-[11px] flex-shrink-0 mt-0.5">3</span><span><strong>Auto-retest timer in 15 mins:</strong> CGM will prompt repeat assessment.</span></li></ol><div class="mt-3.5 grid grid-cols-2 gap-2"><button class="w-full py-2.5 px-3 rounded-2xl bg-brand-lime text-slate-900 font-bold text-xs shadow-btn-lime hover:bg-[#bde63f] active:scale-[0.98] transition-all flex items-center justify-center space-x-1.5" type="button"><svg class="w-4 h-4 text-slate-900 stroke-current" fill="none" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"></path></svg><span>Confirm 15g Intake</span></button><button class="w-full py-2.5 px-3 rounded-2xl bg-white text-slate-800 font-semibold text-xs shadow-soft hover:bg-slate-50 active:scale-[0.98] transition-all flex items-center justify-center space-x-1 border border-slate-100" type="button"><svg class="w-4 h-4 text-amber-500 fill-current" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"></circle><path d="M12 12L7 7m5 5l5-5m-5 5v7" stroke="currentColor" stroke-width="1.5"></path></svg><span>Log Juice</span></button></div></div><div class="bg-white rounded-2xl p-3 border border-slate-100 shadow-soft space-y-2"><div class="flex items-center justify-between text-[11px] text-slate-500 cursor-pointer"><div class="flex items-center space-x-1.5 font-medium text-slate-700"><svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="currentColor"><path d="M11.25 4.533A9.707 9.707 0 0 0 6 3a9.735 9.735 0 0 0-3.25.555.75.75 0 0 0-.5.707v14.25a.75.75 0 0 0 1 .707A8.237 8.237 0 0 1 6 18.75c1.995 0 3.823.707 5.25 1.886V4.533ZM12.75 20.636A8.214 8.214 0 0 1 18 18.75c1.028 0 2 .188 2.898.532a.75.75 0 0 0 1.002-.707V4.262a.75.75 0 0 0-.5-.707A9.735 9.735 0 0 0 18 3a9.707 9.707 0 0 0-5.25 1.533v16.103Z"></path></svg><span>Verified by ADA Standards of Care 2024</span></div><span class="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">RAG 0.94</span></div><div class="pt-2 border-t border-slate-100 flex flex-col space-y-1.5"><div class="flex items-center justify-between"><span class="text-[11px] font-medium text-slate-600">Was this advice safe &amp; clear?</span><div class="flex items-center space-x-1 text-amber-400 text-xs"><svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path></svg><svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path></svg><svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path></svg><svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path></svg><svg class="w-3.5 h-3.5 fill-slate-200 stroke-slate-300" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path></svg></div></div><div class="flex flex-wrap gap-1.5 pt-0.5"><button class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 hover:bg-brand-lime/40 transition" type="button">Accurate</button><button class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 hover:bg-brand-lime/40 transition" type="button">Clear Protocol</button><button class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 hover:bg-brand-lime/40 transition" type="button">Rapid Triage</button></div></div></div></div></div></div>
+<!-- END: ChatScrollStream -->
+<!-- BEGIN: InputBarSection -->
+<section class="px-5 pt-2 pb-2 bg-gradient-to-t from-brand-bgLight via-brand-bgLight to-transparent z-20 flex-shrink-0"><div class="bg-white rounded-full p-1.5 pl-3.5 shadow-soft border border-slate-100 flex items-center space-x-2"><button aria-label="Attach Vitals" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition" type="button"><svg class="w-4 h-4 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg></button><input class="flex-1 bg-transparent border-none text-[13px] text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-0 px-1 py-1" placeholder="Ask Dr. MediBot..." type="text"><button aria-label="Voice input" class="w-8 h-8 rounded-full hover:bg-slate-100 text-slate-500 flex items-center justify-center transition" type="button"><svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg></button><button aria-label="Send query" class="w-9 h-9 rounded-full bg-brand-lime text-slate-900 flex items-center justify-center shadow-btn-lime active:scale-95 transition" type="button"><svg class="w-4 h-4 text-slate-900 fill-current" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg></button></div></section>
+<!-- END: InputBarSection -->
+<!-- BEGIN: FloatingBottomNavigation -->
+<nav class="px-4 pb-5 pt-1 z-30 select-none flex-shrink-0" data-purpose="bottom-navigation"><div class="bg-white/95 ios-blur rounded-[32px] px-3 py-2 shadow-nav border border-slate-100 flex items-center justify-around relative"><a class="flex flex-col items-center justify-center w-12 py-1 text-slate-400 hover:text-slate-700 transition" href="#home"><svg class="w-5 h-5 text-slate-400 stroke-current" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg><span class="text-[10px] font-medium mt-0.5">Home</span></a><a class="flex flex-col items-center justify-center w-12 py-1 text-slate-400 hover:text-slate-700 transition" href="#progress"><svg class="w-5 h-5 text-slate-400 stroke-current" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg><span class="text-[10px] font-medium mt-0.5">Progress</span></a><div class="relative -top-4 flex flex-col items-center"><a class="w-14 h-14 rounded-full bg-brand-lime flex items-center justify-center text-slate-950 shadow-btn-lime border-4 border-white transition transform active:scale-95" href="#medibot"><svg class="w-7 h-7 text-slate-900 fill-current" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"></path></svg></a><span class="text-[10px] font-bold text-slate-900 mt-1 tracking-tight">MediBot</span></div><a class="flex flex-col items-center justify-center w-12 py-1 text-slate-400 hover:text-slate-700 transition" href="#meds"><svg class="w-5 h-5 text-slate-400 stroke-current" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"></path><path d="m8.5 8.5 7 7"></path></svg><span class="text-[10px] font-medium mt-0.5">Meds</span></a><a class="flex flex-col items-center justify-center w-12 py-1 text-slate-400 hover:text-slate-700 transition" href="#records"><svg class="w-5 h-5 text-slate-400 stroke-current" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"></rect><rect width="7" height="7" x="14" y="3" rx="1"></rect><rect width="7" height="7" x="14" y="14" rx="1"></rect><rect width="7" height="7" x="3" y="14" rx="1"></rect></svg><span class="text-[10px] font-medium mt-0.5">Records</span></a></div><div class="w-32 h-1 bg-slate-900/30 rounded-full mx-auto mt-2"></div></nav>
+<!-- END: FloatingBottomNavigation -->
+</main>
+<!-- END: PhoneFrameWrapper -->
+
+
+
+
+</body></html>

@@ -159,12 +159,20 @@ const buildCandidates = () => {
   const envApiWebUrl = envApiUrl ? `${envApiUrl.replace(/\/+$/, '')}/app/` : null;
 
   const list = [
+    devHost ? `http://${devHost}:5173/` : null,
+    devMachineIp && devMachineIp !== devHost && devMachineIp !== 'localhost' && devMachineIp !== '127.0.0.1'
+      ? `http://${devMachineIp}:5173/`
+      : null,
     devHost ? `http://${devHost}:4000/app/` : null,
     devMachineIp && devMachineIp !== devHost && devMachineIp !== 'localhost' && devMachineIp !== '127.0.0.1'
       ? `http://${devMachineIp}:4000/app/`
       : null,
+    isAndroid ? 'http://127.0.0.1:5173/' : null,
+    isAndroid ? 'http://10.0.2.2:5173/' : null,
     isAndroid ? 'http://127.0.0.1:4000/app/' : null,
     isAndroid ? 'http://10.0.2.2:4000/app/' : null,
+    'http://127.0.0.1:5173/',
+    'http://localhost:5173/',
     'http://127.0.0.1:4000/app/',
     'http://localhost:4000/app/',
     envWebUrl,
@@ -748,8 +756,8 @@ function Shell() {
           const sensorKey = memberStorageKey('phone_pedometer_steps', `${scope}:${localDayKey()}`);
           live.current.sensorSteps = Number(await SecureStore.getItemAsync(sensorKey).catch(() => '0')) || 0;
         }
-        // Trigger native health permission request & master 30-day sync immediately upon login
-        await sync({ prompt: true, force: true, permissions: ALL_HEALTH_METRICS, isInitialLogin: true });
+        // Sync telemetry in background without interrupting login flow with blocking permission prompts
+        await sync({ prompt: false, force: false, permissions: selectedHealthPermissions.current, isInitialLogin: true });
         break;
 
       case 'LOGOUT':

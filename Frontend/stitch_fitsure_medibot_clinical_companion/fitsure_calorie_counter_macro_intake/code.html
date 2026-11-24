@@ -1,0 +1,470 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>Calorie Counter</title>
+<!-- Tailwind CSS v3 with Plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            appBg: '#F8F9FA',
+            pastelBlue: '#BEE7EB',
+            pastelBlueLight: '#D2F1F4',
+            pastelGreen: '#CBE8C4',
+            pastelGreenLight: '#DDF4D8',
+            pastelYellow: '#FDF3A9',
+            cardBg: '#FFFFFF',
+            textMain: '#1E252D',
+            textSub: '#7B8491'
+          },
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif']
+          },
+          boxShadow: {
+            'soft': '0 8px 30px rgba(0,0,0,0.03)',
+            'nav': '0 10px 25px rgba(0,0,0,0.06)'
+          }
+        }
+      }
+    }
+  </script>
+<!-- BEGIN: Custom Styles -->
+<style data-purpose="custom-layout">
+    body {
+      background-color: #ECEEF2;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    
+    /* Device frame wrapper for clean mobile presentation */
+    .mobile-screen {
+      width: 100%;
+      max-width: 375px;
+      height: 812px;
+      background-color: #FAFBFB;
+      border-radius: 44px;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0,0,0,0.04);
+    }
+
+    /* Notch-like area spacing */
+    .status-bar-spacer {
+      height: 34px;
+      width: 100%;
+      flex-shrink: 0;
+    }
+
+    /* Circular SVG Progress */
+    .progress-ring-circle {
+      transition: stroke-dashoffset 0.35s;
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+    }
+  </style>
+<!-- END: Custom Styles -->
+</head>
+<body>
+<!-- BEGIN: Mobile Device Viewport -->
+<main class="mobile-screen" data-purpose="mobile-screen-container" style="border: 4px solid rgb(0, 0, 0); box-sizing: border-box;">
+<!-- Top System Spacing -->
+<div class="status-bar-spacer"></div><header class="flex items-center justify-between px-5 pt-1 pb-3 flex-shrink-0 z-20 bg-[#FAFBFB]" data-purpose="user-header"><div class="flex items-center space-x-3"><div class="relative w-10 h-10 rounded-full overflow-hidden border-2 border-white shadow-sm flex-shrink-0"><img alt="Hailey's profile avatar" class="w-full h-full object-cover" data-purpose="user-avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA5WJXO3sBGMH9JJubo-MN6vaCDgCFW0bt1wfUVLBRLsMWXHd9dNP836DjaAdLVSCiTzRF35JAZO46HEBbp7UNHRMkJWFd7AEIqT-csD8agmZk-qseIw8kpii3v-VkeSsFyFQuxscdNbETcn01dAfnDiT9Eyp74EixOyyU6pjZJS-Am1ba-4Lqp2JS85tOfVyRUPvwkPBDfMj_nZfQ44kiaGxqEePlLO_vmK6YQACg"></div><span class="text-[17px] font-semibold tracking-tight text-gray-800">Hello, Hailey!</span></div><div class="flex items-center space-x-2"><button aria-label="Search" class="w-9 h-9 rounded-full bg-white flex items-center justify-center text-gray-700 shadow-sm hover:bg-gray-50 active:scale-95 transition-transform"><svg class="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" x2="16.65" y1="21" y2="16.65"></line></svg></button><div class="relative"><button aria-label="Notifications" class="w-9 h-9 rounded-full bg-white flex items-center justify-center text-gray-700 shadow-sm hover:bg-gray-50 active:scale-95 transition-transform"><svg class="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></button><span class="absolute top-0 right-0 w-2 h-2 rounded-full bg-[#FA6B6B] ring-2 ring-white"></span></div></div></header>
+<!-- Scrollable Content Area -->
+<div class="flex-1 overflow-y-auto px-5 pb-24 scrollbar-none pt-2" data-purpose="scrollable-content" style="scrollbar-width: none;">
+<!-- BEGIN: MainHeader -->
+
+<!-- END: MainHeader -->
+<!-- BEGIN: HeroProgressCard -->
+<section class="mt-2 bg-[#BCE8EC] rounded-[28px] p-5 relative overflow-hidden text-gray-800 shadow-sm" data-purpose="hero-progress-card">
+<div class="flex justify-between items-start">
+<div class="flex flex-col justify-between h-36">
+<!-- Progress Pill Badge -->
+<div class="inline-flex items-center space-x-1.5 bg-white/70 backdrop-blur-sm px-2.5 py-1 rounded-full w-max text-xs font-medium text-gray-700">
+<svg class="w-3.5 h-3.5 text-gray-600" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+<polyline points="17 6 23 6 23 12"></polyline>
+</svg>
+<span>Your Progress</span>
+</div>
+<!-- Big Percentage Display -->
+<div class="my-auto pt-2">
+<span class="text-4xl font-extrabold tracking-tight text-gray-900">91%</span>
+</div>
+<!-- Date Selector Pill -->
+<div>
+<button class="inline-flex items-center space-x-1 text-xs font-semibold text-gray-700 bg-white/40 hover:bg-white/60 px-2.5 py-1 rounded-full transition-colors">
+<span>19 September</span>
+<svg class="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+<path d="M6 9l6 6 6-6"></path>
+</svg>
+</button>
+</div>
+</div>
+<!-- Circular Radial Progress Indicator -->
+<div class="relative w-36 h-36 flex items-center justify-center">
+<svg class="w-full h-full -rotate-90 transform" viewBox="0 0 120 120">
+<!-- Background Circle Track -->
+<circle cx="60" cy="60" fill="none" r="46" stroke="white" stroke-opacity="0.3" stroke-width="7"></circle>
+<!-- Active Progress Stroke -->
+<circle class="progress-ring-circle" cx="60" cy="60" fill="none" r="46" stroke="white" stroke-dasharray="289" stroke-dashoffset="35" stroke-linecap="round" stroke-width="7"></circle>
+</svg>
+<!-- Yellow Indicator Bead near top right of ring -->
+<div class="absolute top-[18px] right-[24px] w-3 h-3 rounded-full bg-[#F5DE6A] border-2 border-white shadow-sm"></div>
+<!-- Center Content -->
+<div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+<span class="text-xl font-bold text-gray-900 leading-none">1350</span>
+<span class="text-[11px] font-medium text-gray-600 mt-1">Calories</span>
+</div>
+</div>
+</div>
+</section>
+<!-- END: HeroProgressCard -->
+<!-- BEGIN: SubMetricsGrid -->
+<section class="grid grid-cols-2 gap-3.5 mt-3.5" data-purpose="sub-metrics">
+<!-- Current Weight Card -->
+<article class="bg-white rounded-[24px] p-4 flex flex-col justify-between shadow-[0_4px_16px_rgba(0,0,0,0.02)] border border-gray-100/70" data-purpose="current-weight-card">
+<div class="flex items-center justify-between text-gray-600">
+<span class="text-xs font-semibold text-gray-700 leading-tight">Current<br>Weight</span>
+<div class="w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center text-gray-600">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+</svg>
+</div>
+</div>
+<div class="mt-3">
+<div class="flex items-baseline space-x-1">
+<span class="text-2xl font-bold text-gray-900 leading-none">78.5</span>
+<span class="text-xs font-semibold text-gray-500">Kg</span>
+</div>
+<div class="flex items-center space-x-1 text-[11px] font-medium text-gray-500 mt-2">
+<svg class="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+<circle cx="12" cy="12" r="10"></circle>
+<path d="M8 12l4 4 4-4"></path>
+</svg>
+<span>3 Kg (-3.8%)</span>
+</div>
+</div>
+</article>
+<!-- Today's Calories Card -->
+<article class="bg-white rounded-[24px] p-4 flex flex-col justify-between shadow-[0_4px_16px_rgba(0,0,0,0.02)] border border-gray-100/70" data-purpose="calories-burnt-card">
+<div class="flex items-center justify-between text-gray-600">
+<span class="text-xs font-semibold text-gray-700 leading-tight">Today's<br>Calories</span>
+<div class="w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center text-gray-600">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+<path d="M12 2c0 4-4 6-4 10a5 5 0 0 0 9.8 1.4c.1-.4.2-.9.2-1.4 0-4-3-6-6-10z"></path>
+</svg>
+</div>
+</div>
+<div class="mt-3">
+<div class="flex items-baseline space-x-1">
+<span class="text-2xl font-bold text-gray-900 leading-none">1278</span>
+<span class="text-xs font-semibold text-gray-500">Kcal</span>
+</div>
+<div class="flex items-center justify-between mt-2">
+<div class="flex items-center space-x-1 text-[11px] font-medium text-gray-500">
+<svg class="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+<circle cx="12" cy="12" r="10"></circle>
+<path d="M8 12l4 4 4-4"></path>
+</svg>
+<span>5.6%</span>
+</div>
+<!-- Miniature sparkline -->
+<svg class="w-12 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 48 16">
+<path d="M2 12 C 10 4, 18 14, 26 8 C 34 2, 40 10, 46 4" stroke="currentColor"></path>
+</svg>
+</div>
+</div>
+</article>
+</section>
+<!-- END: SubMetricsGrid -->
+<!-- BEGIN: NutritionCard -->
+<section class="mt-3.5 bg-[#CEECC5] rounded-[28px] p-5 shadow-sm relative" data-purpose="meal-breakdown-card">
+<!-- Meal Header -->
+<div class="flex items-center justify-between">
+<div class="flex items-center space-x-2.5">
+<div class="w-8 h-8 rounded-full bg-white/70 flex items-center justify-center text-gray-700">
+<svg class="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+<circle cx="12" cy="12" r="5"></circle>
+<line x1="12" x2="12" y1="1" y2="3"></line>
+<line x1="12" x2="12" y1="21" y2="23"></line>
+<line x1="4.22" x2="5.64" y1="4.22" y2="5.64"></line>
+<line x1="18.36" x2="19.78" y1="18.36" y2="19.78"></line>
+<line x1="1" x2="3" y1="12" y2="12"></line>
+<line x1="21" x2="23" y1="12" y2="12"></line>
+<line x1="4.22" x2="5.64" y1="19.78" y2="18.36"></line>
+<line x1="18.36" x2="19.78" y1="5.64" y2="4.22"></line>
+</svg>
+</div>
+<div>
+<h3 class="text-sm font-bold text-gray-900 leading-tight">Breakfast</h3>
+<p class="text-[11px] font-medium text-gray-600">350 calories</p>
+</div>
+</div>
+<!-- Add Button -->
+<button aria-label="Add Food" class="w-8 h-8 rounded-full bg-white/80 hover:bg-white flex items-center justify-center text-gray-700 shadow-sm active:scale-95 transition-all">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewBox="0 0 24 24">
+<line x1="12" x2="12" y1="5" y2="19"></line>
+<line x1="5" x2="19" y1="12" y2="12"></line>
+</svg>
+</button>
+</div>
+<!-- Macro Elements Row -->
+<div class="grid grid-cols-4 gap-2 mt-4 pt-1">
+<!-- Protein -->
+<div class="text-left">
+<span class="block text-[10px] font-semibold text-gray-600 uppercase tracking-tight">Proteins</span>
+<span class="text-[17px] font-bold text-gray-900">62.5</span>
+</div>
+<!-- Fats -->
+<div class="text-left">
+<span class="block text-[10px] font-semibold text-gray-600 uppercase tracking-tight">Fats</span>
+<span class="text-[17px] font-bold text-gray-900">23.6</span>
+</div>
+<!-- Carbs -->
+<div class="text-left">
+<span class="block text-[10px] font-semibold text-gray-600 uppercase tracking-tight">Carbs</span>
+<span class="text-[17px] font-bold text-gray-900">45.7</span>
+</div>
+<!-- RDC -->
+<div class="text-left">
+<span class="block text-[10px] font-semibold text-gray-600 uppercase tracking-tight">RDC</span>
+<span class="text-[17px] font-bold text-gray-900">14%</span>
+</div>
+</div>
+<!-- Card Footer (Day Selector & Edit) -->
+<div class="flex items-center justify-between mt-4 pt-1">
+<button class="inline-flex items-center space-x-1.5 bg-white/80 hover:bg-white text-gray-800 text-xs font-semibold px-3 py-1.5 rounded-full transition-colors">
+<span>Today</span>
+<svg class="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+<path d="M6 9l6 6 6-6"></path>
+</svg>
+</button>
+<button aria-label="Edit Meal" class="w-8 h-8 rounded-full bg-white/80 hover:bg-white flex items-center justify-center text-gray-700 shadow-sm transition-transform active:scale-95">
+<svg class="w-3.5 h-3.5 text-gray-700" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+<path d="M12 20h9"></path>
+<path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+</svg>
+</button>
+</div>
+</section><!-- BEGIN: Lunch Card -->
+<section class="mt-3.5 bg-[#FFEACC] rounded-[28px] p-5 shadow-sm relative" data-purpose="lunch-meal-card">
+  <div class="flex items-center justify-between">
+    <div class="flex items-center space-x-2.5">
+      <div class="w-8 h-8 rounded-full bg-white/70 flex items-center justify-center text-gray-700">
+        <svg class="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M18 2v6a3 3 0 0 1-3 3 3 3 0 0 1-3-3V2"></path>
+          <line x1="15" x2="15" y1="11" y2="22"></line>
+          <path d="M6 2v20"></path>
+          <path d="M6 7h4a2 2 0 0 0 2-2V2H6v5z"></path>
+        </svg>
+      </div>
+      <div>
+        <h3 class="text-sm font-bold text-gray-900 leading-tight">Lunch</h3>
+        <p class="text-[11px] font-medium text-gray-600">620 calories</p>
+      </div>
+    </div>
+    <button aria-label="Add Food" class="w-8 h-8 rounded-full bg-white/80 hover:bg-white flex items-center justify-center text-gray-700 shadow-sm active:scale-95 transition-all">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewBox="0 0 24 24">
+        <line x1="12" x2="12" y1="5" y2="19"></line>
+        <line x1="5" x2="19" y1="12" y2="12"></line>
+      </svg>
+    </button>
+  </div>
+  <div class="grid grid-cols-4 gap-2 mt-4 pt-1">
+    <div class="text-left">
+      <span class="block text-[10px] font-semibold text-gray-600 uppercase tracking-tight">Proteins</span>
+      <span class="text-[17px] font-bold text-gray-900">48.0</span>
+    </div>
+    <div class="text-left">
+      <span class="block text-[10px] font-semibold text-gray-600 uppercase tracking-tight">Fats</span>
+      <span class="text-[17px] font-bold text-gray-900">18.2</span>
+    </div>
+    <div class="text-left">
+      <span class="block text-[10px] font-semibold text-gray-600 uppercase tracking-tight">Carbs</span>
+      <span class="text-[17px] font-bold text-gray-900">65.4</span>
+    </div>
+    <div class="text-left">
+      <span class="block text-[10px] font-semibold text-gray-600 uppercase tracking-tight">RDC</span>
+      <span class="text-[17px] font-bold text-gray-900">28%</span>
+    </div>
+  </div>
+  <div class="flex items-center justify-between mt-4 pt-1">
+    <button class="inline-flex items-center space-x-1.5 bg-white/80 hover:bg-white text-gray-800 text-xs font-semibold px-3 py-1.5 rounded-full transition-colors">
+      <span>Grilled Chicken Quinoa</span>
+      <svg class="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M6 9l6 6 6-6"></path>
+      </svg>
+    </button>
+    <button aria-label="Edit Meal" class="w-8 h-8 rounded-full bg-white/80 hover:bg-white flex items-center justify-center text-gray-700 shadow-sm transition-transform active:scale-95">
+      <svg class="w-3.5 h-3.5 text-gray-700" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M12 20h9"></path>
+        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+      </svg>
+    </button>
+  </div>
+</section>
+<!-- END: Lunch Card -->
+
+<!-- BEGIN: Dinner Card -->
+<section class="mt-3.5 bg-[#E2E4FA] rounded-[28px] p-5 shadow-sm relative" data-purpose="dinner-meal-card">
+  <div class="flex items-center justify-between">
+    <div class="flex items-center space-x-2.5">
+      <div class="w-8 h-8 rounded-full bg-white/70 flex items-center justify-center text-gray-700">
+        <svg class="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      </div>
+      <div>
+        <h3 class="text-sm font-bold text-gray-900 leading-tight">Dinner</h3>
+        <p class="text-[11px] font-medium text-gray-600">540 calories</p>
+      </div>
+    </div>
+    <button aria-label="Add Food" class="w-8 h-8 rounded-full bg-white/80 hover:bg-white flex items-center justify-center text-gray-700 shadow-sm active:scale-95 transition-all">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewBox="0 0 24 24">
+        <line x1="12" x2="12" y1="5" y2="19"></line>
+        <line x1="5" x2="19" y1="12" y2="12"></line>
+      </svg>
+    </button>
+  </div>
+  <div class="grid grid-cols-4 gap-2 mt-4 pt-1">
+    <div class="text-left">
+      <span class="block text-[10px] font-semibold text-gray-600 uppercase tracking-tight">Proteins</span>
+      <span class="text-[17px] font-bold text-gray-900">42.5</span>
+    </div>
+    <div class="text-left">
+      <span class="block text-[10px] font-semibold text-gray-600 uppercase tracking-tight">Fats</span>
+      <span class="text-[17px] font-bold text-gray-900">16.0</span>
+    </div>
+    <div class="text-left">
+      <span class="block text-[10px] font-semibold text-gray-600 uppercase tracking-tight">Carbs</span>
+      <span class="text-[17px] font-bold text-gray-900">52.1</span>
+    </div>
+    <div class="text-left">
+      <span class="block text-[10px] font-semibold text-gray-600 uppercase tracking-tight">RDC</span>
+      <span class="text-[17px] font-bold text-gray-900">24%</span>
+    </div>
+  </div>
+  <div class="flex items-center justify-between mt-4 pt-1">
+    <button class="inline-flex items-center space-x-1.5 bg-white/80 hover:bg-white text-gray-800 text-xs font-semibold px-3 py-1.5 rounded-full transition-colors">
+      <span>Baked Salmon &amp; Asparagus</span>
+      <svg class="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M6 9l6 6 6-6"></path>
+      </svg>
+    </button>
+    <button aria-label="Edit Meal" class="w-8 h-8 rounded-full bg-white/80 hover:bg-white flex items-center justify-center text-gray-700 shadow-sm transition-transform active:scale-95">
+      <svg class="w-3.5 h-3.5 text-gray-700" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M12 20h9"></path>
+        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+      </svg>
+    </button>
+  </div>
+</section>
+<!-- END: Dinner Card -->
+
+<!-- BEGIN: Snacks Card -->
+<section class="mt-3.5 bg-[#FFF2C2] rounded-[28px] p-5 shadow-sm relative" data-purpose="snacks-meal-card">
+  <div class="flex items-center justify-between">
+    <div class="flex items-center space-x-2.5">
+      <div class="w-8 h-8 rounded-full bg-white/70 flex items-center justify-center text-gray-700">
+        <svg class="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M12 2L15 8L21 9L17 14L18 20L12 17L6 20L7 14L3 9L9 8L12 2Z"></path>
+        </svg>
+      </div>
+      <div>
+        <h3 class="text-sm font-bold text-gray-900 leading-tight">Snacks &amp; Hydration</h3>
+        <p class="text-[11px] font-medium text-gray-600">210 calories</p>
+      </div>
+    </div>
+    <button aria-label="Add Food" class="w-8 h-8 rounded-full bg-white/80 hover:bg-white flex items-center justify-center text-gray-700 shadow-sm active:scale-95 transition-all">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewBox="0 0 24 24">
+        <line x1="12" x2="12" y1="5" y2="19"></line>
+        <line x1="5" x2="19" y1="12" y2="12"></line>
+      </svg>
+    </button>
+  </div>
+  <div class="grid grid-cols-4 gap-2 mt-4 pt-1">
+    <div class="text-left">
+      <span class="block text-[10px] font-semibold text-gray-600 uppercase tracking-tight">Proteins</span>
+      <span class="text-[17px] font-bold text-gray-900">12.0</span>
+    </div>
+    <div class="text-left">
+      <span class="block text-[10px] font-semibold text-gray-600 uppercase tracking-tight">Fats</span>
+      <span class="text-[17px] font-bold text-gray-900">6.5</span>
+    </div>
+    <div class="text-left">
+      <span class="block text-[10px] font-semibold text-gray-600 uppercase tracking-tight">Carbs</span>
+      <span class="text-[17px] font-bold text-gray-900">24.8</span>
+    </div>
+    <div class="text-left">
+      <span class="block text-[10px] font-semibold text-gray-600 uppercase tracking-tight">RDC</span>
+      <span class="text-[17px] font-bold text-gray-900">9%</span>
+    </div>
+  </div>
+  <div class="flex items-center justify-between mt-4 pt-1">
+    <button class="inline-flex items-center space-x-1.5 bg-white/80 hover:bg-white text-gray-800 text-xs font-semibold px-3 py-1.5 rounded-full transition-colors">
+      <span>Greek Yogurt &amp; Almonds</span>
+      <svg class="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M6 9l6 6 6-6"></path>
+      </svg>
+    </button>
+    <button aria-label="Edit Meal" class="w-8 h-8 rounded-full bg-white/80 hover:bg-white flex items-center justify-center text-gray-700 shadow-sm transition-transform active:scale-95">
+      <svg class="w-3.5 h-3.5 text-gray-700" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M12 20h9"></path>
+        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+      </svg>
+    </button>
+  </div>
+</section>
+<!-- END: Snacks Card -->
+<!-- END: NutritionCard -->
+</div>
+<!-- BEGIN: FloatingNavigationBar -->
+<nav class="absolute bottom-5 inset-x-0 flex justify-center pointer-events-none" data-purpose="floating-dock">
+<div class="bg-white/95 backdrop-blur-md rounded-full px-3 py-2 flex items-center space-x-2.5 shadow-nav border border-gray-100 pointer-events-auto">
+<!-- Active User Profile Tab (Yellow/Lime Accent) -->
+<button aria-label="Profile" class="w-10 h-10 rounded-full bg-[#FAF38E] flex items-center justify-center text-gray-800 transition-transform active:scale-95">
+<svg class="w-4 h-4 text-gray-800" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+<circle cx="12" cy="7" r="4"></circle>
+</svg>
+</button>
+<!-- Calendar Tab -->
+<button aria-label="Calendar" class="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors active:scale-95">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+<rect height="18" rx="2" ry="2" width="18" x="3" y="4"></rect>
+<line x1="16" x2="16" y1="2" y2="6"></line>
+<line x1="8" x2="8" y1="2" y2="6"></line>
+<line x1="3" x2="21" y1="10" y2="10"></line>
+</svg>
+</button>
+<!-- Scan / QR Tab -->
+<button aria-label="Scan" class="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors active:scale-95">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+<path d="M3 7V5a2 2 0 0 1 2-2h2"></path>
+<path d="M17 3h2a2 2 0 0 1 2 2v2"></path>
+<path d="M21 17v2a2 2 0 0 1-2 2h-2"></path>
+<path d="M7 21H5a2 2 0 0 1-2-2v-2"></path>
+</svg>
+</button>
+</div>
+</nav>
+<!-- END: FloatingNavigationBar -->
+</main>
+<!-- END: Mobile Device Viewport -->
+
+
+
+
+
+
+</body></html>

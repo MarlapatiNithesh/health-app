@@ -1,0 +1,304 @@
+<!DOCTYPE html><html lang="en"><head></head><body class="bg-slate-900 min-h-screen flex items-center justify-center p-2 sm:p-4 text-slate-800 antialiased font-sans select-none"><svg class="inline-defs-container" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden"></svg>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>FITsure - Empower Your Daily Health</title>
+<!-- Tailwind CSS CDN with forms & container queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              dark: '#052e16',
+              forest: '#14532d',
+              leaf: '#16a34a',
+              lime: '#84cc16',
+              bright: '#a3e635',
+              softBg: '#f2fce2',
+            }
+          },
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"Segoe UI"', 'Roboto', 'sans-serif'],
+          },
+          boxShadow: {
+            'glow-button': '0 12px 24px -6px rgba(132, 204, 22, 0.55), 0 4px 10px -2px rgba(20, 83, 45, 0.2)',
+            'card-soft': '0 8px 20px -4px rgba(22, 101, 52, 0.06), 0 2px 6px -1px rgba(0, 0, 0, 0.02)',
+          }
+        }
+      }
+    }
+  </script>
+<!-- BEGIN: Custom Ambient Styles -->
+<style data-purpose="ambient-gradients">
+    /* Organic soft ambient glow gradients matching reference artwork */
+    .bg-ambient-mesh {
+      background-color: #f7fee7;
+      background-image: 
+        radial-gradient(at 10% 12%, rgba(190, 242, 100, 0.55) 0px, transparent 55%),
+        radial-gradient(at 90% 15%, rgba(163, 230, 53, 0.4) 0px, transparent 50%),
+        radial-gradient(at 50% 52%, rgba(217, 249, 157, 0.6) 0px, transparent 65%),
+        radial-gradient(at 85% 85%, rgba(190, 242, 100, 0.5) 0px, transparent 50%),
+        radial-gradient(at 15% 90%, rgba(236, 252, 203, 0.9) 0px, transparent 50%);
+    }
+
+    /* Subtle ripple/soundwave resonance concentric circles */
+    .radar-circle {
+      border: 1.5px solid rgba(132, 204, 22, 0.22);
+      border-radius: 9999px;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+  </style>
+<!-- END: Custom Ambient Styles -->
+
+
+<!-- BEGIN: MobileDeviceFrame -->
+<div class="relative w-full max-w-[412px] bg-ambient-mesh rounded-[46px] border-[5px] border-neutral-900 shadow-2xl overflow-hidden flex flex-col justify-between" data-purpose="mobile-ios-container" style="height: 844px; max-height: 844px; border: 4px solid rgb(0, 0, 0); border-radius: 48px; overflow: hidden; display: flex; flex-direction: column; box-sizing: border-box;">
+<!-- BEGIN: AmbientBackgroundElements -->
+<div aria-hidden="true" class="absolute inset-0 overflow-hidden pointer-events-none"><!-- Soft floating chartreuse organic shapes -->
+<div class="absolute -top-16 -right-16 w-64 h-64 bg-lime-300/35 rounded-full blur-2xl"></div>
+<div class="absolute top-1/3 -left-20 w-72 h-72 bg-lime-200/40 rounded-full blur-3xl"></div>
+<div class="absolute -bottom-10 right-0 w-80 h-80 bg-lime-300/30 rounded-full blur-2xl"></div>
+<!-- Concentric biometric resonance circles in the central area scaled up -->
+<div class="radar-circle w-[220px] h-[220px] opacity-40"></div>
+<div class="radar-circle w-[310px] h-[310px] opacity-35"></div>
+<div class="radar-circle w-[390px] h-[390px] opacity-25"></div>
+<!-- Ambient organic particle dots -->
+<div class="absolute top-[46%] left-[13%] w-4 h-4 rounded-full bg-emerald-700/40"></div>
+<div class="absolute top-[42%] right-[19%] w-3 h-3 rounded-full bg-emerald-800/30"></div>
+<div class="absolute top-[35%] left-[24%] w-3.5 h-3.5 rounded-full bg-lime-400/50"></div>
+<div class="absolute top-[59%] right-[22%] w-3.5 h-3.5 rounded-full bg-lime-300/60"></div>
+<div class="absolute top-[33%] right-[32%] w-2.5 h-2.5 rounded-full bg-lime-400/40"></div>
+<div class="absolute bottom-[28%] left-[18%] w-3 h-3 rounded-full bg-lime-200/70"></div></div>
+<!-- END: AmbientBackgroundElements -->
+<!-- BEGIN: TopBarAndNavigation -->
+<header class="relative z-20 pt-3 px-6 flex-shrink-0" data-purpose="header-section">
+<!-- iOS Status Bar -->
+<div class="flex justify-between items-center text-xs font-semibold tracking-tight text-neutral-800 mb-3 px-1">
+<span>9:41</span>
+<div class="w-24 h-4 bg-neutral-900 rounded-full mx-auto -mt-1 hidden sm:block"></div>
+<div class="flex items-center space-x-1.5 text-neutral-800">
+<!-- Cellular Icon -->
+<svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+<path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L12 22l7.03-4.39C20.26 16.07 21 14.12 21 12c0-4.97-4.03-9-9-9z" opacity="0"></path>
+<rect height="5" rx="1" width="3" x="2" y="16"></rect>
+<rect height="9" rx="1" width="3" x="7" y="12"></rect>
+<rect height="13" rx="1" width="3" x="12" y="8"></rect>
+<rect height="17" rx="1" width="3" x="17" y="4"></rect>
+</svg>
+<!-- Wifi Icon -->
+<svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+<path d="M12 4C7.31 4 3.07 5.9 0 8.98L12 21 24 8.98C20.93 5.9 16.69 4 12 4zm0 3.5c3.78 0 7.22 1.48 9.77 3.92L12 19.34 2.23 11.42C4.78 8.98 8.22 7.5 12 7.5z"></path>
+</svg>
+<!-- Battery Icon -->
+<div class="w-5 h-2.5 border border-neutral-800 rounded-sm p-[1px] flex items-center">
+<div class="h-full w-full bg-neutral-800 rounded-2xs"></div>
+</div>
+</div>
+</div>
+<!-- App Header Bar with Back and Menu -->
+<nav aria-label="Main Navigation" class="flex items-center justify-between py-1.5">
+<!-- Back Navigation Button -->
+<button aria-label="Go back" class="p-1 text-brand-dark hover:opacity-75 transition-opacity" type="button">
+<svg class="w-6 h-6 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M15 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<!-- Right Hamburger Menu -->
+<button aria-label="Open menu" class="p-1 text-brand-dark hover:opacity-75 transition-opacity" type="button">
+<svg class="w-6 h-6 stroke-[2.2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</nav>
+</header>
+<!-- END: TopBarAndNavigation -->
+<!-- BEGIN: MainContent -->
+<main class="relative z-10 flex-1 flex flex-col px-6 overflow-y-auto no-scrollbar justify-between pt-1 pb-6" data-purpose="landing-content">
+<!-- Headline & Subtitle Block -->
+<section class="text-center mt-1" data-purpose="hero-copy">
+<h1 class="text-[34px] leading-[1.12] font-extrabold text-brand-forest tracking-tight">
+          Empower Your<br>Daily Health.
+        </h1>
+<p class="mt-2 text-[13.5px] leading-relaxed text-slate-600 font-normal px-2">
+          All your medical vitals, doctor schedules, and wellness goals in one smart, beautifully simple view.
+        </p>
+</section>
+<!-- Center Brand Emblem with Heart Pulse & Soundwave effect -->
+<section class="flex flex-col items-center justify-center my-auto py-2" data-purpose="brand-emblem-section"><div class="relative flex items-center justify-center">
+  <!-- Pulsing ambient glow aura -->
+  <div aria-hidden="true" class="absolute w-48 h-48 rounded-full bg-lime-400/30 blur-2xl pointer-events-none -z-10 animate-pulse"></div>
+  <div aria-hidden="true" class="absolute w-56 h-56 rounded-full bg-emerald-400/20 blur-3xl pointer-events-none -z-10"></div>
+
+  <!-- Soundwave / Frequency bar graph overlay matching backdrop -->
+  <div aria-hidden="true" class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-25 gap-[3px] -z-10">
+    <span class="w-0.5 h-3 bg-lime-600 rounded-full"></span>
+    <span class="w-0.5 h-5 bg-lime-600 rounded-full"></span>
+    <span class="w-0.5 h-8 bg-lime-600 rounded-full"></span>
+    <span class="w-0.5 h-14 bg-lime-600 rounded-full"></span>
+    <span class="w-0.5 h-6 bg-lime-600 rounded-full"></span>
+    <span class="w-0.5 h-16 bg-lime-600 rounded-full"></span>
+    <span class="w-0.5 h-11 bg-lime-600 rounded-full"></span>
+    <span class="w-0.5 h-20 bg-lime-600 rounded-full"></span>
+    <span class="w-0.5 h-9 bg-lime-600 rounded-full"></span>
+    <span class="w-0.5 h-14 bg-lime-600 rounded-full"></span>
+    <span class="w-0.5 h-22 bg-lime-600 rounded-full"></span>
+    <span class="w-0.5 h-12 bg-lime-600 rounded-full"></span>
+    <span class="w-0.5 h-18 bg-lime-600 rounded-full"></span>
+    <span class="w-0.5 h-10 bg-lime-600 rounded-full"></span>
+    <span class="w-0.5 h-16 bg-lime-600 rounded-full"></span>
+    <span class="w-0.5 h-7 bg-lime-600 rounded-full"></span>
+    <span class="w-0.5 h-12 bg-lime-600 rounded-full"></span>
+    <span class="w-0.5 h-5 bg-lime-600 rounded-full"></span>
+    <span class="w-0.5 h-3 bg-lime-600 rounded-full"></span>
+  </div>
+
+  <!-- Upgraded FITsure Refined Health-Tech Heart + Running Lifeline Waveform Emblem (184px x 184px / w-46 h-46) -->
+  <svg class="w-44 h-44 drop-shadow-md transition-all select-none" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="emblemForestGrad" x1="20" y1="25" x2="140" y2="130" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#064e3b"></stop>
+        <stop offset="100%" stop-color="#047857"></stop>
+      </linearGradient>
+      <linearGradient id="emblemPulseGrad" x1="20" y1="80" x2="140" y2="80" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#047857"></stop>
+        <stop offset="45%" stop-color="#10b981"></stop>
+        <stop offset="70%" stop-color="#84cc16"></stop>
+        <stop offset="100%" stop-color="#a3e635"></stop>
+      </linearGradient>
+      <linearGradient id="apexGrad" x1="50" y1="110" x2="110" y2="145" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#84cc16"></stop>
+        <stop offset="50%" stop-color="#a3e635"></stop>
+        <stop offset="100%" stop-color="#84cc16"></stop>
+      </linearGradient>
+      <filter id="glowFilter" x="-25%" y="-25%" width="150%" height="150%">
+        <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#84cc16" flood-opacity="0.75"></feDropShadow>
+        <feDropShadow dx="0" dy="2" stdDeviation="6" flood-color="#10b981" flood-opacity="0.55"></feDropShadow>
+      </filter>
+      <filter id="pulseGlow" x="-30%" y="-30%" width="160%" height="160%">
+        <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#bef264" flood-opacity="0.95"></feDropShadow>
+      </filter>
+      <style>
+        @keyframes ecgDashFlow {
+          0% {
+            stroke-dashoffset: 420;
+          }
+          100% {
+            stroke-dashoffset: 0;
+          }
+        }
+        @keyframes heartPulseRing {
+          0%, 100% {
+            opacity: 0.25;
+            transform: scale(1);
+            transform-origin: center;
+          }
+          50% {
+            opacity: 0.65;
+            transform: scale(1.03);
+            transform-origin: center;
+          }
+        }
+        .ecg-flow-stream {
+          stroke-dasharray: 45 130;
+          animation: ecgDashFlow 2.1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+        .heart-halo-glow {
+          animation: heartPulseRing 2.4s ease-in-out infinite;
+        }
+      </style>
+    </defs>
+    <!-- Outer subtle echoing heart ring with gentle breath pulse -->
+    <g class="heart-halo-glow">
+      <path d="M80 46 C70 24, 38 21, 23 40 C6 61, 16 97, 50 122" stroke="#84cc16" stroke-width="2.5" stroke-opacity="0.45" stroke-linecap="round"></path>
+      <path d="M80 46 C90 24, 122 21, 137 40 C154 61, 144 97, 110 122" stroke="#84cc16" stroke-width="2.5" stroke-opacity="0.45" stroke-linecap="round"></path>
+    </g>
+    <!-- Left & Right Upper Heart Chambers in deep forest gradient -->
+    <path d="M80 48 C70 27, 39 24, 25 43 C8 63, 18 97, 52 121" stroke="url(#emblemForestGrad)" stroke-width="12.5" stroke-linecap="round" stroke-linejoin="round"></path>
+    <path d="M80 48 C90 27, 121 24, 135 43 C152 63, 142 97, 108 121" stroke="url(#emblemForestGrad)" stroke-width="12.5" stroke-linecap="round" stroke-linejoin="round"></path>
+    <!-- Lower Heart Apex Point in Vibrant Lime-Emerald -->
+    <path d="M51 119 L80 143 L109 119" stroke="url(#apexGrad)" stroke-width="12.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#glowFilter)"></path>
+    <!-- Base Multi-Segment Precision ECG Pulse Waveform -->
+    <path d="M20 83 H53 L67 58 L85 116 L102 76 L115 83 H140" stroke="url(#emblemPulseGrad)" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" filter="url(#glowFilter)"></path>
+    <!-- Static inner luminous path -->
+    <path d="M67 58 L85 116 L102 76" stroke="#d9f99d" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.85"></path>
+    <!-- Continuous Running / Flowing Green Electric Pulse Beam -->
+    <path class="ecg-flow-stream" d="M20 83 H53 L67 58 L85 116 L102 76 L115 83 H140" stroke="#f7fee7" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#pulseGlow)"></path>
+  </svg>
+</div>
+
+<div class="flex items-center justify-center mt-2.5">
+</div>
+<div class="flex items-center gap-1.5 mt-1 opacity-70">
+  <span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping"></span>
+  <span class="w-1.5 h-1.5 rounded-full bg-lime-600"></span>
+</div></section>
+<!-- BEGIN: SCREEN_3 Value Proposition Items -->
+<section class="mb-2 space-y-2.5" data-purpose="integrated-value-features"><!-- Feature 1: Track key health markers -->
+<article class="flex items-center gap-3.5 bg-white/50 backdrop-blur-md px-4 py-3 rounded-2xl border border-white/80 shadow-card-soft">
+  <div class="w-10 h-10 rounded-xl bg-lime-100 flex items-center justify-center flex-shrink-0 text-lime-700 shadow-sm">
+    <!-- Heart icon -->
+    <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
+    </svg>
+  </div>
+  <div class="text-left leading-snug flex-1">
+    <h3 class="text-[13px] font-bold text-brand-dark tracking-tight">Track key health markers</h3>
+    <p class="text-[11.5px] text-slate-600 font-medium mt-0.5">Cholesterol, HDL, LDL and more</p>
+  </div>
+</article>
+<!-- Feature 2: Get personalized insights -->
+<article class="flex items-center gap-3.5 bg-white/50 backdrop-blur-md px-4 py-3 rounded-2xl border border-white/80 shadow-card-soft">
+  <div class="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0 text-emerald-800 shadow-sm">
+    <!-- Analytics / Trend icon -->
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+      <path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" stroke-linecap="round" stroke-linejoin="round"></path>
+    </svg>
+  </div>
+  <div class="text-left leading-snug flex-1">
+    <h3 class="text-[13px] font-bold text-brand-dark tracking-tight">Get personalized insights</h3>
+    <p class="text-[11.5px] text-slate-600 font-medium mt-0.5">Understand what your numbers mean</p>
+  </div>
+</article>
+<!-- Feature 3: Build healthy habits -->
+<article class="flex items-center gap-3.5 bg-white/50 backdrop-blur-md px-4 py-3 rounded-2xl border border-white/80 shadow-card-soft">
+  <div class="w-10 h-10 rounded-xl bg-lime-100 flex items-center justify-center flex-shrink-0 text-lime-700 shadow-sm">
+    <!-- Target / Habit focus icon -->
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9"></circle>
+      <circle cx="12" cy="12" r="5"></circle>
+      <circle cx="12" cy="12" fill="currentColor" r="1.5"></circle>
+    </svg>
+  </div>
+  <div class="text-left leading-snug flex-1">
+    <h3 class="text-[13px] font-bold text-brand-dark tracking-tight">Build healthy habits</h3>
+    <p class="text-[11.5px] text-slate-600 font-medium mt-0.5">Small changes, big impact</p>
+  </div>
+</article></section>
+<!-- END: SCREEN_3 Value Proposition Items -->
+<!-- BEGIN: ActionButtonArea -->
+<div class="pt-1 pb-1" data-purpose="call-to-action">
+<a href="#signup" data-target="signup" aria-label="Get Started - Continue to Sign Up" class="w-full py-4 px-6 bg-[#84cc16] hover:bg-[#78b814] active:scale-[0.98] transition-all text-neutral-900 font-bold text-[18px] rounded-full shadow-glow-button text-center tracking-tight flex items-center justify-center gap-1.5">
+  <span>Get Started</span>
+  <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</a>
+</div>
+<!-- END: ActionButtonArea -->
+</main>
+<!-- END: MainContent -->
+<!-- BEGIN: BottomHomeIndicator -->
+<footer class="pb-2 pt-1 flex justify-center items-center" data-purpose="home-indicator-bar">
+<div class="w-32 h-1 bg-neutral-900/40 rounded-full"></div>
+</footer>
+<!-- END: BottomHomeIndicator -->
+</div>
+<!-- END: MobileDeviceFrame -->
+
+
+
+
+</body></html>

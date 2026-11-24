@@ -23,6 +23,7 @@ export function requireAuthentication(jwtSecret, memberRepo = null) {
     }
 
     request.memberId = claims.sub;
+    request.member = { id: claims.sub };
     request.phone = claims.phone || claims.phoneE164 || null;
     request.phoneE164 = claims.phone || claims.phoneE164 || null;
     return next();

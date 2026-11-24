@@ -25,7 +25,7 @@ export class MedicationWellnessController {
 
   async addManualMedication(req, res, next) {
     try {
-      const patientId = req.member?.id || req.body.patientId;
+      const patientId = req.memberId || req.member?.id || req.body.patientId;
       if (!patientId) {
         throw new ApplicationError('Patient identity required', 400, 'bad_request');
       }
@@ -65,7 +65,7 @@ export class MedicationWellnessController {
 
   async getActiveMedications(req, res, next) {
     try {
-      const patientId = req.member?.id || req.query.patientId;
+      const patientId = req.memberId || req.member?.id || req.query.patientId;
       if (!patientId) {
         throw new ApplicationError('Patient identity required', 400, 'bad_request');
       }
@@ -82,7 +82,7 @@ export class MedicationWellnessController {
 
   async markDose(req, res, next) {
     try {
-      const patientId = req.member?.id || req.body.patientId;
+      const patientId = req.memberId || req.member?.id || req.body.patientId;
       if (!patientId) {
         throw new ApplicationError('Patient identity required', 400, 'bad_request');
       }
@@ -115,7 +115,7 @@ export class MedicationWellnessController {
 
   async verifyMedicationOcr(req, res, next) {
     try {
-      const patientId = req.member?.id || req.body.patientId;
+      const patientId = req.memberId || req.member?.id || req.body.patientId;
       if (!patientId) {
         throw new ApplicationError('Patient identity required', 400, 'bad_request');
       }
@@ -158,7 +158,7 @@ export class MedicationWellnessController {
 
   async evaluateDoseReminders(req, res, next) {
     try {
-      const patientId = req.member?.id || req.body.patientId;
+      const patientId = req.memberId || req.member?.id || req.body.patientId;
       if (!patientId) {
         throw new ApplicationError('Patient identity required', 400, 'bad_request');
       }
@@ -178,7 +178,7 @@ export class MedicationWellnessController {
 
   async evaluateTelemetryAnomaly(req, res, next) {
     try {
-      const patientId = req.member?.id || req.body.patientId;
+      const patientId = req.memberId || req.member?.id || req.body.patientId;
       if (!patientId) {
         throw new ApplicationError('Patient identity required', 400, 'bad_request');
       }
@@ -205,7 +205,7 @@ export class MedicationWellnessController {
 
   async getActiveAnomalies(req, res, next) {
     try {
-      const patientId = req.member?.id || req.query.patientId;
+      const patientId = req.memberId || req.member?.id || req.query.patientId;
       if (!patientId) {
         throw new ApplicationError('Patient identity required', 400, 'bad_request');
       }
@@ -224,7 +224,7 @@ export class MedicationWellnessController {
 
   async getMetabolicSummary(req, res, next) {
     try {
-      const patientId = req.member?.id || req.query.patientId;
+      const patientId = req.memberId || req.member?.id || req.query.patientId;
       if (!patientId) {
         throw new ApplicationError('Patient identity required', 400, 'bad_request');
       }
@@ -241,7 +241,7 @@ export class MedicationWellnessController {
 
   async logMeal(req, res, next) {
     try {
-      const patientId = req.member?.id || req.body.patientId;
+      const patientId = req.memberId || req.member?.id || req.body.patientId;
       if (!patientId) {
         throw new ApplicationError('Patient identity required', 400, 'bad_request');
       }
@@ -265,7 +265,7 @@ export class MedicationWellnessController {
 
   async logWater(req, res, next) {
     try {
-      const patientId = req.member?.id || req.body.patientId;
+      const patientId = req.memberId || req.member?.id || req.body.patientId;
       if (!patientId) {
         throw new ApplicationError('Patient identity required', 400, 'bad_request');
       }
@@ -286,7 +286,7 @@ export class MedicationWellnessController {
 
   async recalculateExercise(req, res, next) {
     try {
-      const patientId = req.member?.id || req.body.patientId;
+      const patientId = req.memberId || req.member?.id || req.body.patientId;
       if (!patientId) {
         throw new ApplicationError('Patient identity required', 400, 'bad_request');
       }
@@ -308,7 +308,7 @@ export class MedicationWellnessController {
 
   async dispatchMealNotification(req, res, next) {
     try {
-      const patientId = req.member?.id || req.body.patientId;
+      const patientId = req.memberId || req.member?.id || req.body.patientId;
       if (!patientId) {
         throw new ApplicationError('Patient identity required', 400, 'bad_request');
       }
@@ -329,7 +329,7 @@ export class MedicationWellnessController {
 
   async dispatchExerciseNotification(req, res, next) {
     try {
-      const patientId = req.member?.id || req.body.patientId;
+      const patientId = req.memberId || req.member?.id || req.body.patientId;
       if (!patientId) {
         throw new ApplicationError('Patient identity required', 400, 'bad_request');
       }

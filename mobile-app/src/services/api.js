@@ -626,6 +626,60 @@ export const api = {
       method: 'POST',
       body: data,
     }),
+
+  // ── Advanced Chronotherapy & Medication Regimens ──
+  getMedicationSchedules: () => request('/medications/schedules'),
+  addManualMedication: (payload) =>
+    request('/medications/manual', {
+      method: 'POST',
+      body: payload,
+    }),
+  markMedicationDose: (payload) =>
+    request('/medications/intake/mark', {
+      method: 'POST',
+      body: payload,
+    }),
+  verifyMedicationOcr: (file) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    return request('/medications/intake/verify-ocr', {
+      method: 'POST',
+      body: formData,
+    });
+  },
+  evaluateDoseReminders: () => request('/medications/evaluate-reminders', { method: 'POST' }),
+
+  // ── Metabolic Pacing, Caloric Budgeting & Nutrition ──
+  getMetabolicSummary: () => request('/wellness/metabolic-summary'),
+  logMeal: (payload) =>
+    request('/wellness/meals/log', {
+      method: 'POST',
+      body: payload,
+    }),
+  logWater: (amountMl) =>
+    request('/wellness/water/log', {
+      method: 'POST',
+      body: { amountMl: Number(amountMl) || 250 },
+    }),
+  recalculateExercise: () => request('/wellness/exercise/recalculate', { method: 'POST' }),
+  dispatchMealNotification: (mealType) =>
+    request('/wellness/notifications/meal', {
+      method: 'POST',
+      body: { mealType },
+    }),
+  dispatchExerciseNotification: (options = {}) =>
+    request('/wellness/notifications/exercise', {
+      method: 'POST',
+      body: options,
+    }),
+
+  // ── Wearables & Telemetry Anomalies ──
+  evaluateTelemetryAnomaly: (payload) =>
+    request('/wearables/telemetry/evaluate-anomaly', {
+      method: 'POST',
+      body: payload,
+    }),
+  getActiveAnomalies: () => request('/wearables/anomalies/active'),
 };
 
 export { wearableApi, getSteps, getSleepAndWorkouts, connectOAuthProvider } from './wearableApi.js';

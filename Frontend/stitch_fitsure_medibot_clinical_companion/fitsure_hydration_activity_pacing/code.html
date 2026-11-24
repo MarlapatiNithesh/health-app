@@ -1,0 +1,111 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>FITsure - Vitals &amp; Telemetry Sync</title>
+<!-- Tailwind CSS v3 with plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Lucide Icons -->
+<script src="https://unpkg.com/lucide@latest"></script>
+<!-- Tailwind Configuration -->
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              purple: '#7175F7',
+              purpleLight: '#8C90FD',
+              lilac: '#EDEFFF',
+              bg: '#F8F9FD',
+              card: '#FFFFFF',
+              dark: '#1C1E23',
+              subtle: '#8E94A4',
+              softOrange: '#FFF0DE',
+              amberGradStart: '#FFE9D5',
+              amberGradEnd: '#FFF8F1',
+              accentGreen: '#85D448',
+              accentGreenDark: '#70BA38'
+            }
+          },
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"SF Pro Text"', 'system-ui', 'sans-serif']
+          },
+          boxShadow: {
+            'soft': '0 8px 30px -4px rgba(113, 117, 247, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.04)',
+            'pill': '0 4px 16px -2px rgba(113, 117, 247, 0.35)',
+            'floating': '0 12px 36px -4px rgba(28, 30, 35, 0.08), 0 4px 14px -2px rgba(0, 0, 0, 0.04)'
+          }
+        }
+      }
+    }
+  </script>
+<!-- Custom Styles for Wave Graph & Rings -->
+<style data-purpose="custom-styling">
+    body {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    
+    /* Smooth custom scrollbars */
+    ::-webkit-scrollbar {
+      display: none;
+    }
+    
+    /* Circular Progress Ring stroke animations */
+    .progress-ring-circle {
+      stroke-dasharray: 220;
+      stroke-dashoffset: 44; /* ~80% filled */
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.6s ease;
+    }
+
+    /* Wave Background Mesh Simulation */
+    .wave-mask {
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 75%, rgba(0,0,0,0) 100%);
+    }
+  </style>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"></head>
+<body class="bg-[#EFF2F7] flex justify-center items-center min-h-screen p-0 sm:p-4 text-slate-800 antialiased font-sans">
+<!-- BEGIN: MobileFrameContainer -->
+<!-- iPhone 15 Pro styled enclosure -->
+<div class="relative w-full max-w-[400px] h-[874px] bg-[#F7F8FC] sm:rounded-[50px] shadow-2xl overflow-hidden flex flex-col border-0 sm:border-[8px] sm:border-[#1E2024]" data-purpose="mobile-viewport" style="border: 4px solid rgb(0, 0, 0); border-radius: 48px; overflow: hidden; height: 844px; max-height: 844px; box-sizing: border-box;">
+<!-- BEGIN: iOSStatusBar -->
+<header class="w-full pt-3 px-8 pb-1 flex justify-between items-center text-xs font-semibold tracking-tight text-[#111827] z-30 select-none flex-shrink-0">
+<span class="text-sm font-semibold tracking-tight">9:41</span>
+<!-- Dynamic Island / Speaker Pill Indicator -->
+<div class="w-24 h-4 bg-black rounded-full absolute left-1/2 -translate-x-1/2 top-2.5 hidden sm:block"></div>
+<div class="flex items-center space-x-1.5">
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="signal" aria-hidden="true" class="lucide lucide-signal w-3.5 h-3.5 stroke-[2.5]"><path d="M2 20h.01"></path><path d="M7 20v-4"></path><path d="M12 20v-8"></path><path d="M17 20V8"></path><path d="M22 4v16"></path></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="wifi" aria-hidden="true" class="lucide lucide-wifi w-3.5 h-3.5 stroke-[2.5]"><path d="M12 20h.01"></path><path d="M2 8.82a15 15 0 0 1 20 0"></path><path d="M5 12.859a10 10 0 0 1 14 0"></path><path d="M8.5 16.429a5 5 0 0 1 7 0"></path></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="battery-full" aria-hidden="true" class="lucide lucide-battery-full w-4 h-4 stroke-[2.5] fill-current"><path d="M10 10v4"></path><path d="M14 10v4"></path><path d="M22 14v-4"></path><path d="M6 10v4"></path><rect x="2" y="6" width="16" height="12" rx="2"></rect></svg>
+</div>
+</header>
+<!-- END: iOSStatusBar -->
+<!-- BEGIN: TopNavigation -->
+<section class="px-6 pt-3 pb-2 flex items-center justify-between z-20 flex-shrink-0" data-purpose="navigation-header"><div class="flex items-center space-x-2.5"><button aria-label="Go back" class="w-9 h-9 rounded-full bg-white shadow-sm flex items-center justify-center text-slate-700 active:scale-95 transition-transform border border-slate-100"><span class="material-symbols-outlined text-[20px]">arrow_back</span></button><div><h1 class="text-base font-bold text-slate-900 tracking-tight leading-tight">Vitals</h1><p class="text-[11px] font-medium text-slate-500 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Watch synced today, 09:32</p></div></div><div class="flex items-center space-x-2"><button aria-label="Emergency SOS" class="flex items-center space-x-1 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-2.5 py-1.5 rounded-full text-xs font-bold active:scale-95 transition-all shadow-sm"><span class="material-symbols-outlined text-[16px] text-red-600">emergency</span><span>SOS</span></button><button aria-label="Sync telemetry" class="w-9 h-9 rounded-full bg-white shadow-sm flex items-center justify-center text-slate-600 border border-slate-100 active:scale-95 transition-transform"><span class="material-symbols-outlined text-[18px]">sync</span></button></div></section>
+<!-- END: TopNavigation -->
+<!-- Scrollable Content Area -->
+<main class="flex-1 overflow-y-auto px-5 pt-2 space-y-4" data-purpose="scrollable-content" style="padding-bottom: 7rem;"><!-- BEGIN: Wellbeing Today Live AI Card --><section class="bg-gradient-to-br from-indigo-50/90 via-white to-purple-50/70 border border-indigo-100/80 rounded-[24px] p-4 shadow-sm relative overflow-hidden"><div class="flex items-center justify-between mb-2"><div class="flex items-center space-x-1.5"><span class="w-2 h-2 rounded-full bg-indigo-600"></span><span class="text-[10px] font-bold tracking-wider uppercase text-indigo-700">WELLBEING TODAY · LIVE AI</span></div><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">Adaptive Coach</span></div><p class="text-xs leading-relaxed text-slate-700 font-medium">Steady, but a short night: You slept <strong class="text-slate-900 font-bold">6h 40</strong> and are behind your usual step count. A short walk after lunch would help your sugar levels.</p><div class="mt-3 pt-2.5 border-t border-indigo-100/60 flex items-center justify-between bg-white/70 backdrop-blur-sm px-3 py-2 rounded-xl"><div class="flex items-center space-x-2"><span class="material-symbols-outlined text-[18px] text-indigo-600">directions_walk</span><div class="text-left"><span class="text-[11px] font-bold text-slate-800 block leading-tight">Suggested: 15 min gentle walk</span><span class="text-[9px] text-slate-500">Lowers postprandial glucose curve</span></div></div><button class="bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm transition-all">Accept</button></div></section><!-- END: Wellbeing Today --><!-- BEGIN: Logged By You Section --><section class="space-y-2.5"><div class="flex items-center justify-between"><div class="flex items-center space-x-1.5"><span class="material-symbols-outlined text-[16px] text-slate-500">edit_note</span><span class="text-xs font-bold text-slate-800 tracking-wide uppercase">LOGGED BY YOU</span></div><button class="flex items-center space-x-1 text-xs font-bold text-indigo-600 hover:text-indigo-700 active:scale-95 transition-all bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-full border border-indigo-100"><span class="material-symbols-outlined text-[15px]">add</span><span>Log a reading</span></button></div><div class="grid grid-cols-2 gap-2.5"><div class="bg-white border border-slate-100 rounded-2xl p-3.5 shadow-sm"><div class="flex items-center justify-between text-slate-400 mb-1"><span class="text-[11px] font-semibold text-slate-600">Blood Pressure</span><span class="material-symbols-outlined text-[16px] text-rose-500">favorite</span></div><div class="flex items-baseline space-x-1"><span class="text-xl font-extrabold text-slate-900 tracking-tight">132/84</span><span class="text-[10px] font-semibold text-slate-500">mmHg</span></div><div class="mt-1 flex items-center justify-between text-[10px]"><span class="text-amber-700 font-semibold bg-amber-50 px-1.5 py-0.5 rounded">Pre-hypertension</span><span class="text-slate-400">Yest 19:40</span></div></div><div class="bg-white border border-slate-100 rounded-2xl p-3.5 shadow-sm"><div class="flex items-center justify-between text-slate-400 mb-1"><span class="text-[11px] font-semibold text-slate-600">Fasting Glucose</span><span class="material-symbols-outlined text-[16px] text-blue-500">water_drop</span></div><div class="flex items-baseline space-x-1"><span class="text-xl font-extrabold text-slate-900 tracking-tight">118</span><span class="text-[10px] font-semibold text-slate-500">mg/dL</span></div><div class="mt-1 flex items-center justify-between text-[10px]"><span class="text-amber-700 font-semibold bg-amber-50 px-1.5 py-0.5 rounded">Elevated fasting</span><span class="text-slate-400">Yest 07:55</span></div></div></div></section><!-- END: Logged By You --><!-- BEGIN: From Your Watch Section --><section class="space-y-2.5"><div class="flex items-center justify-between"><div class="flex items-center space-x-1.5"><span class="material-symbols-outlined text-[16px] text-slate-500">watch</span><span class="text-xs font-bold text-slate-800 tracking-wide uppercase">FROM YOUR WATCH</span></div><span class="text-[10px] font-medium text-slate-400">Auto-stream via BLE</span></div><div class="grid grid-cols-2 gap-2.5"><div class="bg-white border border-slate-100 rounded-2xl p-3.5 shadow-sm"><div class="flex items-center justify-between text-slate-400 mb-1"><span class="text-[11px] font-semibold text-slate-600">Resting HR</span><span class="material-symbols-outlined text-[16px] text-rose-500">cardiology</span></div><div class="flex items-baseline space-x-1"><span class="text-2xl font-extrabold text-slate-900 tracking-tight">68</span><span class="text-[10px] font-semibold text-slate-500">bpm</span></div><span class="mt-1 inline-block text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">Optimal range</span></div><div class="bg-white border border-slate-100 rounded-2xl p-3.5 shadow-sm"><div class="flex items-center justify-between text-slate-400 mb-1"><span class="text-[11px] font-semibold text-slate-600">Oxygen (SpO2)</span><span class="material-symbols-outlined text-[16px] text-cyan-600">air</span></div><div class="flex items-baseline space-x-1"><span class="text-2xl font-extrabold text-slate-900 tracking-tight">97</span><span class="text-[10px] font-semibold text-slate-500">%</span></div><span class="mt-1 inline-block text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">Normal sat.</span></div><div class="bg-white border border-slate-100 rounded-2xl p-3.5 shadow-sm"><div class="flex items-center justify-between text-slate-400 mb-1"><span class="text-[11px] font-semibold text-slate-600">Steps</span><span class="material-symbols-outlined text-[16px] text-amber-500">footprint</span></div><div class="flex items-baseline space-x-1"><span class="text-xl font-extrabold text-slate-900 tracking-tight">3,120</span><span class="text-[10px] font-semibold text-slate-500">/ 6,000</span></div><div class="w-full bg-slate-100 rounded-full h-1.5 mt-2 overflow-hidden"><div class="bg-amber-500 h-1.5 rounded-full" style="width: 52%;"></div></div><div class="mt-1 text-[10px] font-semibold text-slate-500 flex justify-between"><span>52% completed</span><span>2,880 to go</span></div></div><div class="bg-white border border-slate-100 rounded-2xl p-3.5 shadow-sm"><div class="flex items-center justify-between text-slate-400 mb-1"><span class="text-[11px] font-semibold text-slate-600">Sleep</span><span class="material-symbols-outlined text-[16px] text-indigo-500">bedtime</span></div><div class="flex items-baseline space-x-1"><span class="text-xl font-extrabold text-slate-900 tracking-tight">6h 40</span><span class="text-[10px] font-semibold text-slate-500">/ 7h</span></div><div class="w-full bg-slate-100 rounded-full h-1.5 mt-2 overflow-hidden"><div class="bg-indigo-500 h-1.5 rounded-full" style="width: 95%;"></div></div><div class="mt-1 text-[10px] font-semibold text-slate-500 flex justify-between"><span>-20m under goal</span><span class="text-indigo-600">95% target</span></div></div></div></section><!-- END: From Your Watch --><!-- BEGIN: Deep Dive 7-Day Sleep Chart & 14-Day Share Card --><section class="bg-white border border-slate-100 rounded-[24px] p-4 shadow-sm space-y-3"><div class="flex items-center justify-between"><div class="flex items-center space-x-1.5"><span class="material-symbols-outlined text-[18px] text-indigo-600">monitoring</span><h3 class="text-xs font-bold text-slate-900">Deep Dive · Sleep 7 Days Trend</h3></div><span class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">Avg 6.9h</span></div><!-- Mini 7-day Sleep Bar Visualization --><div class="flex items-end justify-between h-20 pt-2 px-2 border-b border-slate-100"><div class="flex flex-col items-center gap-1"><div class="w-5 bg-indigo-200 rounded-t h-12"></div><span class="text-[9px] text-slate-400 font-medium">Thu</span></div><div class="flex flex-col items-center gap-1"><div class="w-5 bg-indigo-200 rounded-t h-14"></div><span class="text-[9px] text-slate-400 font-medium">Fri</span></div><div class="flex flex-col items-center gap-1"><div class="w-5 bg-indigo-300 rounded-t h-16"></div><span class="text-[9px] text-slate-400 font-medium">Sat</span></div><div class="flex flex-col items-center gap-1"><div class="w-5 bg-indigo-300 rounded-t h-15" style="height: 58px;"></div><span class="text-[9px] text-slate-400 font-medium">Sun</span></div><div class="flex flex-col items-center gap-1"><div class="w-5 bg-indigo-200 rounded-t h-13" style="height: 50px;"></div><span class="text-[9px] text-slate-400 font-medium">Mon</span></div><div class="flex flex-col items-center gap-1"><div class="w-5 bg-indigo-200 rounded-t h-14"></div><span class="text-[9px] text-slate-400 font-medium">Tue</span></div><div class="flex flex-col items-center gap-1"><div class="w-5 bg-indigo-600 rounded-t shadow-sm" style="height: 48px;"></div><span class="text-[9px] text-indigo-600 font-bold">Today</span></div></div><!-- 14-Day Clinician Telemetry Share Card --><div class="bg-slate-50 border border-slate-200/70 rounded-xl p-3 flex items-center justify-between"><div class="flex items-center space-x-2.5"><div class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700"><span class="material-symbols-outlined text-[18px]">description</span></div><div><span class="text-xs font-bold text-slate-800 block leading-tight">14-Day Vitals Telemetry Report</span><span class="text-[10px] text-slate-500">Ready to share with Dr. Miller</span></div></div><button class="flex items-center space-x-1 bg-white hover:bg-slate-100 border border-slate-200 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-slate-700 active:scale-95 transition-all shadow-xs"><span class="material-symbols-outlined text-[14px]">ios_share</span><span>Export</span></button></div></section><!-- END: Deep Dive Card --></main>
+<!-- BEGIN: FloatingBottomNavBar -->
+<!-- Matches Image 29 layout: rounded bar, centered elevated round action button -->
+<nav class="absolute bottom-4 left-4 right-4 h-16 bg-white/95 backdrop-blur-md rounded-[28px] shadow-floating border border-slate-100 flex items-center justify-around px-2 z-40" data-purpose="bottom-navigation"><!-- 1. Today --><button aria-label="Today" class="flex flex-col items-center justify-center flex-1 text-slate-400 hover:text-slate-800 transition-colors"><span class="material-symbols-outlined text-[20px]">calendar_today</span><span class="text-[9px] font-semibold mt-0.5">Today</span></button><!-- 2. Records --><button aria-label="Records" class="flex flex-col items-center justify-center flex-1 text-slate-400 hover:text-slate-800 transition-colors"><span class="material-symbols-outlined text-[20px]">folder_shared</span><span class="text-[9px] font-semibold mt-0.5">Records</span></button><!-- 3. Care --><button aria-label="Care" class="flex flex-col items-center justify-center flex-1 text-slate-400 hover:text-slate-800 transition-colors"><span class="material-symbols-outlined text-[20px]">medical_services</span><span class="text-[9px] font-semibold mt-0.5">Care</span></button><!-- 4. Vitals (Active) --><button aria-label="Vitals" class="flex flex-col items-center justify-center flex-1 text-indigo-600"><div class="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center -mb-1"><span class="material-symbols-outlined text-[20px] text-indigo-600">ecg_heart</span></div><span class="text-[9px] font-bold mt-1 text-indigo-600">Vitals</span></button><!-- 5. Medibot --><button aria-label="Medibot" class="flex flex-col items-center justify-center flex-1 text-slate-400 hover:text-slate-800 transition-colors"><span class="material-symbols-outlined text-[20px]">smart_toy</span><span class="text-[9px] font-semibold mt-0.5">Medibot</span></button><!-- 6. More --><button aria-label="More" class="flex flex-col items-center justify-center flex-1 text-slate-400 hover:text-slate-800 transition-colors"><span class="material-symbols-outlined text-[20px]">more_horiz</span><span class="text-[9px] font-semibold mt-0.5">More</span></button></nav>
+<!-- END: FloatingBottomNavBar -->
+<!-- iOS Home Indicator -->
+<div class="w-32 h-1 bg-slate-300 rounded-full absolute bottom-1.5 left-1/2 -translate-x-1/2 z-50"></div>
+</div>
+<!-- END: MobileFrameContainer -->
+<!-- Script for Lucide Icons initialization -->
+<script data-purpose="lucide-initialization">
+    document.addEventListener("DOMContentLoaded", () => {
+      lucide.createIcons();
+    });
+  </script>
+
+
+
+
+
+
+</body></html>

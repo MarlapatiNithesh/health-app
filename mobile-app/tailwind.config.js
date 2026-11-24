@@ -7,6 +7,46 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Stitch Fitsure Exact Palette
+        appBg: '#F8F9FA',
+        limeSoft: '#d8f3b5',
+        limeBright: '#97E432',
+        limeAccent: '#83ce21',
+        peachSoft: '#FFF0ED',
+        peachBorder: '#FFD7CF',
+        peachText: '#D94833',
+        cardBg: '#FFFFFF',
+        mutedText: '#8E8E93',
+        charcoal: '#1C1C1E',
+
+        // Lumina & Clinical Healthcare Tokens
+        surface: '#faf8ff',
+        'surface-dim': '#d2d9f4',
+        'surface-bright': '#faf8ff',
+        'surface-container-lowest': '#ffffff',
+        'surface-container-low': '#f2f3ff',
+        'surface-container': '#eaedff',
+        'surface-container-high': '#e2e7ff',
+        'surface-container-highest': '#dae2fd',
+        'on-surface': '#131b2e',
+        'on-surface-variant': '#3c4a42',
+        'primary': '#006c49',
+        'primary-container': '#10b981',
+        'on-primary': '#ffffff',
+        'on-primary-container': '#00422b',
+        'primary-fixed': '#6ffbbe',
+        'primary-fixed-dim': '#4edea3',
+        'on-primary-fixed': '#002113',
+        'on-primary-fixed-variant': '#005236',
+        'outline': '#6c7a71',
+        'outline-variant': '#bbcabf',
+        'error': '#ba1a1a',
+        'error-container': '#ffdad6',
+        'on-error': '#ffffff',
+        'on-error-container': '#93000a',
+        'secondary-container': '#8792fe',
+        'tertiary-container': '#19aee8',
+
         dark: {
           canvas: '#080c14',
           surface: 'rgba(15, 23, 42, 0.75)',
@@ -47,7 +87,15 @@ export default {
       fontFamily: {
         sans: ['Plus Jakarta Sans', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
       },
+      borderRadius: {
+        '2xl': '20px',
+        '3xl': '28px',
+        '4xl': '34px',
+      },
       boxShadow: {
+        'soft': '0 8px 24px rgba(0, 0, 0, 0.04)',
+        'floating': '0 12px 32px rgba(0, 0, 0, 0.07)',
+        'glow-lime': '0 8px 20px rgba(151, 228, 50, 0.35)',
         'soft-sm': '0 2px 8px -2px rgba(0, 0, 0, 0.05)',
         'soft-md': '0 8px 24px -4px rgba(0, 0, 0, 0.06)',
         'soft-lg': '0 16px 36px -6px rgba(0, 0, 0, 0.08)',

@@ -1,0 +1,221 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport">
+<meta content="mobile_stack" name="shell-type">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#006c49",
+            "fitsure-lime": "#97E432",
+            "fitsure-lime-hover": "#84cc16",
+            "fitsure-mint": "#ecfccb",
+            "fitsure-dark": "#0f172a",
+            "fitsure-slate": "#334155",
+            "fitsure-muted": "#64748b"
+          },
+          fontFamily: {
+            sans: ["Plus Jakarta Sans", "sans-serif"]
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    @layer base {
+      html, body {
+        width: 100%;
+        min-height: 100%;
+        margin: 0;
+        padding: 0;
+        background-color: #faf8ff;
+      }
+      .pb-safe {
+        padding-bottom: max(env(safe-area-inset-bottom, 0px), 16px);
+      }
+      .pt-safe {
+        padding-top: max(env(safe-area-inset-top, 0px), 8px);
+      }
+    }
+    ::-webkit-scrollbar {
+      display: none;
+    }
+  </style>
+</head>
+<body class="bg-[#faf8ff] font-sans text-fitsure-dark flex flex-col min-h-screen relative antialiased">
+<!-- Top App Navigation Bar -->
+
+<!-- Main View Container -->
+<main class="flex flex-col items-center justify-center w-full px-4 pb-6 min-h-screen py-6">
+<!-- Outer 4px Black Device Bezel Frame -->
+<div class="relative w-full max-w-[390px] h-[844px] max-h-[844px] border-[4px] border-black rounded-[48px] overflow-hidden shadow-2xl bg-slate-900/50 flex flex-col select-none" style="box-sizing: border-box; height: 844px; max-height: 844px;">
+  <!-- Ambient Underneath Screen (Simulated App Settings) -->
+  <div class="absolute inset-0 p-4 select-none opacity-20 pointer-events-none filter blur-[2px] bg-[#f8fafc]">
+    <div class="flex items-center gap-3 p-3.5 bg-white rounded-2xl shadow-sm border border-slate-100 mb-4 mt-12">
+      <div class="w-11 h-11 rounded-full overflow-hidden shrink-0 ring-2 ring-[#97E432]/40">
+        <img class="w-full h-full object-cover" data-alt="Patient profile portrait" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD0H65aDPXfUvK5c84VqFiFg1um9R3s59WrKMVwxF4TsrDF__uKKwAORdi32GHYGBo-ZkR2-1H2oDPRom7thvMHqH6kbrACw1UFvtKzb6Uz25mSXCA7gB7DpqsitwLXxe0tuhRluLWmSZidgDPryk1zfvU-W_V-w3XPAIcc5sIxmkeZrEj5E66A29Oxjjb4VkUSWpR6MKJyk-GX3NQJZFJbAKvaDkLjVrbXdIw4ieo">
+      </div>
+      <div>
+        <div class="font-bold text-sm text-slate-900">Sajibur Rahman</div>
+        <div class="text-xs text-slate-500">MRN: #8420-SR · Dexcom G7 Connected</div>
+      </div>
+    </div>
+    <div class="space-y-2">
+      <div class="p-3 bg-white rounded-xl border border-slate-100 flex items-center justify-between text-xs">
+        <span class="font-medium text-slate-700">Dexcom G7 Continuous Glucose</span>
+        <span class="text-emerald-600 font-semibold">112 mg/dL</span>
+      </div>
+      <div class="p-3 bg-white rounded-xl border border-slate-100 flex items-center justify-between text-xs">
+        <span class="font-medium text-slate-700">Apple Watch Ultra 2 Telemetry</span>
+        <span class="text-emerald-600 font-semibold">Streaming</span>
+      </div>
+      <div class="p-3 bg-white rounded-xl border border-slate-100 flex items-center justify-between text-xs">
+        <span class="font-medium text-slate-700">CloseOne Emergency Guardian</span>
+        <span class="text-emerald-600 font-semibold">Armed</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pinned Native iOS Status Bar -->
+  <div class="w-full pt-3 pb-1 px-7 flex items-center justify-between text-slate-900 text-xs font-semibold shrink-0 z-30 select-none bg-white/70 backdrop-blur-md">
+    <span>9:41</span>
+    <div class="w-24 h-4 bg-black rounded-full mx-auto shrink-0"></div>
+    <div class="flex items-center gap-1.5">
+      <span class="material-symbols-outlined text-[15px]">signal_cellular_alt</span>
+      <span class="material-symbols-outlined text-[15px]">wifi</span>
+      <span class="material-symbols-outlined text-[17px]">battery_full</span>
+    </div>
+  </div>
+
+  <!-- Pinned Top Header -->
+  <div class="px-4 h-12 flex items-center justify-between bg-white/80 backdrop-blur-md border-b border-slate-100 shrink-0 z-30">
+    <div class="flex items-center gap-2">
+      <button aria-label="Go back" class="w-8 h-8 flex items-center justify-center rounded-full text-fitsure-dark hover:bg-slate-100 transition-colors" onclick="history.back()">
+        <span class="material-symbols-outlined text-[20px]">arrow_back</span>
+      </button>
+      <h1 class="font-bold text-base tracking-tight text-fitsure-dark">Logout Modal</h1>
+    </div>
+    <div class="w-7 h-7 rounded-full bg-[#97E432] text-fitsure-dark font-bold flex items-center justify-center shrink-0 shadow-sm text-xs">
+      SR
+    </div>
+  </div>
+
+  <!-- Scrollable Modal Content Area -->
+  <div class="flex-1 overflow-y-auto scrollbar-none pb-28 p-3.5 z-20 flex flex-col justify-end">
+    <!-- High-Fidelity Modal Dialog Card -->
+    <div class="w-full bg-white rounded-3xl p-5 shadow-2xl flex flex-col gap-3.5 border border-slate-100 relative">
+      <!-- Sheet drag pill indicator -->
+      <div class="w-10 h-1 bg-slate-200 rounded-full mx-auto -mt-1 mb-1"></div>
+      
+      <!-- Top Status Row with Sign-out Icon & Telemetry Guard Badge -->
+      <div class="flex items-center justify-between">
+        <div class="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-500 shadow-sm">
+          <span class="material-symbols-outlined text-[24px]">logout</span>
+        </div>
+        <div class="flex items-center gap-1.5 px-3 py-1 bg-[#ecfccb] border border-[#bef264]/60 rounded-full">
+          <span class="w-2 h-2 rounded-full bg-[#65a30d] animate-pulse"></span>
+          <span class="text-[11px] font-bold text-[#3f6212] tracking-wide uppercase">CloseOne Protected</span>
+        </div>
+      </div>
+
+      <!-- Headline and Description -->
+      <div class="flex flex-col gap-1.5">
+        <h2 class="text-xl font-extrabold text-fitsure-dark tracking-tight">Log Out of FITsure?</h2>
+        <p class="text-[13px] leading-relaxed text-fitsure-slate font-normal">
+          Background telemetry from your <span class="font-semibold text-fitsure-dark">Dexcom G7</span> &amp; <span class="font-semibold text-fitsure-dark">Apple Watch Ultra 2</span> and CloseOne Emergency Guardian will remain active and protected in background mode.
+        </p>
+      </div>
+
+      <!-- Patient Context Card -->
+      <div class="bg-[#f8fafc] border border-slate-200/80 rounded-2xl p-3 flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-slate-200">
+              <img class="w-full h-full object-cover" data-alt="Patient profile avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDB-h5liuBovUFUaevuw1nMP9cIXf9kaWR6yTyyol4p8CuFTbpDmL5CM7ftA6zY7mTbdVbOIes1ePkokg_NNVDoL132OQBoJTDWeuu2x0hA90bRw9jtmgoVExdg-3nG0kcmRbzSyPXWGL2IgeuKaRoFx1qcllpz8tIu6x7F7kmGbJTqb5kNZD4YZaUz_ipqSf-DKvK7YRHZz9QVATHxU-dunLI7D3may1JEgrjfN2w">
+            </div>
+            <div>
+              <div class="text-[13px] font-bold text-fitsure-dark leading-none">Sajibur Rahman</div>
+              <div class="text-[11px] text-fitsure-muted mt-0.5 font-medium">MRN: #8420-SR</div>
+            </div>
+          </div>
+          <span class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+            Active Session
+          </span>
+        </div>
+        <div class="flex items-center gap-2 pt-1 border-t border-slate-200/60 text-xs font-semibold text-slate-700">
+          <span class="w-2 h-2 rounded-full bg-[#84cc16]"></span>
+          <span>Background Guardian Mode: <span class="text-emerald-700 font-bold">Armed (Active)</span></span>
+        </div>
+      </div>
+
+      <!-- Fast Alternative: Face ID Lock Toggle -->
+      <div class="flex items-center justify-between px-3 py-2.5 bg-slate-50 border border-slate-200/70 rounded-xl">
+        <div class="flex items-center gap-2.5">
+          <div class="w-7 h-7 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-700">
+            <span class="material-symbols-outlined text-[18px]">face</span>
+          </div>
+          <div>
+            <span class="text-xs font-bold text-fitsure-dark block leading-tight">Lock Screen with Face ID</span>
+            <span class="text-[11px] text-fitsure-muted">Quick re-entry without re-authentication</span>
+          </div>
+        </div>
+        <button aria-label="Toggle Face ID Lock" class="w-9 h-5 bg-[#97E432] rounded-full p-0.5 flex items-center transition-colors cursor-pointer" id="faceIdToggle" type="button">
+          <div class="w-4 h-4 bg-white rounded-full shadow-sm translate-x-4 transition-transform" id="faceIdThumb"></div>
+        </button>
+      </div>
+
+      <!-- Security Assurance Notice Footer -->
+      <div class="flex items-center justify-center gap-1.5 pt-0.5 pb-0.5 text-center">
+        <span class="material-symbols-outlined text-slate-400 text-[15px]">verified_user</span>
+        <span class="text-[11px] font-medium text-slate-500">
+          256-Bit HIPAA Encrypted Session Management
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pinned Bottom Action Bar & Controls above iOS Home Indicator Bar -->
+  <div class="absolute bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-100 px-4 pt-3 pb-2 flex flex-col gap-2 shrink-0">
+    <button class="w-full py-3.5 px-4 rounded-full bg-[#97E432] hover:bg-[#84cc16] active:scale-[0.99] transition-all text-slate-950 font-bold text-[14px] flex items-center justify-center gap-2 shadow-sm" type="button">
+      <span class="material-symbols-outlined text-[19px]">shield</span>
+      <span>Keep Me Signed In</span>
+    </button>
+    <button class="w-full py-2.5 px-4 rounded-full border border-rose-200 bg-rose-50/90 hover:bg-rose-100 active:scale-[0.99] transition-all text-rose-600 font-semibold text-[13px] flex items-center justify-center gap-1.5" type="button">
+      <span class="material-symbols-outlined text-[18px]">power_settings_new</span>
+      <span>Confirm Log Out</span>
+    </button>
+    <!-- iOS Home Indicator -->
+    <div class="w-32 h-1 bg-slate-900 rounded-full mx-auto mb-1 mt-1 shrink-0"></div>
+  </div>
+</div>
+</main>
+<script>
+    (function initToggle() {
+      const toggleBtn = document.getElementById('faceIdToggle');
+      const toggleThumb = document.getElementById('faceIdThumb');
+      let active = true;
+
+      if (toggleBtn && toggleThumb) {
+        toggleBtn.addEventListener('click', () => {
+          active = !active;
+          if (active) {
+            toggleBtn.classList.remove('bg-slate-300');
+            toggleBtn.classList.add('bg-[#97E432]');
+            toggleThumb.classList.add('translate-x-4');
+          } else {
+            toggleBtn.classList.add('bg-slate-300');
+            toggleBtn.classList.remove('bg-[#97E432]');
+            toggleThumb.classList.remove('translate-x-4');
+          }
+        });
+      }
+    })();
+  </script>
+
+
+</body></html>
